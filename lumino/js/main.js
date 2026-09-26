@@ -757,8 +757,12 @@ async function startAR() {
     ],
     depthSensing: { usagePreference: ['gpu-optimized'], dataFormatPreference: [] },
   };
-  let session;
-  try {
+  let session = null;
+  if (window.__xrSession) {           // app PWA: sessione chiesta appena aperta la pagina
+    session = await window.__xrSession;
+    window.__xrSession = null;
+  }
+  if (!session) try {
     session = await navigator.xr.requestSession('immersive-ar', init);
   } catch (e) {
     delete init.depthSensing;
@@ -900,7 +904,7 @@ function loop(time, frame) {
     room.setFallbackShadow(!room.hasXRData || creatures.some(c => c.enabled && c.lastGroundKind === 'fallback'));
     applyOcclusion();
     const elapsed = (performance.now() - arStart) / 1000;
-    if (!spawnedOnce && elapsed > 1.2 && (room.hasXRData || elapsed > 3)) {
+    if (!spawnedOnce && modelsReady && elapsed > 1.2 && (room.hasXRData || elapsed > 3)) {
       spawnAll();
       arHelp();
     }
@@ -1005,8 +1009,12 @@ onLangChange(() => { applyPageText(); showStatsPage(); gloves.refreshText?.(t('t
 applyPageText();
 gloves.refreshText?.(t('tattoo'));
 setStatus('status.loading');
-await Promise.all([lumino.load('assets/lumino.glb'), lumina.load('assets/lumina.glb'), fly.load()]);
+let modelsReady = false;
 renderer.setAnimationLoop(loop);
+const pwaLaunch = new URLSearchParams(location.search).has('pwa');
+if (pwaLaunch && window.__xrSession) startAR().catch(() => setStatus('status.press'));
+await Promise.all([lumino.load('assets/lumino.glb'), lumina.load('assets/lumina.glb'), fly.load()]);
+modelsReady = true;
 
 const arOk = navigator.xr && await navigator.xr.isSessionSupported('immersive-ar').catch(() => false);
 if (arOk) {
@@ -1043,6 +1051,7 @@ function showStatsPage() {
 showStatsPage();
 if (new URLSearchParams(location.search).has('sim')) startSim();
 // app PWA "immersiva" sul Quest: entra subito in realta' mista (se il visore chiede un tocco, resta il pulsante)
-if (new URLSearchParams(location.search).has('pwa') && arOk) {
+// (se la richiesta immediata non e' partita, riprova qui)
+if (pwaLaunch && arOk && mode !== 'ar' && !window.__xrSession) {
   startAR().catch(() => setStatus('status.press'));
 }

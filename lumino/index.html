@@ -4,6 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lumino AR</title>
+  <script>
+    // App PWA immersiva sul Quest: la realta' mista va chiesta SUBITO, prima di caricare il gioco
+    // (il tocco sull'icona vale come "clic" dell'utente solo per pochi secondi).
+    if (new URLSearchParams(location.search).has('pwa') && navigator.xr) {
+      window.__xrInit = {
+        requiredFeatures: ['local-floor'],
+        optionalFeatures: ['hand-tracking', 'plane-detection', 'mesh-detection', 'depth-sensing', 'anchors'],
+        depthSensing: { usagePreference: ['gpu-optimized'], dataFormatPreference: [] },
+      };
+      window.__xrSession = navigator.xr.requestSession('immersive-ar', window.__xrInit)
+        .catch(() => navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['local-floor'],
+          optionalFeatures: ['hand-tracking', 'plane-detection', 'mesh-detection', 'anchors'] }))
+        .catch(e => { window.__xrError = e; return null; });
+    }
+  </script>
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0e1622">
   <link rel="icon" href="assets/icon-192.png">
