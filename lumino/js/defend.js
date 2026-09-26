@@ -3,6 +3,7 @@
 // esplode e gli toglie un cuore. Se uno dei due resta senza cuori e' game over.
 import * as THREE from 'three';
 import { Creature } from './creature.js';
+import { t } from './i18n.js';
 
 export const LEVELS = {
   facile:    { lives: 5, speed: 0.8,  spawn: [5.0, 2.8], alive: [2, 4], pounce: 0.25 },
@@ -82,13 +83,8 @@ export class DefendGame {
     this.placeHud(camera, true);
     this.sfx.start();
     this.sfx.startMusic(0.06, 'horror');
-    this.fx.showPanel([
-      'Arrivano i ragni: vogliono prendere i tuoi animaletti!',
-      'Falli esplodere toccandoli con le mani.',
-      'Se un ragno li raggiunge, perdono un cuore.',
-      `Tenerli in mano li protegge, ma solo per ${SAFE_IN_HAND} secondi.`,
-      `Livello ${level}: ${this.level.lives} cuori ciascuno, ${minutes} min.`,
-    ], camera, 7, 'Difendi!');
+    this.fx.showPanel(t('defend.intro', { x: SAFE_IN_HAND, l: t('level.' + level), y: this.level.lives, m: minutes }),
+      camera, 7, t('defend.title'));
   }
 
   stop(showResult = true, camera = null, lost = null) {
@@ -106,14 +102,14 @@ export class DefendGame {
     });
     if (showResult && camera) {
       if (lost) {
-        this.fx.showPanel([`I ragni hanno preso ${lost.name}...`, `Ragni esplosi: ${this.score}`,
-          `Resistito: ${Math.floor(this.duration - this.time)} secondi`], camera, 8, 'Game over');
+        this.fx.showPanel([t('defend.caught', { x: lost.name }), t('defend.popped', { x: this.score }),
+          t('defend.lasted', { x: Math.floor(this.duration - this.time) })], camera, 8, t('defend.gameOver'));
         this.sfx.lose();
       } else if (this.time > 0) {
-        this.fx.showPanel([`Ragni esplosi: ${this.score}`, `Resistito: ${Math.floor(this.duration - this.time)} secondi`], camera, 6, 'Partita interrotta');
+        this.fx.showPanel([t('defend.popped', { x: this.score }), t('defend.lasted', { x: Math.floor(this.duration - this.time) })], camera, 6, t('defend.stopped'));
       } else {
-        this.fx.showPanel([`Li hai difesi tutti!`, `Ragni esplosi: ${this.score}`,
-          'Cuori rimasti: ' + Object.entries(this.lives).map(([n, l]) => `${n} ${l}`).join(', ')], camera, 8, 'Vittoria!');
+        this.fx.showPanel([t('defend.won'), t('defend.popped', { x: this.score }),
+          t('defend.heartsLeft', { x: Object.entries(this.lives).map(([n, l]) => `${n} ${l}`).join(', ') })], camera, 8, t('defend.victory'));
         this.sfx.win();
         for (const p of this.players()) if (p.free) p.happy();
       }
@@ -301,7 +297,7 @@ export class DefendGame {
   drawHud(players) {
     const mm = Math.floor(this.time / 60), ss = Math.floor(this.time % 60);
     const timeTxt = `${mm}:${String(ss).padStart(2, '0')}`;
-    const scoreTxt = `Ragni ${this.score}`;
+    const scoreTxt = t('defend.hud', { x: this.score });
     const key = timeTxt + scoreTxt + players.map(p => p.name + this.lives[p.name]).join();
     if (key === this.hudKey) return;
     this.hudKey = key;

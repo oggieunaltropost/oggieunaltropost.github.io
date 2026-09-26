@@ -1,4 +1,6 @@
 // Statistiche delle partite (salvate nel browser/visore): per ogni gioco data, durata, livello e punteggi.
+import { t } from './i18n.js';
+
 const KEY = 'lumino-stats-v1';
 const KEEP = 60;   // partite ricordate per gioco
 
@@ -25,7 +27,7 @@ export class Stats {
 
   // [{ pos, name, score }] dal piu' alto; a pari punti stessa posizione
   static ranking(score = {}) {
-    const list = Object.entries(score).map(([k, v]) => ({ name: k === 'me' ? 'Tu' : k, score: v }))
+    const list = Object.entries(score).map(([k, v]) => ({ key: k, name: k === 'me' ? t('you') : k, score: v }))
       .sort((a, b) => b.score - a.score);
     list.forEach((r, i) => { r.pos = i > 0 && r.score === list[i - 1].score ? list[i - 1].pos : i + 1; });
     // se il primo posto e' condiviso non c'e' un vincitore unico
@@ -43,12 +45,12 @@ export class Stats {
     const list = this.list(game, level);
     if (game === 'bacche') {
       const best = list.reduce((m, e) => Math.max(m, e.score?.me ?? 0), 0);
-      const wins = list.filter(e => { const r = Stats.ranking(e.score)[0]; return r?.name === 'Tu' && !r.tie; }).length;
-      return `${list.length} partite · ${wins} vinte da te · tuo record ${best}`;
+      const wins = list.filter(e => { const r = Stats.ranking(e.score)[0]; return r?.key === 'me' && !r.tie; }).length;
+      return t('stats.summaryB', { n: list.length, w: wins, b: best });
     }
     const won = list.filter(e => e.result === 'vittoria').length;
     const best = list.reduce((m, e) => Math.max(m, e.score ?? 0), 0);
-    return `${list.length} partite · ${won} vinte · record ${best} ragni`;
+    return t('stats.summaryD', { n: list.length, w: won, b: best });
   }
 
   // una riga per partita, dalla piu' recente
@@ -56,10 +58,10 @@ export class Stats {
     return this.list(game, level).map(e => {
       if (game === 'bacche') {
         const pts = Stats.ranking(e.score).map(r => `${r.pos}° ${r.name} ${r.score}`).join(' · ');
-        return `${Stats.when(e.date)} · ${e.minutes} min · ${pts}${e.completed ? '' : ' (interrotta)'}`;
+        return t('stats.rowB', { d: Stats.when(e.date), m: e.minutes, p: pts, i: e.completed ? '' : t('stats.interrupted') });
       }
-      const res = e.result === 'vittoria' ? 'Vittoria' : e.result === 'gameover' ? 'Game over' : 'Interrotta';
-      return `${Stats.when(e.date)} · ${e.minutes} min · ${res} · ${e.score} ragni · resistito ${e.seconds}s`;
+      const res = t('stats.res.' + e.result);
+      return t('stats.rowD', { d: Stats.when(e.date), m: e.minutes, r: res, s: e.score, t: e.seconds });
     });
   }
 
@@ -67,7 +69,7 @@ export class Stats {
   lines(maxPerGame = 4) {
     const out = [];
     const b = this.list('bacche');
-    out.push(`Gara di bacche: ${this.summary('bacche')}`);
+    out.push(t('stats.headB', { x: this.summary('bacche') }));
     // classifica di ogni partita: posizione e punteggio di ogni partecipante (tu, Lumino, Lumina)
     for (const l of this.entries('bacche').slice(0, maxPerGame)) out.push(`   ${l}`);
     // Difendi: una sezione per difficolta', perche' i punteggi non sono confrontabili
@@ -75,11 +77,11 @@ export class Stats {
     for (const level of ['facile', 'normale', 'difficile']) {
       if (!this.list('difendi', level).length) continue;
       anyD = true;
-      out.push(`Difendi · ${level}: ${this.summary('difendi', level)}`);
+      out.push(t('stats.headD', { l: t('level.' + level), x: this.summary('difendi', level) }));
       for (const l of this.entries('difendi', level).slice(0, maxPerGame)) out.push(`   ${l}`);
     }
-    if (!anyD) out.push('Difendi: nessuna partita ancora');
-    if (!b.length && !anyD) out.push('Nessuna partita ancora: prova un gioco dal menu!');
+    if (!anyD) out.push(t('stats.noneD'));
+    if (!b.length && !anyD) out.push(t('stats.noneAll'));
     return out;
   }
 }

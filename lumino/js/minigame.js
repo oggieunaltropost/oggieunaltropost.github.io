@@ -3,6 +3,7 @@
 // Ogni giocatore ha il suo punteggio; con due personaggi compaiono piu' bacche.
 import * as THREE from 'three';
 import { makeBerry } from './fx.js';
+import { t as tr } from './i18n.js';   // (qui 't' e' anche il tempo)
 
 const _v = new THREE.Vector3();
 
@@ -48,14 +49,10 @@ export class BerryGame {
     this.placeHud(camera, true);
     this.sfx.start();
     this.sfx.startMusic();
-    const who = ps.map(c => c.name).join(' e ');
-    this.fx.showPanel([
-      'Le bacche compaiono nella stanza.',
-      `${who} ${ps.length > 1 ? 'corrono' : 'corre'} a mangiarle...`,
-      '...ma se la prendi prima tu (pizzico / grip)',
-      'e te la porti alla bocca, il punto e\' tuo!',
-      `Durata: ${minutes} minut${minutes === 1 ? 'o' : 'i'}. Esci dal menu'.`,
-    ], camera, 7, 'Gara di bacche!');
+    const who = ps.length > 1 ? tr('luminoAndLumina') : ps[0]?.name;
+    const runs = tr(ps.length > 1 ? 'berries.runsN' : 'berries.runs1', { x: who });
+    const dur = minutes === 1 ? tr('minutes1') : tr('minutesN', { x: minutes });
+    this.fx.showPanel(tr('berries.intro', { x: runs, y: dur }), camera, 7, tr('berries.title'));
   }
 
   stop(showResult = true, camera = null) {
@@ -73,10 +70,10 @@ export class BerryGame {
       const ranking = Object.entries(this.score).sort((a, b) => b[1] - a[1]);
       const [topName, top] = ranking[0];
       const tie = ranking.length > 1 && ranking[1][1] === top;
-      const label = n => n === 'me' ? 'Tu' : n;
-      const title = tie ? 'Pareggio!' : topName === 'me' ? 'Hai vinto!' : `Ha vinto ${topName}!`;
+      const label = n => n === 'me' ? tr('you') : n;
+      const title = tie ? tr('tie') : topName === 'me' ? tr('youWin') : tr('winner', { x: topName });
       this.fx.showPanel([ranking.map(([n, s]) => `${label(n)}: ${s}`).join('   '),
-        topName === 'me' && !tie ? 'Vogliono la rivincita...' : 'Che golosi!'], camera, 8, title);
+        topName === 'me' && !tie ? tr('rematch') : tr('greedy')], camera, 8, title);
       if (topName === 'me' || tie) this.sfx.win(); else this.sfx.lose();
       for (const c of ps) if (c.free) c.happy();
     }
@@ -199,7 +196,7 @@ export class BerryGame {
     if (this.retargetT <= 0) { this.retargetT = 0.25; for (const c of players) this.drive(c, players); }
     this.placeHud(camera);
     const mm = Math.floor(this.time / 60), ss = Math.floor(this.time % 60);
-    const text = `${mm}:${String(ss).padStart(2, '0')}   Tu ${this.score.me}` +
+    const text = `${mm}:${String(ss).padStart(2, '0')}   ${tr('you')} ${this.score.me}` +
       players.map(c => `  ·  ${c.name} ${this.score[c.name] ?? 0}`).join('');
     if (text !== this.hudText) { this.hudText = text; this.drawHud(text); }
   }

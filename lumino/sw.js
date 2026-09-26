@@ -1,6 +1,6 @@
 // Service worker di Lumino AR: tiene il gioco sul visore, cosi' parte anche senza rete.
 // Generato da tools/make_pwa.py: rigeneralo quando cambiano i file del gioco.
-const CACHE = 'lumino-338214';
+const CACHE = 'lumino-820379';
 const FILES = [
   "./",
   "assets/fly.glb",
@@ -17,6 +17,7 @@ const FILES = [
   "js/fly.js",
   "js/fx.js",
   "js/gloves.js",
+  "js/i18n.js",
   "js/main.js",
   "js/menu.js",
   "js/minigame.js",

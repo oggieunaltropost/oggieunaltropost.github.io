@@ -14,6 +14,7 @@ import { Treats } from './treats.js';
 import { DefendGame, LEVELS } from './defend.js';
 import { Stats } from './stats.js';
 import { Fly } from './fly.js';
+import { t, lang, setLang, onLangChange } from './i18n.js';
 
 // ------------------------------------------------------------ base
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -86,102 +87,100 @@ let catsOn = false;
 let cast = 'lumino';      // 'lumino' | 'lumina' | 'both'
 let gameMinutes = 3;      // durata dei giochi: 1, 2 o 3 minuti
 let level = 'normale';    // difficolta' di Difendi
-const CAST_LABEL = { lumino: 'Lumino', lumina: 'Lumina', both: 'entrambi' };
-const OCC_SHORT = ['stanza', 'profondità', 'no'];
-const OCC_NAMES = ['mesh della stanza', 'sensore di profondita\' (mani incluse)', 'disattivata'];
+const castLabel = () => cast === 'both' ? t('both') : cast === 'lumino' ? 'Lumino' : 'Lumina';
+const yn = on => on ? t('yes') : t('no');
+const levelName = l => t('level.' + l);
 const clock = new THREE.Clock();
 const userPos = new THREE.Vector3();
 const _v = new THREE.Vector3(), _d = new THREE.Vector3(), _q = new THREE.Quaternion();
 
 window.game = { fly, scene, room, creatures, lumino, lumina, fx, renderer, camera, berryGame, defendGame, treats, cats, social, gloves };
 
-function who() { return cast === 'both' ? 'Lumino e Lumina' : active()[0].name; }
+function who() { return cast === 'both' ? t('luminoAndLumina') : active()[0].name; }
 
 // ------------------------------------------------------------ menu' (a pagine)
 const PER_PAGE = 6;                        // partite per pagina nelle statistiche
 const statsView = { game: 'bacche', level: null, page: 0 };
-const back = { id: 'back', label: () => '‹ Indietro' };
-const close = { id: 'close', label: () => 'Chiudi' };
+const back = { id: 'back', label: () => t('menu.back') };
+const close = { id: 'close', label: () => t('menu.close') };
 
 const PAGES = {
   main: () => ({
     items: [
-      { id: 'cast', label: () => `Personaggi: ${CAST_LABEL[cast]}` },
-      { id: 'follow', label: () => `Seguimi: ${followOn ? 'SÌ' : 'NO'}` },
-      { id: 'fly', label: () => `Mosca: ${fly.enabled ? 'SÌ' : 'NO'}` },
+      { id: 'cast', label: () => t('menu.cast', { x: castLabel() }) },
+      { id: 'follow', label: () => t('menu.follow', { x: yn(followOn) }) },
+      { id: 'fly', label: () => t('menu.fly', { x: yn(fly.enabled) }) },
       // SEGUI I GATTI disattivato per ora (riconoscimento non affidabile):
       // { id: 'cats', label: () => `Segui i gatti: ${catsOn ? 'SÌ' : 'NO'}${catsOn ? cats.label : ''}` },
-      { id: 'go:bacche', label: () => berryGame.active ? 'Esci dalla gara' : 'Gara di bacche ›' },
-      { id: 'go:difendi', label: () => defendGame.active ? 'Esci da Difendi' : 'Difendi ›' },
-      { id: 'go:stats', label: () => 'Statistiche ›' },
-      { id: 'call', label: () => cast === 'both' ? 'Chiamali' : `Chiama ${who()}` },
-      { id: 'reset', label: () => cast === 'both' ? 'Resetta tutti e due' : `Resetta ${who()}` },
-      { id: 'occ', label: () => `Occlusione: ${OCC_SHORT[occlusionMode]}` },
-      { id: 'room', label: () => (room.hasXRData || mode === 'sim') ? `Mostra stanza: ${room.showDebug ? 'SÌ' : 'NO'}` : 'Scansiona la stanza' },
+      { id: 'go:bacche', label: () => berryGame.active ? t('menu.berriesExit') : t('menu.berries') },
+      { id: 'go:difendi', label: () => defendGame.active ? t('menu.defendExit') : t('menu.defend') },
+      { id: 'go:stats', label: () => t('menu.stats') },
+      { id: 'call', label: () => cast === 'both' ? t('menu.callBoth') : t('menu.call', { x: who() }) },
+      { id: 'reset', label: () => cast === 'both' ? t('menu.resetBoth') : t('menu.reset', { x: who() }) },
+      { id: 'occ', label: () => t('menu.occ', { x: t('occ.short')[occlusionMode] }) },
+      { id: 'room', label: () => (room.hasXRData || mode === 'sim') ? t('menu.room', { x: yn(room.showDebug) }) : t('menu.scan') },
+      { id: 'lang', label: () => t('menu.lang') },
       close,
     ],
   }),
   // schermata di un gioco: impostazioni gia' pronte, basta premere "Gioca"
   bacche: () => ({
-    title: 'Gara di bacche',
-    info: () => ['Le bacche compaiono nella stanza: chi le mangia fa punto.',
-      'Prendile prima tu (pizzico) e portale alla bocca!'],
+    title: t('page.berries'),
+    info: () => t('page.berries.info'),
     cols: 1,
     items: [
-      { id: 'dur', label: () => `Durata: ${gameMinutes} min` },
-      { id: 'play:bacche', label: () => '▶  Gioca' },
+      { id: 'dur', label: () => t('menu.duration', { x: gameMinutes }) },
+      { id: 'play:bacche', label: () => t('menu.play') },
       back,
     ],
   }),
   difendi: () => ({
-    title: 'Difendi',
-    info: () => ['I ragni vogliono prendere i tuoi animaletti:',
-      'falli esplodere toccandoli con le mani.',
-      `${LEVELS[level].lives} cuori ciascuno: se uno li finisce e' game over.`],
+    title: t('page.defend'),
+    info: () => t('page.defend.info', { x: LEVELS[level].lives }),
     cols: 1,
     items: [
-      { id: 'level', label: () => `Difficoltà: ${level}` },
-      { id: 'dur', label: () => `Durata: ${gameMinutes} min` },
-      { id: 'play:difendi', label: () => '▶  Gioca' },
+      { id: 'level', label: () => t('menu.level', { x: levelName(level) }) },
+      { id: 'dur', label: () => t('menu.duration', { x: gameMinutes }) },
+      { id: 'play:difendi', label: () => t('menu.play') },
       back,
     ],
   }),
   stats: () => ({
-    title: 'Statistiche',
-    info: () => ['Scegli il gioco:'],
+    title: t('page.stats'),
+    info: () => [t('page.stats.choose')],
     cols: 1,
     items: [
-      { id: 'stats:bacche', label: () => 'Gara di bacche' },
-      { id: 'stats:difendi', label: () => 'Difendi' },
+      { id: 'stats:bacche', label: () => t('page.berries') },
+      { id: 'stats:difendi', label: () => t('page.defend') },
       back,
     ],
   }),
   statsLevel: () => ({
-    title: 'Statistiche · Difendi',
-    info: () => ['Scegli la difficoltà:'],
+    title: t('page.stats.defend'),
+    info: () => [t('page.stats.level')],
     cols: 1,
     items: [
-      ...Object.keys(LEVELS).map(l => ({ id: `statsLevel:${l}`, label: () => `${l[0].toUpperCase() + l.slice(1)} (${stats.list('difendi', l).length})` })),
-      { id: 'back:stats', label: () => '‹ Indietro' },
+      ...Object.keys(LEVELS).map(l => ({ id: `statsLevel:${l}`, label: () => `${levelName(l)[0].toUpperCase() + levelName(l).slice(1)} (${stats.list('difendi', l).length})` })),
+      { id: 'back:stats', label: () => t('menu.back') },
     ],
   }),
   // partite di un gioco, a pagine
   statsView: () => ({
-    title: statsView.game === 'bacche' ? 'Statistiche · Gara di bacche' : `Statistiche · Difendi · ${statsView.level}`,
+    title: statsView.game === 'bacche' ? t('page.stats.berries') : t('page.stats.defendLevel', { x: levelName(statsView.level) }),
     info: () => {
       const all = stats.entries(statsView.game, statsView.level);
       const pages = Math.max(1, Math.ceil(all.length / PER_PAGE));
       statsView.page = Math.min(statsView.page, pages - 1);
       const rows = all.slice(statsView.page * PER_PAGE, (statsView.page + 1) * PER_PAGE);
-      return [stats.summary(statsView.game, statsView.level), '', ...(rows.length ? rows : ['Nessuna partita ancora.']),
-        '', `Pagina ${statsView.page + 1} di ${pages}`];
+      return [stats.summary(statsView.game, statsView.level), '', ...(rows.length ? rows : [t('page.stats.none')]),
+        '', t('page.stats.page', { x: statsView.page + 1, y: pages })];
     },
     cols: 2,
     items: [
-      { id: 'prev', label: () => '◀  Precedenti', disabled: () => statsView.page === 0 },
-      { id: 'next', label: () => 'Successive  ▶',
+      { id: 'prev', label: () => t('menu.prev'), disabled: () => statsView.page === 0 },
+      { id: 'next', label: () => t('menu.next'),
         disabled: () => (statsView.page + 1) * PER_PAGE >= stats.entries(statsView.game, statsView.level).length },
-      { id: 'back:statsView', label: () => '‹ Indietro' },
+      { id: 'back:statsView', label: () => t('menu.back') },
       close,
     ],
   }),
@@ -209,6 +208,7 @@ function onMenu(id) {
   if (id === 'back:stats') { menu.setPage(PAGES.stats()); return; }
   if (id === 'level') { level = { facile: 'normale', normale: 'difficile', difficile: 'facile' }[level]; return; }
   if (id === 'dur') { gameMinutes = gameMinutes % 3 + 1; return; }
+  if (id === 'lang') { setLang(lang === 'it' ? 'en' : 'it'); menu.setPage(PAGES.main()); return; }
   if (id === 'cast') { setCast({ lumino: 'lumina', lumina: 'both', both: 'lumino' }[cast]); return; }
 
   menu.hide();
@@ -226,7 +226,7 @@ function onMenu(id) {
     if (catsOn) {
       cats.init();
       if (!camAccess) cats.startMedia();  // alternativa: telecamere come "webcam"
-      fx.showPanel(['Guarda verso il gatto: quando lo vedono', 'compare un anello giallo sotto di lui.'], camera, 4, 'Segui i gatti');
+      fx.showPanel(t('cats.panel'), camera, 4, t('cats.title'));
     } else for (const c of creatures) if (c.mode === 'cat') c.clearTarget();
   } else if (id === 'reset') {
     fx.hideBerry();
@@ -348,19 +348,12 @@ function spawnAll() { for (const c of active()) spawnOne(c); spawnedOnce = true;
 
 function roomLine() {
   const s = room.stats;
-  if (!room.hasXRData) return 'Stanza non rilevata: menu\' > Scansiona la stanza';
-  return `Stanza: ${s.meshes} mesh${s.global ? ' (scansione 3D)' : ''}, ${s.planes} piani`;
+  if (!room.hasXRData) return t('room.none');
+  return t('room.info', { x: s.meshes, g: s.global ? t('room.global') : '', y: s.planes });
 }
 
 function arHelp() {
-  fx.showPanel([
-    'Tocca il tatuaggio MENÙ sul dorso della mano sinistra',
-    'Pizzica o stringi Lumino: lo prendi (anche con 2 mani)',
-    'Palmo in su vicino a lui: ti sale in mano',
-    'Pizzico lontano / grilletto: lancia una bacca',
-    'Mano aperta su di lui: lo accarezzi',
-    roomLine(),
-  ], camera, 30);
+  fx.showPanel([...t('help'), roomLine()], camera, 30);
 }
 
 // ------------------------------------------------------------ mani: superfici, ostacoli e gesti
@@ -380,8 +373,7 @@ for (const c of creatures) {
   c.onStuck = () => {
     if (mode === null) return;
     spawnOne(c);
-    fx.showPanel([`${c.name} si era ${c.name === 'Lumina' ? 'incastrata' : 'incastrato'}: eccolo di nuovo qui!`
-      .replace('eccolo', c.name === 'Lumina' ? 'eccola' : 'eccolo')], camera, 3, 'Oops!');
+    fx.showPanel([t(c.name === 'Lumina' ? 'stuck.f' : 'stuck.m', { x: c.name })], camera, 3, 'Oops!');
   };
 }
 
@@ -753,7 +745,7 @@ function applyOcclusion() {
 function cycleOcclusion() {
   occlusionMode = (occlusionMode + 1) % 3;
   applyOcclusion();
-  if (!menu.open) fx.showPanel([OCC_NAMES[occlusionMode]], camera, 2.5, 'Occlusione');
+  if (!menu.open) fx.showPanel([t('occ.long')[occlusionMode]], camera, 2.5, t('occlusion'));
 }
 
 async function startAR() {
@@ -997,21 +989,34 @@ addEventListener('resize', () => {
   renderer.setSize(innerWidth, innerHeight);
 });
 
-ui.status.textContent = 'Carico Lumino e Lumina...';
+let statusMsg = ['status.loading', {}];
+function setStatus(key, vars = {}) { statusMsg = [key, vars]; ui.status.textContent = t(key, vars); }
+// testi della pagina iniziale nella lingua scelta
+function applyPageText() {
+  document.documentElement.lang = lang;
+  const set = (id, key) => { const el = document.getElementById(id); if (el) el.textContent = t(key); };
+  set('intro', 'page.intro'); set('btn-ar', 'page.enter'); set('btn-sim', 'page.sim'); set('apk', 'page.apk');
+  set('sim-call', 'sim.call'); set('sim-pet', 'sim.pet'); set('sim-menu', 'sim.menu');
+  const list = document.getElementById('help-list');
+  if (list) list.innerHTML = t('page.list').map(l => `<li>${l}</li>`).join('');
+  ui.status.textContent = t(...statusMsg);
+}
+onLangChange(() => { applyPageText(); showStatsPage(); gloves.refreshText?.(t('tattoo')); menu.redraw(true); });
+applyPageText();
+gloves.refreshText?.(t('tattoo'));
+setStatus('status.loading');
 await Promise.all([lumino.load('assets/lumino.glb'), lumina.load('assets/lumina.glb'), fly.load()]);
 renderer.setAnimationLoop(loop);
 
 const arOk = navigator.xr && await navigator.xr.isSessionSupported('immersive-ar').catch(() => false);
 if (arOk) {
   ui.ar.disabled = false;
-  ui.status.textContent = 'Pronto! Metti il visore e premi "Entra in AR".';
+  setStatus('status.ready');
 } else {
-  ui.status.textContent = window.isSecureContext
-    ? 'AR non disponibile su questo dispositivo: prova l\'anteprima 3D.'
-    : 'AR richiede HTTPS: apri l\'indirizzo https:// mostrato dal server.';
+  setStatus(window.isSecureContext ? 'status.noAR' : 'status.https');
 }
 ui.ar.onclick = () => {
-  startAR().catch(e => { ui.status.textContent = 'Errore AR: ' + e.message; });
+  startAR().catch(e => setStatus('status.error', { x: e.message }));
   // if (optCats.checked) { cats.init(); cats.startMedia(); }   // gatti: disattivato
 };
 // modalita' gatti: il permesso per le telecamere si chiede qui (serve un clic)
@@ -1039,5 +1044,5 @@ showStatsPage();
 if (new URLSearchParams(location.search).has('sim')) startSim();
 // app PWA "immersiva" sul Quest: entra subito in realta' mista (se il visore chiede un tocco, resta il pulsante)
 if (new URLSearchParams(location.search).has('pwa') && arOk) {
-  startAR().catch(() => { ui.status.textContent = 'Premi "Entra in AR" per iniziare.'; });
+  startAR().catch(() => setStatus('status.press'));
 }

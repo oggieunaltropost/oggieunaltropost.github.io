@@ -25,7 +25,7 @@ const ringGeo = new THREE.TorusGeometry(1, 0.12, 8, 24);
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _m = new THREE.Matrix4(), _x = new THREE.Vector3(), _z = new THREE.Vector3();
 const Y = new THREE.Vector3(0, 1, 0);
 
-function tattooTexture() {
+function tattooTexture(label = 'MENÙ') {
   const c = document.createElement('canvas');
   c.width = 256; c.height = 328;
   const g = c.getContext('2d');
@@ -38,7 +38,7 @@ function tattooTexture() {
   g.lineWidth = 12;
   for (const y of [86, 118, 150]) { g.beginPath(); g.moveTo(84, y); g.lineTo(172, y); g.stroke(); } // tre lineette
   g.font = 'bold 58px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText('MENÙ', 128, 285);
+  g.fillText(label, 128, 285);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
@@ -171,6 +171,15 @@ export class Gloves {
   }
 
   setEnabled(on) { this.enabled = on; }
+
+  // scritta del tatuaggio nella lingua scelta
+  refreshText(label) {
+    const t = this.list[1].tattoo;
+    if (!t) return;
+    t.material.map?.dispose();
+    t.material.map = tattooTexture(label);
+    t.material.needsUpdate = true;
+  }
 
   // pointers/hands di main.js; ritorna true se e' stato premuto il bottone del menu'
   update(pointers, hands, dt) {
