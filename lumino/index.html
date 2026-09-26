@@ -7,17 +7,18 @@
   <script>
     // App PWA immersiva sul Quest: la realta' mista va chiesta SUBITO, prima di caricare il gioco
     // (il tocco sull'icona vale come "clic" dell'utente solo per pochi secondi).
-    // (niente depth-sensing qui: nell'app immersiva del Quest la richiesta con la profondita' non rispondeva mai)
+    // I dati della stanza (piani/mesh) funzionano solo se l'app ha il permesso: lo chiede l'APK all'avvio
+    // (se manca, la richiesta resta appesa per sempre). Con &scene=0 (permesso rifiutato) si parte senza.
+    // Niente depth-sensing e anchors: nell'app immersiva bloccavano l'avvio e il gioco non li usa.
     window.__xrLog = [];
     const xrLog = (m) => window.__xrLog.push(Math.round(performance.now()) + ' ' + m);
-    if (new URLSearchParams(location.search).has('pwa') && navigator.xr) {
+    const qs = new URLSearchParams(location.search);
+    if (qs.has('pwa') && navigator.xr) {
       window.__xrInit = {
         requiredFeatures: ['local-floor'],
-        optionalFeatures: ['hand-tracking', 'plane-detection', 'mesh-detection', 'anchors'],
+        optionalFeatures: qs.get('scene') === '0' ? ['hand-tracking']
+          : ['hand-tracking', 'plane-detection', 'mesh-detection'],
       };
-      // (prova: localStorage lumino-xrtest = elenco di funzioni opzionali separate da virgola)
-      try { const t = localStorage.getItem('lumino-xrtest');
-        if (t !== null) window.__xrInit.optionalFeatures = t ? t.split(',') : []; } catch (e) {}
       xrLog('feat ' + window.__xrInit.optionalFeatures.join('+'));
       // come nell'esempio Meta: la sessione si chiede a pagina caricata (chiesta prima, non rispondeva mai)
       window.__xrSession = new Promise(r => window.addEventListener('load', r, { once: true }))
