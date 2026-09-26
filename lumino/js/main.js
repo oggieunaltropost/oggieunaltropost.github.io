@@ -1004,7 +1004,10 @@ function applyPageText() {
   const list = document.getElementById('help-list');
   if (list) list.innerHTML = t('page.list').map(l => `<li>${l}</li>`).join('');
   ui.status.textContent = t(...statusMsg);
+  for (const b of document.querySelectorAll('#langflags .flag')) b.classList.toggle('active', b.dataset.lang === lang);
 }
+// bandierine in alto a destra: cambiano la lingua (stessa scelta della voce del menu')
+for (const b of document.querySelectorAll('#langflags .flag')) b.addEventListener('click', () => { if (b.dataset.lang !== lang) setLang(b.dataset.lang); });
 onLangChange(() => { applyPageText(); showStatsPage(); gloves.refreshText?.(t('tattoo')); menu.redraw(true); });
 applyPageText();
 gloves.refreshText?.(t('tattoo'));
