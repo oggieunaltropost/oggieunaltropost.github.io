@@ -7,16 +7,18 @@
   <script>
     // App PWA immersiva sul Quest: la realta' mista va chiesta SUBITO, prima di caricare il gioco
     // (il tocco sull'icona vale come "clic" dell'utente solo per pochi secondi).
+    // (niente depth-sensing qui: nell'app immersiva del Quest la richiesta con la profondita' non rispondeva mai)
+    window.__xrLog = [];
+    const xrLog = (m) => window.__xrLog.push(Math.round(performance.now()) + ' ' + m);
     if (new URLSearchParams(location.search).has('pwa') && navigator.xr) {
       window.__xrInit = {
         requiredFeatures: ['local-floor'],
-        optionalFeatures: ['hand-tracking', 'plane-detection', 'mesh-detection', 'depth-sensing', 'anchors'],
-        depthSensing: { usagePreference: ['gpu-optimized'], dataFormatPreference: [] },
+        optionalFeatures: ['hand-tracking', 'plane-detection', 'mesh-detection', 'anchors'],
       };
+      xrLog('request');
       window.__xrSession = navigator.xr.requestSession('immersive-ar', window.__xrInit)
-        .catch(() => navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['local-floor'],
-          optionalFeatures: ['hand-tracking', 'plane-detection', 'mesh-detection', 'anchors'] }))
-        .catch(e => { window.__xrError = e; return null; });
+        .then(s => { xrLog('ok'); return s; })
+        .catch(e => { xrLog('err ' + e.name + ' ' + e.message); window.__xrError = e; return null; });
     }
   </script>
   <link rel="manifest" href="manifest.webmanifest">
