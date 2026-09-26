@@ -15,6 +15,10 @@
         requiredFeatures: ['local-floor'],
         optionalFeatures: ['hand-tracking', 'plane-detection', 'mesh-detection', 'anchors'],
       };
+      // (prova: localStorage lumino-xrtest = elenco di funzioni opzionali separate da virgola)
+      try { const t = localStorage.getItem('lumino-xrtest');
+        if (t !== null) window.__xrInit.optionalFeatures = t ? t.split(',') : []; } catch (e) {}
+      xrLog('feat ' + window.__xrInit.optionalFeatures.join('+'));
       // come nell'esempio Meta: la sessione si chiede a pagina caricata (chiesta prima, non rispondeva mai)
       window.__xrSession = new Promise(r => window.addEventListener('load', r, { once: true }))
         .then(() => { xrLog('load'); return navigator.xr.isSessionSupported('immersive-ar'); })
