@@ -15,8 +15,11 @@
         requiredFeatures: ['local-floor'],
         optionalFeatures: ['hand-tracking', 'plane-detection', 'mesh-detection', 'anchors'],
       };
-      xrLog('request');
-      window.__xrSession = navigator.xr.requestSession('immersive-ar', window.__xrInit)
+      // come nell'esempio Meta: la sessione si chiede a pagina caricata (chiesta prima, non rispondeva mai)
+      window.__xrSession = new Promise(r => window.addEventListener('load', r, { once: true }))
+        .then(() => { xrLog('load'); return navigator.xr.isSessionSupported('immersive-ar'); })
+        .then(ok => { xrLog('supported ' + ok + ' dg=' + (window.getDigitalGoodsService !== undefined));
+          return navigator.xr.requestSession('immersive-ar', window.__xrInit); })
         .then(s => { xrLog('ok'); return s; })
         .catch(e => { xrLog('err ' + e.name + ' ' + e.message); window.__xrError = e; return null; });
     }
