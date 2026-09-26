@@ -1,6 +1,6 @@
 // Service worker di Lumino AR: tiene il gioco sul visore, cosi' parte anche senza rete.
 // Generato da tools/make_pwa.py: rigeneralo quando cambiano i file del gioco.
-const CACHE = 'lumino-844435';
+const CACHE = 'lumino-845243';
 const FILES = [
   "./",
   "assets/fly.glb",
@@ -47,9 +47,11 @@ self.addEventListener('activate', e => {
 });
 
 // prima la rete (cosi' gli aggiornamenti arrivano subito), se manca la copia salvata
+// (cache: 'no-cache' = chiede sempre al sito se il file e' cambiato, senza la cache HTTP di 10 minuti)
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
-  e.respondWith(fetch(e.request).then(r => {
+  const req = new URL(e.request.url).origin === location.origin ? new Request(e.request, { cache: 'no-cache' }) : e.request;
+  e.respondWith(fetch(req).then(r => {
     if (r.ok && new URL(e.request.url).origin === location.origin) {
       const copy = r.clone();
       caches.open(CACHE).then(c => c.put(e.request, copy));
