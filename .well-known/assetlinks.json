@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.oggieunaltropost.lumino",
+      "sha256_cert_fingerprints": [
+        "F7:C5:77:33:79:85:3B:96:70:80:D6:AC:09:70:58:5B:3E:C3:CF:CD:47:BB:81:27:B3:3E:42:F6:2D:22:80:39"
+      ]
+    }
+  }
+]
