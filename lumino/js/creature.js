@@ -593,6 +593,12 @@ export class Creature {
     if (this.room.raycast(_v3.copy(next).addScaledVector(UP, 0.02), UP, 0.1)) { this.bounceBack(); return 0.8; }
     const g = this.room.groundBelow(next, STEP_UP + 0.005, 4);
     if (!g) { this.bounceBack(); return 1; }
+    // un buco nella mappa della stanza non e' un passaggio: non entrare dietro i muri o dentro i mobili
+    // (tranne con "seguimi", quando puo' seguirti fuori dalla stanza)
+    if (this.mode !== 'follow' && (this.outsideT = (this.outsideT || 0) - dt) <= 0) {
+      this.outsideT = 0.1;
+      if (this.room.isOutside(next) && !this.room.isOutside(this.pos)) { this.bounceBack(); return 0.8; }
+    }
     const drop = this.pos.y - g.point.y;
     if (drop <= STEP_UP && g.normal.y > 0.5) {
       this.pos.set(next.x, g.point.y, next.z);

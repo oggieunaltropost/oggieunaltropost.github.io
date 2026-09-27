@@ -75,7 +75,7 @@ export class Room {
     this.dirty = true;
   }
 
-  clear() { for (const k of [...this.entries.keys()]) this._remove(k); }
+  clear() { for (const k of [...this.entries.keys()]) this._remove(k); this.meshCalibrated = false; }
 
   addStatic(key, geometry) { return this._add(key, geometry, 'static'); }
 
@@ -160,10 +160,13 @@ export class Room {
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     g.setIndex(idx);
     g.applyMatrix4(new THREE.Matrix4().fromArray(mat));
-    this._add(p, g, 'plane', {
+    const e2 = this._add(p, g, 'plane', {
       lastChanged: p.lastChangedTime, matrix: Float32Array.from(mat),
       label: p.semanticLabel || '', orientation: p.orientation,
+      // lato "davanti" del piano = asse Y della sua posa (verso la stanza)
+      normal: new THREE.Vector3(0, 1, 0).transformDirection(new THREE.Matrix4().fromArray(mat)),
     });
+    e2.collider.userData.normal = e2.normal;
   }
 
   // ------------------------------------------------------------ ruoli delle geometrie
@@ -216,8 +219,48 @@ export class Room {
     if (!hits.length) return null;
     const h = hits[0];
     const normal = h.face ? h.face.normal.clone() : UP.clone();
+    // back = la superficie e' stata colpita dal retro (siamo "dietro" un muro o dentro un mobile)
+    const front = h.object.userData.normal ?? normal;
+    let back = front.dot(dir) > 0;
+    if (h.object.userData.kind === 'mesh' && this.meshFlip) back = !back;
     if (normal.dot(dir) > 0) normal.negate();
-    return { point: h.point, normal, distance: h.distance, kind: h.object.userData.kind };
+    return { point: h.point, normal, distance: h.distance, kind: h.object.userData.kind, back };
+  }
+
+  // Il verso dei triangoli della mesh del Quest non e' garantito: lo misuriamo dalla testa
+  // dell'utente (che e' di sicuro dentro la stanza): da li' le superfici si vedono "di fronte".
+  calibrate(eye) {
+    if (this.meshCalibrated || !this.stats.meshes) return;
+    let front = 0, back = 0;
+    const d = new THREE.Vector3();
+    this.meshFlip = false;
+    for (let i = 0; i < 64; i++) {
+      d.set(Math.random() - 0.5, Math.random() - 0.7, Math.random() - 0.5).normalize();
+      const h = this.raycast(eye, d, 6);
+      if (!h || h.kind !== 'mesh') continue;
+      if (h.back) back++; else front++;
+    }
+    if (front + back < 20) return;          // mesh non ancora pronta
+    this.meshFlip = back > front;
+    this.meshCalibrated = true;
+  }
+
+  // Punto "fuori posto": dietro un muro o dentro un mobile, cioe' le superfici attorno si vedono dal retro.
+  isOutside(p, force = false) {
+    if (!force && (!this.hasXRData || (this.stats.meshes && !this.meshCalibrated))) return false;
+    const o = new THREE.Vector3().copy(p); o.y += 0.03;
+    let back = 0, hits = 0;
+    const d = new THREE.Vector3();
+    for (let k = 0; k < 8; k++) {
+      const a = k / 8 * Math.PI * 2;
+      const h = this.raycast(o, d.set(Math.cos(a), 0, Math.sin(a)), 4);
+      if (!h || h.kind === 'fallback') continue;
+      hits++;
+      if (h.back) back++;
+    }
+    const up = this.raycast(o, UP, 2.5);
+    if (up && up.back && up.kind !== 'fallback') back += 2;
+    return back >= 3 && back >= hits * 0.4;
   }
 
   groundBelow(p, above = 0.05, far = 4) {
@@ -277,7 +320,7 @@ export class Room {
         const p = _a.clone().addScaledVector(_b.sub(_a), u).addScaledVector(_c.sub(_a), v);
         if (near && p.distanceTo(near) > maxDist) continue;
         if (eye && !this.visibleFrom(p, eye)) continue;
-        if (this.isStandable(p)) return p;
+        if (this.isStandable(p) && !this.isOutside(p)) return p;   // niente mete dentro i mobili o dietro i muri
       }
     }
     return null;

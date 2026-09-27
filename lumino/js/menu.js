@@ -9,7 +9,9 @@ function drawButton(canvas, label, hover, flash, disabled) {
   const g = canvas.getContext('2d'), w = canvas.width, h = canvas.height;
   g.clearRect(0, 0, w, h);
   g.globalAlpha = disabled ? 0.35 : 1;
-  g.fillStyle = flash ? '#7dffcf' : hover && !disabled ? 'rgba(53,198,192,0.95)' : 'rgba(18,32,48,0.92)';
+  // hover 'ray' = puntato col raggio (turchese), 'finger' = dito che sta per premere (rosa come i ditini)
+  g.fillStyle = flash ? '#7dffcf' : disabled || !hover ? 'rgba(18,32,48,0.92)'
+    : hover === 'finger' ? 'rgba(255,150,205,0.97)' : 'rgba(53,198,192,0.95)';
   g.beginPath(); g.roundRect(4, 4, w - 8, h - 8, 34); g.fill();
   g.strokeStyle = 'rgba(125,255,207,0.85)'; g.lineWidth = 5;
   g.beginPath(); g.roundRect(4, 4, w - 8, h - 8, 34); g.stroke();
@@ -33,7 +35,7 @@ function drawPaw(canvas, padW, padH, toeH) {
   const top = toeH * PX, ph = padH * PX;
   const lobeR = W * 0.2, lobes = [0.22, 0.5, 0.78].map(f => [W * f, top + ph - lobeR * 0.95]);
   const pad = () => {
-    g.beginPath(); g.roundRect(0, top, W, ph - lobeR * 0.5, Math.min(W, ph) * 0.26);
+    g.beginPath(); g.roundRect(0, top, W, ph - lobeR * 0.5, Math.min(W, ph) * 0.18);
     for (const [x, y] of lobes) { g.moveTo(x + lobeR, y); g.arc(x, y, lobeR, 0, Math.PI * 2); }
   };
   // ditini: ovali un po' inclinati verso l'esterno, quelli ai lati piu' bassi
@@ -79,6 +81,15 @@ export class Menu {
       new THREE.MeshBasicMaterial({ transparent: true, depthTest: false }));
     this.paw.renderOrder = 38;
     this.group.add(this.paw);
+    const bc = document.createElement('canvas'); bc.width = 256; bc.height = 40;
+    const bg = bc.getContext('2d');
+    bg.fillStyle = '#e8f4ff'; bg.shadowColor = '#38e8ff'; bg.shadowBlur = 10;
+    bg.beginPath(); bg.roundRect(12, 10, 232, 20, 10); bg.fill();
+    const bt = new THREE.CanvasTexture(bc); bt.colorSpace = THREE.SRGBColorSpace;
+    this.bar = new THREE.Mesh(new THREE.PlaneGeometry(0.085, 0.013),
+      new THREE.MeshBasicMaterial({ map: bt, transparent: true, depthTest: false, opacity: 0.75 }));
+    this.bar.renderOrder = 41;
+    this.group.add(this.bar);
   }
 
   get open() { return this.group.visible; }
@@ -161,12 +172,13 @@ export class Menu {
 
   // zampetta attorno a testo (largo infoW, alto infoH) e pulsanti
   layoutPaw(infoW, infoH) {
+    if (!this.page) return;   // menu' mai aperto (es. cambio lingua dalla pagina iniziale)
     const buttonsW = this.cols * BW + (this.cols - 1) * GAP;
     const top = infoH ? BH / 2 + GAP * 1.5 + infoH : BH / 2;
     const bottom = -(this.rows - 1) * (BH + GAP) - BH / 2;
-    const padW = Math.max(buttonsW, infoW) + 0.03;
-    const padH = top - bottom + 0.022 + padW * 0.12;   // in basso piu' spazio per i lobi
-    const toeH = padW * 0.26;
+    const padW = Math.max(buttonsW, infoW) + 0.075;   // margine ai lati: gli angoli sono stondati
+    const padH = top - bottom + 0.05 + padW * 0.14;   // in basso piu' spazio per i lobi
+    const toeH = padW * 0.24;
     drawPaw(this.pawCanvas, padW, padH, toeH);
     this.paw.material.map?.dispose();
     const tex = new THREE.CanvasTexture(this.pawCanvas);
@@ -174,10 +186,36 @@ export class Menu {
     this.paw.material.map = tex;
     this.paw.material.needsUpdate = true;
     this.paw.scale.set(padW, padH + toeH, 1);
-    // il cuscinetto parte 1 cm sopra il testo; i ditini stanno sopra
-    const padTop = top + 0.012;
+    // il cuscinetto parte 2,5 cm sopra il testo; i ditini stanno sopra
+    const padTop = top + 0.025;
     this.paw.position.set(0, padTop - padH + (padH + toeH) / 2, -0.001);
+    // barra per spostare il menu', sotto la zampetta
+    this.bar.position.set(0, padTop - padH - 0.016, 0);
   }
+
+  // ------------------------------------------------------------ spostamento con la barra
+  // punto del mondo vicino alla barra (per il pizzico diretto)
+  barNear(p, r = 0.035) {
+    if (!this.open) return false;
+    return this.bar.getWorldPosition(new THREE.Vector3()).distanceTo(p) < r;
+  }
+  barHit(origin, dir) {
+    if (!this.open) return null;
+    this.raycaster.set(origin, dir);
+    const h = this.raycaster.intersectObject(this.bar, false)[0];
+    return h ? h.distance : null;
+  }
+  startDrag(point) {
+    this.dragOffset = this.group.position.clone().sub(point);
+    this.dragging = true;
+  }
+  dragTo(point, camera) {
+    if (!this.dragging) return;
+    this.group.position.copy(point).add(this.dragOffset);
+    const look = camera.position.clone(); look.y = this.group.position.y;   // resta dritto
+    this.group.lookAt(look);
+  }
+  endDrag() { this.dragging = false; }
 
   show(mode, camera, dist = 0.6) {
     this.mode = mode;
@@ -190,7 +228,7 @@ export class Menu {
     this.redraw(true);
   }
 
-  hide() { this.group.visible = false; this.mode = null; }
+  hide() { this.group.visible = false; this.mode = null; this.dragging = false; }
 
   toggleWorld(camera, dist = 0.6) { if (this.open) this.hide(); else this.show('world', camera, dist); }
 
@@ -203,8 +241,8 @@ export class Menu {
     return { button: this.buttons.find(b => b.mesh === hits[0].object), distance: hits[0].distance };
   }
 
-  setHover(buttons) {
-    for (const b of this.buttons) b.hover = buttons.includes(b);
+  setHover(buttons, kind = 'ray') {
+    for (const b of this.buttons) b.hover = buttons.includes(b) ? kind : false;
   }
 
   press(b) {
@@ -213,6 +251,31 @@ export class Menu {
     this.pokeLock = 0.6;
     this.onAction(b.item.id);
     if (this.open) this.redraw(true);
+  }
+
+  // dito vicino al menu' (entro 12 cm davanti o 3 cm dietro, dentro la sagoma): comanda il dito, non il raggio
+  fingerNear(tip) {
+    if (!this.open) return false;
+    const local = this.group.worldToLocal(new THREE.Vector3().copy(tip));
+    const w = this.cols * (BW + GAP) / 2 + 0.03, top = this.info.visible ? this.info.position.y + this.info.scale.y / 2 : BH;
+    return local.z < 0.08 && local.z > -0.02 && Math.abs(local.x) < w &&
+      local.y < top + 0.03 && local.y > -this.rows * (BH + GAP) - 0.03;
+  }
+
+  // pulsante sotto la punta del dito che si avvicina (si illumina prima di premerlo)
+  fingerHover(tips) {
+    const out = [];
+    const local = new THREE.Vector3();
+    for (const tip of tips) {
+      let best = null, bestZ = Infinity;
+      for (const b of this.buttons) {
+        b.mesh.worldToLocal(local.copy(tip));
+        if (Math.abs(local.x) < BW / 2 + GAP / 2 && Math.abs(local.y) < BH / 2 + GAP / 2 &&
+          local.z < 0.05 && local.z > -0.02 && local.z < bestZ) { best = b; bestZ = local.z; }
+      }
+      if (best) out.push(best);
+    }
+    return out;
   }
 
   // tocco con la punta dell'indice
@@ -232,6 +295,8 @@ export class Menu {
 
   update(dt) {
     if (!this.open) return;
+    this.bar.material.opacity = this.dragging || this.barHover ? 1 : 0.7;
+    this.bar.scale.setScalar(this.dragging || this.barHover ? 1.15 : 1);
     this.pokeLock -= dt;
     for (const b of this.buttons) b.flash -= dt;
     this.redraw();

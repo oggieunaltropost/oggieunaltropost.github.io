@@ -120,7 +120,18 @@ const PAGES = {
       { id: 'occ', label: () => t('menu.occ', { x: t('occ.short')[occlusionMode] }) },
       { id: 'room', label: () => (room.hasXRData || mode === 'sim') ? t('menu.room', { x: yn(room.showDebug) }) : t('menu.scan') },
       { id: 'lang', label: () => t('menu.lang') },
+      { id: 'go:exit', label: () => t('menu.exit') },
       close,
+    ],
+  }),
+  // conferma prima di uscire
+  exit: () => ({
+    title: t('page.exit'),
+    info: () => [t(gameOn() ? 'page.exit.game' : 'page.exit.info')],
+    cols: 1,
+    items: [
+      { id: 'exit', label: () => t('menu.exitYes') },
+      { id: 'back', label: () => t('menu.exitNo') },
     ],
   }),
   // schermata di un gioco: impostazioni gia' pronte, basta premere "Gioca"
@@ -188,6 +199,14 @@ const PAGES = {
 
 const menu = new Menu(scene, onMenu);
 game.menu = menu;
+// esce dalla realta' mista; nell'app installata chiude anche l'app (partite in corso non salvate)
+function exitGame() {
+  menu.hide();
+  const session = renderer.xr.getSession();
+  const closeApp = () => { if (pwaLaunch) window.close(); };
+  if (session) session.end().then(closeApp, closeApp); else closeApp();
+}
+
 function openMenu() { menu.setPage(PAGES.main()); menu.show('world', camera, 0.42); }
 function toggleMenu() { if (menu.open) menu.hide(); else openMenu(); }
 game.openMenu = openMenu;
@@ -198,6 +217,8 @@ function onMenu(id) {
   if (id === 'go:bacche') { if (berryGame.active) { berryGame.stop(true, camera); menu.hide(); } else menu.setPage(PAGES.bacche()); return; }
   if (id === 'go:difendi') { if (defendGame.active) { defendGame.stop(true, camera); menu.hide(); } else menu.setPage(PAGES.difendi()); return; }
   if (id === 'go:stats') { menu.setPage(PAGES.stats()); return; }
+  if (id === 'go:exit') { menu.setPage(PAGES.exit()); return; }
+  if (id === 'exit') { exitGame(); return; }
   if (id === 'stats:bacche') { Object.assign(statsView, { game: 'bacche', level: null, page: 0 }); menu.setPage(PAGES.statsView()); return; }
   if (id === 'stats:difendi') { menu.setPage(PAGES.statsLevel()); return; }
   if (id.startsWith('statsLevel:')) { Object.assign(statsView, { game: 'difendi', level: id.split(':')[1], page: 0 }); menu.setPage(PAGES.statsView()); return; }
@@ -329,7 +350,7 @@ function spawnOne(c) {
     const side = new THREE.Vector3(-camForward().z, 0, camForward().x);
     for (const s of [0.22, -0.22, 0.35, -0.35]) {
       const g = room.groundBelow(other.pos.clone().addScaledVector(side, s), 0.1, 0.5);
-      if (g && g.normal.y > 0.7 && room.isStandable(g.point)) { c.respawn(g.point, camera.position); return; }
+      if (g && g.normal.y > 0.7 && room.isStandable(g.point) && !room.isOutside(g.point)) { c.respawn(g.point, camera.position); return; }
     }
   }
   const fwd = camForward();
@@ -337,11 +358,28 @@ function spawnOne(c) {
     const p = camera.position.clone().addScaledVector(fwd, dist);
     if (other) p.addScaledVector(new THREE.Vector3(-fwd.z, 0, fwd.x), 0.2);
     const g = room.groundBelow(p, 0, 3);
-    if (g && g.normal.y > 0.7 && room.isStandable(g.point)) { c.respawn(g.point, camera.position); return; }
+    if (g && g.normal.y > 0.7 && room.isStandable(g.point) && !room.isOutside(g.point)) { c.respawn(g.point, camera.position); return; }
   }
   const p = camera.position.clone().addScaledVector(fwd, 0.8);
   p.y = room.floorY;
   c.respawn(p, camera.position);
+}
+
+// Cuccioli finiti dietro un muro o dentro un mobile (buchi nella mappa della stanza): da li' non
+// ritrovano la strada. Se succede per 1 s di fila li riportiamo vicino a te.
+// (non quando anche tu sei fuori dalla stanza scansionata, es. "seguimi" per casa)
+let outsideCheckT = 0;
+function checkOutside(dt) {
+  room.calibrate(camera.position);
+  if ((outsideCheckT -= dt) > 0) return;
+  outsideCheckT = 0.5;
+  const feet = camera.position.clone(); feet.y = room.floorY + 0.05;
+  const userOut = room.isOutside(feet);
+  for (const c of visible()) {
+    const check = !userOut && ['idle', 'walk', 'happy', 'sleep', 'land'].includes(c.state);
+    c.outsideN = check && room.isOutside(c.pos) ? (c.outsideN || 0) + 1 : 0;
+    if (c.outsideN >= 2) { c.outsideN = 0; c.onStuck?.(); }
+  }
 }
 
 function spawnAll() { for (const c of active()) spawnOne(c); spawnedOnce = true; }
@@ -387,19 +425,29 @@ const pointers = [0, 1].map(i => {
   c.addEventListener('connected', e => { c.userData.source = e.data; line.visible = true; });
   c.addEventListener('disconnected', () => { c.userData.source = null; line.visible = false; fx.setReticle(i, null); });
   // pizzico/grilletto o grip vicino a un personaggio (o a una bacca) = presa; lontano = bacca / chiamata
-  c.addEventListener('selectstart', () => { if (pointers[i].menuHit) pointers[i].menuSel = true; else tryGrab(i); });
+  c.addEventListener('selectstart', () => {
+    const p = pointers[i];
+    if (p.menuHit) p.menuSel = true;
+    else if (p.barHitD != null && !menu.dragging) { p.barDrag = p.barHitD; menu.startDrag(p.barPoint.clone()); }
+    else tryGrab(i);
+  });
   c.addEventListener('squeezestart', () => tryGrab(i));
   c.addEventListener('select', () => {
     const p = pointers[i];
     if (p.menuSel) { p.menuSel = false; if (p.menuHit) menu.press(p.menuHit.button); return; }
     if (p.menuPinch) return;   // pizzico usato per aprire il menu'
+    if (p.barDrag != null || clock.elapsedTime - (p.barEndT || -9) < 0.3) return;   // ha spostato il menu'
     // il pizzico usato per prendere (o per il menu') non lancia anche una bacca
     const justHeld = clock.elapsedTime - (p.grabEndT || -9) < 0.6 || hands[i].closed ||
       clock.elapsedTime - (p.menuT || -9) < 0.8;
     if (!p.grabbing && !(isHand(p) && justHeld)) onSelect(i);
   });
   c.addEventListener('squeeze', () => { if (!pointers[i].grabbing) callTo(grip.getWorldPosition(new THREE.Vector3())); });
-  c.addEventListener('selectend', () => releaseGrab(i));
+  c.addEventListener('selectend', () => {
+    const p = pointers[i];
+    if (p.barDrag != null) { p.barDrag = null; p.barEndT = clock.elapsedTime; menu.endDrag(); }
+    releaseGrab(i);
+  });
   c.addEventListener('squeezeend', () => releaseGrab(i));
   const grip = renderer.xr.getControllerGrip(i);
   const hand = renderer.xr.getHand(i);
@@ -463,7 +511,7 @@ function updateHands(dt) {
 let held = null;       // personaggio in mano
 let holder = -1;       // 0/1 = mano o controller, 2 = due mani
 let holdMode = null;   // 'pinch' | 'grasp' | 'two' | 'ctrl'
-let twoT = 0;
+let twoT = 0, twoLostT = 0;
 
 function takeHold(c, who, how) {
   if (!c.grab()) return false;
@@ -485,22 +533,32 @@ function dropHeld() {
 
 function updateHandGrabs(dt, t) {
   const [A, B] = hands;
-  // due mani ai lati
+  // due mani ai lati (mani aperte, palmi verso di lui): basta che lo "abbracci" tra le mani.
+  // Si guarda la parte della mano piu' vicina a lui (anche le dita), non solo il centro del palmo.
   if (!held && A.tracked && B.tracked && !A.closed && !B.closed) {
     const mid = new THREE.Vector3().addVectors(A.center, B.center).multiplyScalar(0.5);
-    const c = nearestCreature(mid, 0.12);
-    const ab = _v.subVectors(B.center, A.center), dist = ab.length();
-    ab.divideScalar(dist || 1);
-    const around = c && A.center.distanceTo(c.center) < 0.12 && B.center.distanceTo(c.center) < 0.12 && dist < 0.22;
-    const facing = A.palmN.dot(ab) > 0.3 && B.palmN.dot(ab) < -0.3;
-    twoT = around && facing ? twoT + dt : 0;
-    if (twoT > 0.1) takeHold(c, 2, 'two');
+    const c = nearestCreature(mid, 0.14);
+    let ok = false;
+    if (c) {
+      const cc = c.center.clone();
+      const ab = _v.subVectors(B.center, A.center), dist = ab.length();
+      ab.divideScalar(dist || 1);
+      const near = h => Math.min(...h.points.map(q => q.distanceTo(cc)));
+      const along = _d.subVectors(cc, A.center).dot(ab) / (dist || 1);   // 0 = mano A, 1 = mano B
+      const between = along > 0.15 && along < 0.85;
+      const facing = A.palmN.dot(ab) > 0.15 && B.palmN.dot(ab) < -0.15;
+      ok = between && facing && dist < 0.26 && near(A) < 0.075 && near(B) < 0.075;
+    }
+    twoT = ok ? twoT + dt : 0;
+    if (twoT > 0.08) { takeHold(c, 2, 'two'); twoLostT = 0; }
   }
   if (holder === 2) {
-    const c = held.center;
-    const lost = !A.tracked || !B.tracked || A.center.distanceTo(B.center) > 0.27 ||
-      A.center.distanceTo(c) > 0.17 || B.center.distanceTo(c) > 0.17;
-    if (lost) dropHeld();
+    // lo lasci solo se allarghi davvero le mani (non per un tremolio del tracciamento)
+    const cc = held.center.clone();
+    const lost = !A.tracked || !B.tracked || A.center.distanceTo(B.center) > 0.3 ||
+      A.center.distanceTo(cc) > 0.19 || B.center.distanceTo(cc) > 0.19;
+    twoLostT = lost ? twoLostT + dt : 0;
+    if (twoLostT > 0.15) dropHeld();
     return;
   }
   // una mano: pizzico o pugno
@@ -509,6 +567,13 @@ function updateHandGrabs(dt, t) {
     if (!isHand(p) || !h.tracked) {
       if (h.closed) { h.closed = false; releaseGrab(i); }
       continue;
+    }
+    // barra sotto il menu': pizzicala e trascina per spostarlo
+    if (h.menuDrag) {
+      if (h.pinchD < 0.045) { menu.dragTo(h.pinchPt, camera); continue; }
+      h.menuDrag = false; menu.endDrag();
+    } else if (!h.closed && menu.open && h.pinchD < 0.022 && menu.barNear(h.pinchPt)) {
+      h.menuDrag = true; p.menuPinch = true; menu.startDrag(h.pinchPt); continue;
     }
     if (p.menuPinch) continue;   // pizzico del menu': non prende niente
     const pinchOn = h.closed ? h.kind === 'pinch' && h.pinchD < 0.045 : h.pinchD < 0.022;
@@ -618,8 +683,9 @@ function updateHold(dt, t) {
     return;
   }
   if (holder === 2) {
-    // tra le due mani: sta al centro, non penzola
-    _hold.lerpVectors(hands[0].center, hands[1].center, 0.5);
+    // tra le due mani: sta al centro dei palmi (sulla loro superficie, non dentro), non penzola
+    const A = hands[0], B = hands[1];
+    _hold.copy(A.center).addScaledVector(A.palmN, 0.015).add(_d.copy(B.center).addScaledVector(B.palmN, 0.015)).multiplyScalar(0.5);
     held.holdAt(_hold, dt, t, 0.055);
     return;
   }
@@ -637,13 +703,37 @@ function onSelect(i) {
 
 function updatePointers() {
   const hovered = [];
+  let barHover = hands.some(h => h.tracked && (h.menuDrag || menu.barNear(h.pinchPt, 0.05)));
+  // un dito vicino al menu': i raggi delle mani non illuminano piu' niente (comanda il dito)
+  const fingerAtMenu = menu.open && hands.some(h => h.tracked && h.tipOk && menu.fingerNear(h.tip));
   for (let i = 0; i < 2; i++) {
     const p = pointers[i];
     if (!p.c.userData.source) { p.menuHit = null; continue; }
     p.c.getWorldPosition(_v);
     p.c.getWorldQuaternion(_q);
     const o = _v.clone(), dir = _d.set(0, 0, -1).applyQuaternion(_q).clone();
+    // trascinamento del menu' col raggio (preso per la barra)
+    if (p.barDrag != null) {
+      menu.dragTo(o.clone().addScaledVector(dir, p.barDrag), camera);
+      p.menuHit = null; p.line.scale.z = p.barDrag; p.line.visible = true; fx.setReticle(i, null);
+      barHover = true;
+      continue;
+    }
     p.menuHit = menu.hit(o, dir);
+    p.barHitD = p.menuHit ? null : menu.barHit(o, dir);
+    if (p.barHitD != null) {
+      (p.barPoint ||= new THREE.Vector3()).copy(o).addScaledVector(dir, p.barHitD);
+      p.line.scale.z = p.barHitD; p.line.visible = true; fx.setReticle(i, null);
+      barHover = true;
+      continue;
+    }
+    // mano col dito gia' vicino al menu': comanda il dito (niente raggio che illumina un altro tasto)
+    if (p.menuHit && isHand(p) && fingerAtMenu) {
+      p.menuHit = null;
+      p.line.visible = false;
+      fx.setReticle(i, null);
+      continue;
+    }
     if (p.menuHit) {
       hovered.push(p.menuHit.button);
       p.line.scale.z = p.menuHit.distance;
@@ -659,7 +749,10 @@ function updatePointers() {
     p.line.visible = !isHand(p) || !p.grabbing;
     fx.setReticle(i, !p.creatureHit && !p.grabbing && !gameOn() ? p.hit : null);
   }
-  menu.setHover(hovered);
+  // il tasto sotto il dito che si avvicina si illumina (ha la precedenza sul raggio)
+  const fingers = menu.open ? menu.fingerHover(hands.filter(h => h.tracked && h.tipOk).map(h => h.tip)) : [];
+  if (fingers.length) menu.setHover(fingers, 'finger'); else menu.setHover(hovered, 'ray');
+  menu.barHover = barHover;
 }
 
 // carezze: mano aperta (o controller) che tocca un personaggio
@@ -941,6 +1034,7 @@ function loop(time, frame) {
     }
     // cats.update(dt, t, frame, renderer.xr.getReferenceSpace(), catsOn, camera);   // gatti: disattivato
     updateHands(dt);
+    if (spawnedOnce) checkOutside(dt);
     // bottone MENÙ sul dorso della mano sinistra
     if (gloves.update(pointers, hands, dt) || menuPinch(dt)) {
       toggleMenu();
