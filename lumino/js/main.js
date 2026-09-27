@@ -392,6 +392,7 @@ const pointers = [0, 1].map(i => {
   c.addEventListener('select', () => {
     const p = pointers[i];
     if (p.menuSel) { p.menuSel = false; if (p.menuHit) menu.press(p.menuHit.button); return; }
+    if (p.menuPinch) return;   // pizzico usato per aprire il menu'
     // il pizzico usato per prendere (o per il menu') non lancia anche una bacca
     const justHeld = clock.elapsedTime - (p.grabEndT || -9) < 0.6 || hands[i].closed ||
       clock.elapsedTime - (p.menuT || -9) < 0.8;
@@ -406,7 +407,7 @@ const pointers = [0, 1].map(i => {
   return { c, line, grip, hand, hit: null, creatureHit: null, grabbing: false, menuHit: null, menuSel: false };
 });
 game.pointers = pointers;
-game.test = { updateHands: dt => updateHands(dt), updateHandGrabs: (dt, t) => updateHandGrabs(dt, t), updateHold: (dt, t) => updateHold(dt, t), updateTouch: () => updateTouch(), get held() { return held; } };
+game.test = { updateHands: dt => updateHands(dt), updateHandGrabs: (dt, t) => updateHandGrabs(dt, t), updateHold: (dt, t) => updateHold(dt, t), updateTouch: () => updateTouch(), menuPinch: dt => menuPinch(dt), get held() { return held; } };
 game.hands = hands;
 
 function isHand(p) { return !!p.c.userData.source?.hand; }
@@ -509,6 +510,7 @@ function updateHandGrabs(dt, t) {
       if (h.closed) { h.closed = false; releaseGrab(i); }
       continue;
     }
+    if (p.menuPinch) continue;   // pizzico del menu': non prende niente
     const pinchOn = h.closed ? h.kind === 'pinch' && h.pinchD < 0.045 : h.pinchD < 0.022;
     const graspOn = h.closed ? h.kind === 'grasp' && h.curl < 0.08 : h.curl < 0.062;
     if (!h.closed && (pinchOn || graspOn)) {
@@ -529,6 +531,30 @@ function handGrab(i) {
   if (held) return;
   const c = nearestCreature(pt, h.kind === 'pinch' ? 0.1 : 0.11);
   if (c) takeHold(c, i, h.kind);
+}
+
+// menu' col pizzico: mano sinistra davanti a te con il DORSO verso di te, pollice e indice che si chiudono.
+// (il menu' di sistema del Quest e' lo stesso pizzico ma col PALMO verso di te: cosi' non si confondono)
+let menuPinchCool = 0;
+function menuPinch(dt) {
+  menuPinchCool -= dt;
+  const h = hands.find(h => h.tracked && h.handed === 'left');
+  if (!h) return false;
+  const p = pointers[h.id];
+  const toHead = _v.subVectors(camera.position, h.center);
+  const dist = toHead.length(); toHead.divideScalar(dist || 1);
+  const fwd = _d.set(0, 0, -1).applyQuaternion(camera.quaternion);
+  const pose = dist < 0.7 && -fwd.dot(toHead) > 0.75 &&   // davanti agli occhi
+    h.palmN.dot(toHead) < -0.55 &&                         // dorso verso la faccia
+    !p.grabbing && !p.menuHit && !held;
+  const pinched = h.pinchD < 0.022;
+  if (!pinched && h.pinchD > 0.045) p.menuPinch = false;   // (dopo l'evento 'select' del rilascio)
+  const fire = pose && pinched && !h.menuPinched && menuPinchCool <= 0;
+  h.menuPinched = pinched;
+  if (!fire) return false;
+  menuPinchCool = 0.8;
+  p.menuPinch = true;   // questo pizzico non lancia bacche e non prende niente
+  return true;
 }
 
 // gesti: palmo in su per 1 s = "venite qui"
@@ -916,7 +942,7 @@ function loop(time, frame) {
     // cats.update(dt, t, frame, renderer.xr.getReferenceSpace(), catsOn, camera);   // gatti: disattivato
     updateHands(dt);
     // bottone MENÙ sul dorso della mano sinistra
-    if (gloves.update(pointers, hands, dt)) {
+    if (gloves.update(pointers, hands, dt) || menuPinch(dt)) {
       toggleMenu();
       sfx.click();
       for (const p of pointers) p.menuT = clock.elapsedTime;
@@ -999,7 +1025,9 @@ function setStatus(key, vars = {}) { statusMsg = [key, vars]; ui.status.textCont
 function applyPageText() {
   document.documentElement.lang = lang;
   const set = (id, key) => { const el = document.getElementById(id); if (el) el.textContent = t(key); };
-  set('intro', 'page.intro'); set('btn-ar', 'page.enter'); set('btn-sim', 'page.sim'); set('apk', 'page.apk');
+  set('intro', 'page.intro'); set('btn-ar', 'page.enter'); set('btn-sim', 'page.sim');
+  const apkVer = document.querySelector('meta[name="apk-version"]')?.content;
+  const apk = document.getElementById('apk'); if (apk) apk.textContent = t('page.apk', { v: apkVer ? ' ' + apkVer : '' });
   set('sim-call', 'sim.call'); set('sim-pet', 'sim.pet'); set('sim-menu', 'sim.menu');
   const list = document.getElementById('help-list');
   if (list) list.innerHTML = t('page.list').map(l => `<li>${l}</li>`).join('');

@@ -21,6 +21,41 @@ function drawButton(canvas, label, hover, flash, disabled) {
   g.globalAlpha = 1;
 }
 
+// Sfondo a zampetta: cuscinetto grande (con i tre lobi in basso) che contiene testi e pulsanti,
+// e quattro ditini sopra. Trucco per il bordo: prima i contorni di tutte le forme, poi il riempimento
+// sopra, cosi' resta visibile solo il contorno esterno dell'unione.
+const PX = 1000 / INFO_W;   // pixel per metro (come il testo)
+function drawPaw(canvas, padW, padH, toeH) {
+  const W = Math.ceil(padW * PX), H = Math.ceil((padH + toeH) * PX);
+  canvas.width = W; canvas.height = H;
+  const g = canvas.getContext('2d');
+  g.clearRect(0, 0, W, H);
+  const top = toeH * PX, ph = padH * PX;
+  const lobeR = W * 0.2, lobes = [0.22, 0.5, 0.78].map(f => [W * f, top + ph - lobeR * 0.95]);
+  const pad = () => {
+    g.beginPath(); g.roundRect(0, top, W, ph - lobeR * 0.5, Math.min(W, ph) * 0.26);
+    for (const [x, y] of lobes) { g.moveTo(x + lobeR, y); g.arc(x, y, lobeR, 0, Math.PI * 2); }
+  };
+  // ditini: ovali un po' inclinati verso l'esterno, quelli ai lati piu' bassi
+  const toes = [[0.12, 0.6, -0.45], [0.37, 0.4, -0.12], [0.63, 0.4, 0.12], [0.88, 0.6, 0.45]]
+    .map(([fx, fy, rot]) => ({ x: W * fx, y: top * fy, rx: W * 0.1, ry: top * 0.34, rot }));
+  const toe = t => { g.beginPath(); g.ellipse(t.x, t.y, t.rx, t.ry, t.rot, 0, Math.PI * 2); };
+  // contorni luminosi
+  g.shadowColor = '#38e8ff'; g.shadowBlur = 28;
+  g.strokeStyle = 'rgba(125,255,207,0.9)'; g.lineWidth = 14;
+  pad(); g.stroke();
+  for (const t of toes) { toe(t); g.stroke(); }
+  g.shadowBlur = 0;
+  // riempimenti
+  g.fillStyle = 'rgba(12,20,32,0.93)';
+  pad(); g.fill();
+  for (const t of toes) {
+    const gr = g.createRadialGradient(t.x - t.rx * 0.3, t.y - t.ry * 0.3, 2, t.x, t.y, t.ry);
+    gr.addColorStop(0, '#ffd3ea'); gr.addColorStop(1, '#e46aa8');
+    g.fillStyle = gr; toe(t); g.fill();
+  }
+}
+
 export class Menu {
   // onAction(id): chiamata quando si preme un pulsante
   constructor(scene, onAction) {
@@ -39,6 +74,11 @@ export class Menu {
       new THREE.MeshBasicMaterial({ map: this.infoTex, transparent: true, depthTest: false }));
     this.info.renderOrder = 39;
     this.group.add(this.info);
+    this.pawCanvas = document.createElement('canvas');
+    this.paw = new THREE.Mesh(new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({ transparent: true, depthTest: false }));
+    this.paw.renderOrder = 38;
+    this.group.add(this.paw);
   }
 
   get open() { return this.group.visible; }
@@ -93,7 +133,7 @@ export class Menu {
     if (!force && key === this.infoKey) return;
     this.infoKey = key;
     this.info.visible = !!(title || lines.length);
-    if (!this.info.visible) return;
+    if (!this.info.visible) { this.layoutPaw(0, 0); return; }
     const g = this.infoCanvas.getContext('2d');
     g.font = '32px sans-serif';
     let wText = Math.max(0, ...lines.map(l => g.measureText(l).width));
@@ -103,11 +143,7 @@ export class Menu {
     const W = Math.ceil(Math.max(buttonsW, wText + 80));
     const H = (title ? 90 : 20) + lines.length * 46 + 24;
     this.infoCanvas.width = W; this.infoCanvas.height = H;
-    g.clearRect(0, 0, W, H);
-    g.fillStyle = 'rgba(12,20,32,0.9)';
-    g.beginPath(); g.roundRect(0, 0, W, H, 34); g.fill();
-    g.strokeStyle = 'rgba(125,255,207,0.7)'; g.lineWidth = 5;
-    g.beginPath(); g.roundRect(3, 3, W - 6, H - 6, 32); g.stroke();
+    g.clearRect(0, 0, W, H);   // niente riquadro: il testo sta dentro la zampetta
     let y = 20;
     if (title) { g.fillStyle = '#7dffcf'; g.font = 'bold 50px sans-serif'; g.textBaseline = 'top'; g.fillText(title, 40, y + 8); y += 80; }
     g.fillStyle = '#ffffff'; g.font = '32px sans-serif'; g.textBaseline = 'top';
@@ -120,6 +156,27 @@ export class Menu {
     const wM = W / 1000 * INFO_W, hM = H / 1000 * INFO_W;
     this.info.scale.set(wM, hM, 1);
     this.info.position.set(0, BH / 2 + GAP * 1.5 + hM / 2, 0);
+    this.layoutPaw(wM, hM);
+  }
+
+  // zampetta attorno a testo (largo infoW, alto infoH) e pulsanti
+  layoutPaw(infoW, infoH) {
+    const buttonsW = this.cols * BW + (this.cols - 1) * GAP;
+    const top = infoH ? BH / 2 + GAP * 1.5 + infoH : BH / 2;
+    const bottom = -(this.rows - 1) * (BH + GAP) - BH / 2;
+    const padW = Math.max(buttonsW, infoW) + 0.03;
+    const padH = top - bottom + 0.022 + padW * 0.12;   // in basso piu' spazio per i lobi
+    const toeH = padW * 0.26;
+    drawPaw(this.pawCanvas, padW, padH, toeH);
+    this.paw.material.map?.dispose();
+    const tex = new THREE.CanvasTexture(this.pawCanvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    this.paw.material.map = tex;
+    this.paw.material.needsUpdate = true;
+    this.paw.scale.set(padW, padH + toeH, 1);
+    // il cuscinetto parte 1 cm sopra il testo; i ditini stanno sopra
+    const padTop = top + 0.012;
+    this.paw.position.set(0, padTop - padH + (padH + toeH) / 2, -0.001);
   }
 
   show(mode, camera, dist = 0.6) {

@@ -1,4 +1,4 @@
-// Guanti bianchi futuristici disegnati sulle mani tracciate, con il bottone "MENÙ"
+// Guanti bianchi futuristici disegnati sulle mani tracciate, con il bottone "MENÙ" a zampetta
 // sul dorso della mano sinistra (si preme con l'indice dell'altra mano).
 import * as THREE from 'three';
 
@@ -31,12 +31,13 @@ function tattooTexture(label = 'MENÙ') {
   const g = c.getContext('2d');
   g.strokeStyle = '#6ff7ff'; g.fillStyle = '#6ff7ff';
   g.shadowColor = '#38e8ff'; g.shadowBlur = 16;
-  g.lineWidth = 10; g.lineCap = 'round';
-  g.beginPath(); g.arc(128, 118, 96, 0, Math.PI * 2); g.stroke();              // cerchio esterno
-  g.lineWidth = 4;
-  g.beginPath(); g.arc(128, 118, 78, 0.3, Math.PI * 2 - 0.3); g.stroke();      // cerchio interno spezzato
-  g.lineWidth = 12;
-  for (const y of [86, 118, 150]) { g.beginPath(); g.moveTo(84, y); g.lineTo(172, y); g.stroke(); } // tre lineette
+  g.lineWidth = 9; g.lineCap = 'round';
+  // zampetta: cuscinetto grande e quattro ditini (come il menu')
+  g.beginPath(); g.ellipse(128, 160, 62, 50, 0, 0, Math.PI * 2); g.stroke();
+  g.globalAlpha = 0.35; g.fill(); g.globalAlpha = 1;
+  for (const [x, y, r] of [[52, 102, -0.5], [98, 58, -0.15], [158, 58, 0.15], [204, 102, 0.5]]) {
+    g.beginPath(); g.ellipse(x, y, 22, 30, r, 0, Math.PI * 2); g.fill();
+  }
   g.font = 'bold 58px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.fillText(label, 128, 285);
   const t = new THREE.CanvasTexture(c);
