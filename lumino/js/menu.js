@@ -219,6 +219,7 @@ export class Menu {
 
   show(mode, camera, dist = 0.6) {
     this.mode = mode;
+    this.camera = camera;
     this.group.visible = true;
     this.group.scale.setScalar(1.5);
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).setY(0).normalize();
@@ -295,6 +296,13 @@ export class Menu {
 
   update(dt) {
     if (!this.open) return;
+    // resta sempre rivolto verso di te (se ti sposti non lo vedi di sbieco); mentre lo trascini resta dritto
+    if (this.camera && !this.dragging) {
+      const q = this.group.quaternion.clone();
+      this.group.lookAt(this.camera.position);
+      const target = this.group.quaternion.clone();
+      this.group.quaternion.copy(q).slerp(target, Math.min(1, dt * 4));
+    }
     this.bar.material.opacity = this.dragging || this.barHover ? 1 : 0.7;
     this.bar.scale.setScalar(this.dragging || this.barHover ? 1.15 : 1);
     this.pokeLock -= dt;

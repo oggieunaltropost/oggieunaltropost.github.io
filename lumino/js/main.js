@@ -308,7 +308,9 @@ function onMenu(id) {
     } else for (const c of creatures) if (c.mode === 'cat') c.clearTarget();
   } else if (id === 'reset') {
     fx.hideBerry();
-    for (const c of active()) spawnOne(c);
+    if (held && active().includes(held)) dropHeld();
+    // il primo torna davanti a te, il secondo accanto al primo (non accanto a dove si era incastrato)
+    active().forEach((c, i) => spawnOne(c, i === 0));
   } else if (id === 'call') {
     callTo(_v.copy(camera.position).addScaledVector(camForward(), 0.4));
   } else if (id === 'gloves') {
@@ -401,8 +403,9 @@ function callTo(p) {
 let camAccess = false;
 
 // fa comparire un personaggio davanti a te (accanto all'altro, se c'e')
-function spawnOne(c) {
-  const other = visible().find(o => o !== c);
+// alone = non metterlo vicino all'altro (serve nel reset di tutti e due: l'altro e' ancora incastrato)
+function spawnOne(c, alone = false) {
+  const other = alone ? null : visible().find(o => o !== c);
   if (other && other.state !== 'held' && other.state !== 'onHand') {
     const side = new THREE.Vector3(-camForward().z, 0, camForward().x);
     for (const s of [0.22, -0.22, 0.35, -0.35]) {
