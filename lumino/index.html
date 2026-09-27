@@ -11,7 +11,12 @@
     // (se manca, la richiesta resta appesa per sempre). Con &scene=0 (permesso rifiutato) si parte senza.
     // Niente depth-sensing e anchors: nell'app immersiva bloccavano l'avvio e il gioco non li usa.
     const qs = new URLSearchParams(location.search);
-    if (qs.has('pwa') && navigator.xr && typeof window.getDigitalGoodsService === 'function') {   // solo nell'app
+    // aperta dall'app Lumino AR? (il browser normale del Quest non manda questo referrer)
+    try {
+      if (document.referrer.startsWith('android-app://com.oggieunaltropost.lumino')) sessionStorage.setItem('lumino-app', '1');
+      window.__inApp = sessionStorage.getItem('lumino-app') === '1';
+    } catch (e) { window.__inApp = document.referrer.startsWith('android-app://com.oggieunaltropost.lumino'); }
+    if (qs.has('pwa') && navigator.xr && window.__inApp) {   // solo nell'app
       window.__xrInit = {
         requiredFeatures: ['local-floor'],
         optionalFeatures: qs.get('scene') === '0' ? ['hand-tracking']
