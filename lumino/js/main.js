@@ -665,8 +665,10 @@ function handGrab(i) {
   if (c) takeHold(c, i, h.kind);
 }
 
-// menu' col pizzico: mano sinistra davanti a te con il DORSO verso di te, pollice e indice che si chiudono.
+// menu' col pizzico: mano sinistra ferma davanti agli occhi, con il DORSO verso di te, poi pollice e indice
+// che si chiudono (le altre dita restano aperte) e restano chiusi un attimo.
 // (il menu' di sistema del Quest e' lo stesso pizzico ma col PALMO verso di te: cosi' non si confondono)
+// Serve un gesto voluto: mano mostrata per 0,3 s, ferma, e pizzico tenuto 0,15 s; mai mentre tieni o prendi qualcosa.
 let menuPinchCool = 0;
 function menuPinch(dt) {
   menuPinchCool -= dt;
@@ -676,15 +678,21 @@ function menuPinch(dt) {
   const toHead = _v.subVectors(camera.position, h.center);
   const dist = toHead.length(); toHead.divideScalar(dist || 1);
   const fwd = _d.set(0, 0, -1).applyQuaternion(camera.quaternion);
-  const pose = dist < 0.7 && -fwd.dot(toHead) > 0.75 &&   // davanti agli occhi
-    h.palmN.dot(toHead) < -0.55 &&                         // dorso verso la faccia
-    !p.grabbing && !p.menuHit && !held;
-  const pinched = h.pinchD < 0.022;
+  const busy = held || pointers.some(q => q.grabbing) || hands.some(o => o.closed && o.kind === 'grasp') || p.menuHit;
+  const pose = dist > 0.2 && dist < 0.65 && -fwd.dot(toHead) > 0.82 &&   // davanti agli occhi
+    h.palmN.dot(toHead) < -0.7 &&                                        // dorso ben rivolto verso la faccia
+    h.vel.length() < 0.35 && !busy;                                      // mano ferma, niente in mano
+  const pinched = h.pinchD < 0.02;
   if (!pinched && h.pinchD > 0.045) p.menuPinch = false;   // (dopo l'evento 'select' del rilascio)
-  const fire = pose && pinched && !h.menuPinched && menuPinchCool <= 0;
-  h.menuPinched = pinched;
-  if (!fire) return false;
-  menuPinchCool = 0.8;
+  // la mano deve essere mostrata aperta (non pizzicata) per un attimo prima del pizzico
+  h.menuShowT = pose && !pinched && h.curl > 0.065 ? (h.menuShowT || 0) + dt : pose && pinched ? h.menuShowT || 0 : 0;
+  h.menuPinchT = pose && pinched && h.menuShowT > 0.3 ? (h.menuPinchT || 0) + dt : 0;
+  if (!(h.menuPinchT > 0.15 && !h.menuFired && menuPinchCool <= 0)) {
+    if (!pinched) h.menuFired = false;
+    return false;
+  }
+  h.menuFired = true; h.menuShowT = 0;
+  menuPinchCool = 1;
   p.menuPinch = true;   // questo pizzico non lancia bacche e non prende niente
   return true;
 }
@@ -1115,7 +1123,7 @@ function loop(time, frame) {
     if (spawnedOnce) checkOutside(dt);
     updateQuitX(dt);
     // bottone MENÙ sul dorso della mano sinistra
-    if (gloves.update(pointers, hands, dt) || menuPinch(dt)) {
+    if (gloves.update(pointers, hands, dt, camera, !!held || pointers.some(q => q.grabbing)) || menuPinch(dt)) {
       toggleMenu();
       sfx.click();
       for (const p of pointers) p.menuT = clock.elapsedTime;

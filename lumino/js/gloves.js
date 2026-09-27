@@ -183,7 +183,8 @@ export class Gloves {
   }
 
   // pointers/hands di main.js; ritorna true se e' stato premuto il bottone del menu'
-  update(pointers, hands, dt) {
+  // camera: per controllare che il tatuaggio sia girato verso di te; busy: stai tenendo/prendendo qualcosa
+  update(pointers, hands, dt, camera = null, busy = false) {
     this.cooldown -= dt;
     let leftGlove = null, leftHand = null;
     for (let i = 0; i < 2; i++) {
@@ -207,14 +208,18 @@ export class Gloves {
     if (!other) { this.touching = false; return false; }
     const d = other.tip.distanceTo(leftGlove.buttonCenter);
     const inFront = _a.subVectors(other.tip, leftGlove.buttonCenter).dot(leftGlove.buttonNormal) > -0.008;
-    const touch = d < 0.02 && inFront;
+    // il tatuaggio deve essere girato verso di te (lo stai guardando) e non devi tenere niente in mano:
+    // cosi' non si preme per sbaglio quando le mani si avvicinano (es. tenendo un cucciolo con due mani)
+    const facing = !camera || _b.subVectors(camera.position, leftGlove.buttonCenter).normalize().dot(leftGlove.buttonNormal) > 0.5;
+    const touch = d < 0.018 && inFront && facing && !busy;
+    this.touchT = touch ? (this.touchT || 0) + dt : 0;   // tocco tenuto almeno 0,08 s
     let pressed = false;
-    if (touch && !this.touching && this.cooldown <= 0) {
+    if (this.touchT > 0.08 && !this.touching && this.cooldown <= 0) {
       pressed = true;
       this.cooldown = 0.8;
       leftGlove.flash = 1;
     }
-    this.touching = touch;
+    this.touching = this.touchT > 0.08;
     return pressed;
   }
 }
