@@ -5,13 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lumino AR</title>
   <script>
-    // App PWA immersiva sul Quest: la realta' mista va chiesta SUBITO, prima di caricare il gioco
-    // (il tocco sull'icona vale come "clic" dell'utente solo per pochi secondi).
+    // App PWA immersiva sul Quest: la realta' mista parte da sola appena la pagina e' caricata
+    // (come nell'esempio Meta; il tocco sull'icona dell'app vale come "clic" dell'utente).
     // I dati della stanza (piani/mesh) funzionano solo se l'app ha il permesso: lo chiede l'APK all'avvio
     // (se manca, la richiesta resta appesa per sempre). Con &scene=0 (permesso rifiutato) si parte senza.
     // Niente depth-sensing e anchors: nell'app immersiva bloccavano l'avvio e il gioco non li usa.
-    window.__xrLog = [];
-    const xrLog = (m) => window.__xrLog.push(Math.round(performance.now()) + ' ' + m);
     const qs = new URLSearchParams(location.search);
     if (qs.has('pwa') && navigator.xr) {
       window.__xrInit = {
@@ -19,19 +17,14 @@
         optionalFeatures: qs.get('scene') === '0' ? ['hand-tracking']
           : ['hand-tracking', 'plane-detection', 'mesh-detection'],
       };
-      xrLog('feat ' + window.__xrInit.optionalFeatures.join('+'));
-      // come nell'esempio Meta: la sessione si chiede a pagina caricata (chiesta prima, non rispondeva mai)
       window.__xrSession = new Promise(r => window.addEventListener('load', r, { once: true }))
-        .then(() => { xrLog('load'); return navigator.xr.isSessionSupported('immersive-ar'); })
-        .then(ok => { xrLog('supported ' + ok + ' dg=' + (window.getDigitalGoodsService !== undefined));
-          return navigator.xr.requestSession('immersive-ar', window.__xrInit); })
-        .then(s => { xrLog('ok'); return s; })
-        .catch(e => { xrLog('err ' + e.name + ' ' + e.message); window.__xrError = e; return null; });
+        .then(() => navigator.xr.requestSession('immersive-ar', window.__xrInit))
+        .catch(e => { window.__xrError = e; return null; });
     }
   </script>
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0e1622">
-  <meta name="apk-version" content="1.6">  <!-- la scrive tools/build_site.py leggendola dall'APK -->
+  <meta name="apk-version" content="1.0">  <!-- la scrive tools/build_site.py leggendola dall'APK -->
   <link rel="icon" href="assets/icon-192.png">
   <style>
     :root { --bg: #0e1622; --fg: #f3f7fb; --accent: #35c6c0; --muted: #9fb1c4; }
