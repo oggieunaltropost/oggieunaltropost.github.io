@@ -47,6 +47,7 @@ const STRINGS = {
     'status.noAR': "AR non disponibile su questo dispositivo: prova l'anteprima 3D.",
     'status.https': "AR richiede HTTPS: apri l'indirizzo https:// mostrato dal server.",
     'status.error': 'Errore AR: {x}', 'status.press': 'Premi "Entra in AR" per iniziare.',
+    'status.appOnly': "La realtà mista si gioca con l'app Lumino AR del Meta Horizon Store. Qui puoi provare l'anteprima 3D.",
     'page.intro': 'Un piccolo cucciolo luminoso grande come una mano corre per la tua stanza, si arrampica sui mobili e salta giù.',
     'page.enter': 'Entra in AR', 'page.sim': 'Anteprima 3D su PC', 'page.apk': "⬇ Scarica l'app per il Quest (APK{v})",
     'page.list': [
@@ -124,6 +125,7 @@ const STRINGS = {
     'status.noAR': 'AR is not available on this device: try the 3D preview.',
     'status.https': 'AR needs HTTPS: open the https:// address shown by the server.',
     'status.error': 'AR error: {x}', 'status.press': 'Press "Enter AR" to start.',
+    'status.appOnly': 'Mixed reality is played with the Lumino AR app from the Meta Horizon Store. Here you can try the 3D preview.',
     'page.intro': 'A tiny glowing pup, as big as your hand, runs around your room, climbs on the furniture and jumps down.',
     'page.enter': 'Enter AR', 'page.sim': '3D preview on PC', 'page.apk': '⬇ Download the Quest app (APK{v})',
     'page.list': [

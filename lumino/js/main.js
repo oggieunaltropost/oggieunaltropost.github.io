@@ -1218,7 +1218,14 @@ await Promise.all([lumino.load('assets/lumino.glb'), lumina.load('assets/lumina.
 modelsReady = true;
 
 const arOk = navigator.xr && await navigator.xr.isSessionSupported('immersive-ar').catch(() => false);
-if (arOk) {
+// La realta' mista si gioca solo dentro l'app dello store: il servizio Digital Goods c'e' solo li'
+// (il sito resta per l'anteprima 3D da PC). Sul server di sviluppo in casa (localhost / rete locale) va sempre.
+const inApp = typeof window.getDigitalGoodsService === 'function';
+const devHost = /^(localhost|127\.|192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(location.hostname);
+if (arOk && !inApp && !devHost) {
+  ui.ar.hidden = true;
+  setStatus('status.appOnly');
+} else if (arOk) {
   ui.ar.disabled = false;
   setStatus('status.ready');
 } else {

@@ -11,7 +11,7 @@
     // (se manca, la richiesta resta appesa per sempre). Con &scene=0 (permesso rifiutato) si parte senza.
     // Niente depth-sensing e anchors: nell'app immersiva bloccavano l'avvio e il gioco non li usa.
     const qs = new URLSearchParams(location.search);
-    if (qs.has('pwa') && navigator.xr) {
+    if (qs.has('pwa') && navigator.xr && typeof window.getDigitalGoodsService === 'function') {   // solo nell'app
       window.__xrInit = {
         requiredFeatures: ['local-floor'],
         optionalFeatures: qs.get('scene') === '0' ? ['hand-tracking']
@@ -128,7 +128,9 @@
   <script>
     // il link per scaricare l'app compare solo nella versione servita dal PC (non dentro l'app stessa)
     // (e non quando il gioco e' gia' l'app PWA installata)
-    if (location.port !== '8123' && !new URLSearchParams(location.search).has('pwa')) document.getElementById('apk').hidden = false;
+    // (solo sul server di sviluppo in casa: sul sito pubblico l'app si prende dal Meta Horizon Store)
+    if (/^(localhost|127\.|192\.168\.|10\.)/.test(location.hostname) && location.port !== '8123' &&
+      !new URLSearchParams(location.search).has('pwa')) document.getElementById('apk').hidden = false;
     // PWA: tiene i file sul visore per giocare anche offline
     if ('serviceWorker' in navigator && isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => {});
   </script>
