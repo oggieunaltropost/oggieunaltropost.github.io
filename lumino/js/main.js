@@ -124,6 +124,16 @@ const PAGES = {
       close,
     ],
   }),
+  // X accanto al punteggio: conferma prima di abbandonare la partita
+  quitGame: () => ({
+    title: t('page.quit'),
+    info: () => [t('page.exit.game')],
+    cols: 1,
+    items: [
+      { id: 'quit:yes', label: () => t('menu.quitYes') },
+      { id: 'close', label: () => t('menu.quitNo') },
+    ],
+  }),
   // conferma prima di uscire
   exit: () => ({
     title: t('page.exit'),
@@ -198,12 +208,58 @@ const PAGES = {
 };
 
 const menu = new Menu(scene, onMenu);
+
+// X per abbandonare la partita, a destra della barra del punteggio (si tocca col dito o si punta col raggio)
+const quitX = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = 'rgba(12,20,32,0.9)'; g.beginPath(); g.arc(64, 64, 58, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = '#ff7a8a'; g.lineWidth = 7; g.stroke();
+  g.lineWidth = 11; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(42, 42); g.lineTo(86, 86); g.moveTo(86, 42); g.lineTo(42, 86); g.stroke();
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.Mesh(new THREE.CircleGeometry(0.02, 32),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false }));
+  m.renderOrder = 36; m.visible = false; scene.add(m);
+  return m;
+})();
+let quitHover = 0;
+const quitRay = new THREE.Raycaster();
+function updateQuitX(dt) {
+  const hud = berryGame.active ? berryGame.hud : defendGame.active ? defendGame.hud : null;
+  quitX.visible = !!hud && !menu.open;
+  if (!quitX.visible) return;
+  // la barra e' larga 0,36 m per la sua scala in x
+  const right = _v.set(1, 0, 0).applyQuaternion(hud.quaternion);
+  quitX.position.copy(hud.position).addScaledVector(right, 0.36 * hud.scale.x / 2 + 0.03);
+  quitX.quaternion.copy(hud.quaternion);
+  quitHover = Math.max(0, quitHover - dt * 4);
+  quitX.scale.setScalar(1 + quitHover * 0.25);
+  // tocco col dito
+  for (const h of hands) {
+    if (h.tracked && h.tipOk && h.tip.distanceTo(quitX.position) < 0.025) { pressQuit(); return; }
+  }
+}
+function pressQuit() {
+  if (!quitX.visible) return;
+  quitX.visible = false;
+  sfx.click();
+  menu.setPage(PAGES.quitGame());
+  menu.show('world', camera, 0.42);
+  for (const p of pointers) p.menuT = clock.elapsedTime;
+}
 game.menu = menu;
 // esce dalla realta' mista; nell'app installata chiude anche l'app (partite in corso non salvate)
 function exitGame() {
   menu.hide();
   const session = renderer.xr.getSession();
-  const closeApp = () => { if (pwaLaunch) window.close(); };
+  // app installata: chiede al browser di chiudere la finestra; se resta aperta (schermo nero)
+  // apre la "porta di uscita" dell'app (luminoar://exit, vedi pwa/custom/ExitActivity.java)
+  const closeApp = () => {
+    if (!pwaLaunch) return;
+    window.close();
+    setTimeout(() => { location.href = 'intent://exit#Intent;scheme=luminoar;package=com.oggieunaltropost.lumino;end'; }, 400);
+  };
   if (session) session.end().then(closeApp, closeApp); else closeApp();
 }
 
@@ -219,6 +275,7 @@ function onMenu(id) {
   if (id === 'go:stats') { menu.setPage(PAGES.stats()); return; }
   if (id === 'go:exit') { menu.setPage(PAGES.exit()); return; }
   if (id === 'exit') { exitGame(); return; }
+  if (id === 'quit:yes') { berryGame.stop(true, camera); defendGame.stop(true, camera); menu.hide(); return; }
   if (id === 'stats:bacche') { Object.assign(statsView, { game: 'bacche', level: null, page: 0 }); menu.setPage(PAGES.statsView()); return; }
   if (id === 'stats:difendi') { menu.setPage(PAGES.statsLevel()); return; }
   if (id.startsWith('statsLevel:')) { Object.assign(statsView, { game: 'difendi', level: id.split(':')[1], page: 0 }); menu.setPage(PAGES.statsView()); return; }
@@ -366,7 +423,8 @@ function spawnOne(c) {
 }
 
 // Cuccioli finiti dietro un muro o dentro un mobile (buchi nella mappa della stanza): da li' non
-// ritrovano la strada. Se succede per 1 s di fila li riportiamo vicino a te.
+// ritrovano la strada. Li riportiamo vicino a te se restano "fuori" 4 s senza riuscire a spostarsi
+// (meno di 25 cm), oppure 10 s in tutto: cosi' non scatta se stanno solo passando.
 // (non quando anche tu sei fuori dalla stanza scansionata, es. "seguimi" per casa)
 let outsideCheckT = 0;
 function checkOutside(dt) {
@@ -377,8 +435,11 @@ function checkOutside(dt) {
   const userOut = room.isOutside(feet);
   for (const c of visible()) {
     const check = !userOut && ['idle', 'walk', 'happy', 'sleep', 'land'].includes(c.state);
-    c.outsideN = check && room.isOutside(c.pos) ? (c.outsideN || 0) + 1 : 0;
-    if (c.outsideN >= 2) { c.outsideN = 0; c.onStuck?.(); }
+    if (!(check && room.isOutside(c.pos))) { c.outsideN = 0; continue; }
+    if (!c.outsideN) c.outsideFrom = c.pos.clone();
+    c.outsideN++;
+    const stuckHere = c.outsideN >= 8 && c.pos.distanceTo(c.outsideFrom) < 0.25;
+    if (stuckHere || c.outsideN >= 20) { c.outsideN = 0; c.onStuck?.(); }
   }
 }
 
@@ -427,7 +488,8 @@ const pointers = [0, 1].map(i => {
   // pizzico/grilletto o grip vicino a un personaggio (o a una bacca) = presa; lontano = bacca / chiamata
   c.addEventListener('selectstart', () => {
     const p = pointers[i];
-    if (p.menuHit) p.menuSel = true;
+    if (p.quitHit) pressQuit();
+    else if (p.menuHit) p.menuSel = true;
     else if (p.barHitD != null && !menu.dragging) { p.barDrag = p.barHitD; menu.startDrag(p.barPoint.clone()); }
     else tryGrab(i);
   });
@@ -438,7 +500,9 @@ const pointers = [0, 1].map(i => {
     if (p.menuPinch) return;   // pizzico usato per aprire il menu'
     if (p.barDrag != null || clock.elapsedTime - (p.barEndT || -9) < 0.3) return;   // ha spostato il menu'
     // il pizzico usato per prendere (o per il menu') non lancia anche una bacca
-    const justHeld = clock.elapsedTime - (p.grabEndT || -9) < 0.6 || hands[i].closed ||
+    // (non basta "dita chiuse": il nostro pizzico si riapre un po' dopo quello del visore,
+    //  e cosi' molte bacche venivano scartate)
+    const justHeld = clock.elapsedTime - (p.grabEndT || -9) < 0.6 ||
       clock.elapsedTime - (p.menuT || -9) < 0.8;
     if (!p.grabbing && !(isHand(p) && justHeld)) onSelect(i);
   });
@@ -455,7 +519,7 @@ const pointers = [0, 1].map(i => {
   return { c, line, grip, hand, hit: null, creatureHit: null, grabbing: false, menuHit: null, menuSel: false };
 });
 game.pointers = pointers;
-game.test = { updateHands: dt => updateHands(dt), updateHandGrabs: (dt, t) => updateHandGrabs(dt, t), updateHold: (dt, t) => updateHold(dt, t), updateTouch: () => updateTouch(), menuPinch: dt => menuPinch(dt), get held() { return held; } };
+game.test = { updateHands: dt => updateHands(dt), updateHandGrabs: (dt, t) => updateHandGrabs(dt, t), updateHold: (dt, t) => updateHold(dt, t), updateTouch: () => updateTouch(), menuPinch: dt => menuPinch(dt), updateQuitX: dt => updateQuitX(dt), quitX, get held() { return held; } };
 game.hands = hands;
 
 function isHand(p) { return !!p.c.userData.source?.hand; }
@@ -696,6 +760,7 @@ function updateHold(dt, t) {
 
 function onSelect(i) {
   const p = pointers[i];
+  if (menu.open) return;   // col menu' aperto il pizzico serve al menu', niente bacche
   fx.panelTimer = Math.min(fx.panelTimer, 1);
   if (p.creatureHit) { p.creatureHit.c.pet(); return; }
   if (p.hit && !gameOn()) goTo(p.hit);
@@ -720,6 +785,16 @@ function updatePointers() {
       continue;
     }
     p.menuHit = menu.hit(o, dir);
+    p.quitHit = false;
+    if (quitX.visible) {
+      quitRay.set(o, dir);
+      const qh = quitRay.intersectObject(quitX, false)[0];
+      if (qh) {
+        p.quitHit = true; quitHover = 1;
+        p.line.scale.z = qh.distance; p.line.visible = true; fx.setReticle(i, null);
+        continue;
+      }
+    }
     p.barHitD = p.menuHit ? null : menu.barHit(o, dir);
     if (p.barHitD != null) {
       (p.barPoint ||= new THREE.Vector3()).copy(o).addScaledVector(dir, p.barHitD);
@@ -1035,6 +1110,7 @@ function loop(time, frame) {
     // cats.update(dt, t, frame, renderer.xr.getReferenceSpace(), catsOn, camera);   // gatti: disattivato
     updateHands(dt);
     if (spawnedOnce) checkOutside(dt);
+    updateQuitX(dt);
     // bottone MENÙ sul dorso della mano sinistra
     if (gloves.update(pointers, hands, dt) || menuPinch(dt)) {
       toggleMenu();

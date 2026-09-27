@@ -82,8 +82,9 @@ export class Creature {
   }
 
   // Incastrato = sta cercando di muoversi ma non avanza:
-  //  - resta nello stesso punto (entro 8 cm) per 6 s mentre cammina/si arrampica/cade, oppure
-  //  - ha un obiettivo ma in 15 s non si e' avvicinato di almeno 10 cm (gira a vuoto).
+  //  - resta nello stesso punto (entro 8 cm) per 9 s mentre cammina/si arrampica/cade, oppure
+  //  - ha un obiettivo ma in 22 s non si e' avvicinato di almeno 10 cm (gira a vuoto).
+  //  (tempi larghi: su divani e cuscini ci mette un po' ma di solito ne esce da solo)
   checkStuck(dt) {
     const w = this.watch;
     if (!MOVING_STATES.includes(this.state)) {
@@ -97,7 +98,7 @@ export class Creature {
       if (d < w.goalBest - 0.1) { w.goalBest = d; w.goalT = 0; }
       w.goalT += dt;
     } else { w.goalT = 0; w.goalBest = Infinity; }
-    if (w.t > 6 || w.goalT > 15) {
+    if (w.t > 9 || w.goalT > 22) {
       w.t = 0; w.goalT = 0; w.goalBest = Infinity;
       this.onStuck?.();
     }

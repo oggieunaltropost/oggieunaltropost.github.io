@@ -248,7 +248,12 @@ export class Room {
   // Punto "fuori posto": dietro un muro o dentro un mobile, cioe' le superfici attorno si vedono dal retro.
   isOutside(p, force = false) {
     if (!force && (!this.hasXRData || (this.stats.meshes && !this.meshCalibrated))) return false;
-    const o = new THREE.Vector3().copy(p); o.y += 0.03;
+    const o = new THREE.Vector3().copy(p); o.y += 0.05;
+    // appoggiato su una superficie rialzata vera (vista dal lato giusto, es. il cuscino del divano): va bene
+    // (il pavimento no: continua anche sotto i mobili, quindi non dice se sei dentro o fuori)
+    const down = this.raycast(o, DOWN, 0.1);
+    if (down && !down.back && down.kind !== 'fallback' && down.normal.y > 0.6 &&
+      down.point.y > this.floorY + 0.1) return false;
     let back = 0, hits = 0;
     const d = new THREE.Vector3();
     for (let k = 0; k < 8; k++) {
@@ -260,7 +265,7 @@ export class Room {
     }
     const up = this.raycast(o, UP, 2.5);
     if (up && up.back && up.kind !== 'fallback') back += 2;
-    return back >= 3 && back >= hits * 0.4;
+    return back >= 4 && back >= hits * 0.6;
   }
 
   groundBelow(p, above = 0.05, far = 4) {
