@@ -56,6 +56,7 @@ board.mesh.position.set(1.15, 1.95, -RING_SIZE / 2 - 0.1);
 board.mesh.lookAt(new THREE.Vector3(0, 1.6, 0.8));
 arena.add(board.mesh);
 const PLAYER_Z = 0.8;                 // dove sta il giocatore rispetto al centro del ring
+const READY_S = 6;                    // secondi prima del gong
 
 const player = new Player(renderer, scene, camera);
 const flash = new HitFlash(camera);
@@ -170,9 +171,10 @@ function handleEvents() {
 function updateGame(dt) {
   game.phaseT += dt;
   if (game.phase === 'ready') {
-    const left = Math.ceil(3 - game.phaseT);
-    game.message = left > 0 ? `Si comincia tra ${left}…  (pavimento: ${floorSource})` : 'BOX!';
-    if (game.phaseT >= 3) { game.phase = 'fight'; game.phaseT = 0; sfx.bell(1); mike.enabled = true; game.message = 'BOX!'; }
+    const left = Math.ceil(READY_S - game.phaseT);
+    game.message = left > 0 ? `Si comincia tra ${left}…` : 'BOX!';
+    if (left > 0 && floorSource !== 'stanza' && floorSource !== 'mano') game.message = `Ring basso? Accovacciati e tieni una mano a terra 2 s · ${left}`;
+    if (game.phaseT >= READY_S) { game.phase = 'fight'; game.phaseT = 0; sfx.bell(1); mike.enabled = true; game.message = 'BOX!'; }
   } else if (game.phase === 'fight') {
     game.time = Math.max(0, game.time - dt);
     if (game.time === 0) {
@@ -184,13 +186,18 @@ function updateGame(dt) {
     if (game.phaseT > 10) { game.round++; resetRound(); }
     else if (game.phaseT > 4) game.message = `Nuovo round tra ${Math.ceil(10 - game.phaseT)} s`;
   }
+  const xr = renderer.xr.getSession && renderer.xr.getSession();
+  const feats = xr && xr.enabledFeatures ? (xr.enabledFeatures.includes('plane-detection') ? 'piani sì' : 'piani no') : '';
   board.draw({ round: game.round, time: game.time, running: game.phase === 'fight',
-    player: game.player, mike: game.mike, message: game.message });
+    player: game.player, mike: game.mike, message: game.message,
+    diag: `pavimento: ${floorSource} · occhi a ${(player.head.y + 0.06 - floorY).toFixed(1)} m da terra ${feats ? '· ' + feats : ''}` +
+ '' });
 }
 
 // ---------------------------------------------------------------- ciclo
 let lastT = performance.now();
-let placed = false, xrFrames = 0;
+let placed = false, xrFrames = 0, roomCaptureAsked = false, headMax = 0;
+const floorTouch = { left: 0, right: 0 };
 renderer.setAnimationLoop((t, frame) => { const now = performance.now(); const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now; tick(dt, frame); });
 // per le prove senza visore: window.stepGame(n, dt) fa avanzare il gioco di n fotogrammi
 window.stepGame = (n = 1, dt = 1 / 60) => { for (let i = 0; i < n; i++) tick(dt, null); };
@@ -206,12 +213,19 @@ function tick(dt, frame) {
   }
   if (renderer.xr.isPresenting && frame && xrFrames % 30 === 0) {
     const y = detectFloor(frame);
-    if (y !== null && (floorSource !== 'stanza' || Math.abs(y - floorY) > 0.02)) setFloor(y, 'stanza');
+    const userSet = floorSource === 'mano' || floorSource === 'manuale';
+    if (y !== null && !userSet && (floorSource !== 'stanza' || Math.abs(y - floorY) > 0.02)) setFloor(y, 'stanza');
     // nessuna scansione dopo 3 s e altezza della testa poco credibile: stima (occhi ~ 1,55 m da terra)
     if (y === null && floorSource === 'visore' && xrFrames > 200) {
-      const h = player.head.y + 0.06;
-      if (h < 1.2 || h > 2.1) setFloor(h - 1.55, 'stima');
+      const h = player.head.y + 0.06 - floorY;
+      if (h < 1.2 || h > 2.1) setFloor(player.head.y + 0.06 - 1.55, 'stima');
       else floorSource = 'visore ok';
+    }
+    // come Lumino: se la stanza non e' mai stata scansionata, il Quest propone la scansione (una volta)
+    const session = renderer.xr.getSession();
+    if (y === null && !roomCaptureAsked && xrFrames > 300 && !userSet && session && session.initiateRoomCapture) {
+      roomCaptureAsked = true;
+      session.initiateRoomCapture().catch(() => {});
     }
   }
   // regolazione a mano con la levetta di un controller (su/giu')
@@ -222,6 +236,7 @@ function tick(dt, frame) {
   if (renderer.xr.isPresenting) xrFrames++;
   if (orbit) orbit.update();
   player.update(dt);
+  if (renderer.xr.isPresenting || sim) calibrateByHand(dt);
   if (mike) {
     mike.update(dt, player);
     handleEvents();
@@ -230,6 +245,24 @@ function tick(dt, frame) {
   flash.update(dt);
   player.endFrame();
   renderer.render(scene, camera);
+}
+
+// Pavimento "a mano": accovacciati e appoggia una mano (o il controller) a terra per 2 secondi.
+// Funziona anche senza scansione della stanza.
+function calibrateByHand(dt) {
+  const head = player.head;
+  headMax = Math.max(headMax * (1 - dt * 0.02), head.y);       // altezza da in piedi (si adatta piano)
+  const crouched = head.y < headMax - 0.3;
+  for (const g of Object.values(player.gloves)) {
+    const low = g.mesh.visible && head.y - g.center.y > 0.45 && g.speed < 0.25;
+    floorTouch[g.side] = crouched && low ? floorTouch[g.side] + dt : 0;
+    if (floorTouch[g.side] > 2) {
+      floorTouch[g.side] = -3;                                    // pausa prima di poterlo rifare
+      setFloor(g.center.y - 0.035, 'mano');
+      sfx.bell(1);
+      game.message = 'Pavimento sistemato!';
+    }
+  }
 }
 
 // ---------------------------------------------------------------- avvio
@@ -250,11 +283,11 @@ $('enter').onclick = async () => {
   sfx.initAudio();
   try {
     const session = await navigator.xr.requestSession('immersive-ar', {
-      requiredFeatures: ['local-floor'], optionalFeatures: ['hand-tracking', 'plane-detection'],
+      requiredFeatures: ['local-floor'], optionalFeatures: ['hand-tracking', 'plane-detection', 'mesh-detection', 'anchors'],
     });
     renderer.xr.setFoveation(1);
     await renderer.xr.setSession(session);
-    placed = false; xrFrames = 0; floorSource = 'visore'; floorY = 0;
+    placed = false; xrFrames = 0; floorSource = 'visore'; floorY = 0; roomCaptureAsked = false; headMax = 0;
     resetRound();
     $('overlay').hidden = true;
     session.addEventListener('end', () => { $('overlay').hidden = false; placed = false; });

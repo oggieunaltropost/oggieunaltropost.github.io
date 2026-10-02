@@ -41,8 +41,10 @@ export class Scoreboard {
     col(W * 0.27, 'TU', '#c4161f', s.player);
     col(W * 0.73, 'MIKE', '#1a49b8', s.mike);
     g.fillStyle = '#2a2f3a'; g.fillRect(W / 2 - 2, 110, 4, 300);
-    g.fillStyle = '#ffffff'; g.font = '700 38px system-ui, sans-serif';
-    g.fillText(s.message || '', W / 2, 490);
+    g.fillStyle = '#ffffff'; g.font = '700 34px system-ui, sans-serif';
+    g.fillText(s.message || '', W / 2, 482);
+    g.fillStyle = '#9aa3b6'; g.font = '500 27px system-ui, sans-serif';
+    g.fillText(s.diag || '', W / 2, 535);
     this.tex.needsUpdate = true;
   }
 }
