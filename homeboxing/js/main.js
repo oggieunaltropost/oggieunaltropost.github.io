@@ -69,14 +69,41 @@ function keepInRing(pos) {
   _inv.copy(arena.matrixWorld).invert();
   _p.copy(pos).applyMatrix4(_inv);
   const m = RING_SIZE / 2 - 0.4;
-  _p.x = Math.max(-m, Math.min(m, _p.x)); _p.z = Math.max(-m, Math.min(m, _p.z)); _p.y = 0;
+  _p.x = Math.max(-m, Math.min(m, _p.x)); _p.z = Math.max(-m, Math.min(m, _p.z)); _p.y = 0;   // sul tappeto
   pos.copy(_p.applyMatrix4(arena.matrixWorld));
+}
+
+// Altezza del pavimento vero. Il riferimento "local-floor" del Quest puo' sbagliare di molto
+// (per esempio con il Confine disattivato): per questo si legge il pavimento dalla scansione
+// della stanza (plane-detection), come in Lumino; se manca si stima dall'altezza della testa.
+let floorY = 0, floorSource = 'visore';
+function setFloor(y, source) {
+  floorY = y; floorSource = source;
+  arena.position.y = y; arena.updateMatrixWorld(true);
+  if (mike) mike.root.position.y = y;
+  console.log('pavimento', y.toFixed(3), source);
+}
+
+function detectFloor(frame) {
+  const planes = frame.detectedPlanes;
+  const ref = renderer.xr.getReferenceSpace();
+  if (!planes || !planes.size || !ref) return null;
+  let best = null, lowest = null;
+  for (const pl of planes) {
+    if (pl.orientation && pl.orientation !== 'horizontal') continue;
+    const pose = frame.getPose(pl.planeSpace, ref);
+    if (!pose) continue;
+    const y = pose.transform.position.y;
+    if (pl.semanticLabel === 'floor') best = best === null ? y : Math.min(best, y);
+    lowest = lowest === null ? y : Math.min(lowest, y);
+  }
+  return best ?? lowest;
 }
 
 function placeArena(headPos, yaw) {
   // centro del ring davanti a te, con te sul lato +Z
   const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
-  arena.position.set(headPos.x, 0, headPos.z).addScaledVector(fwd, PLAYER_Z);
+  arena.position.set(headPos.x, floorY, headPos.z).addScaledVector(fwd, PLAYER_Z);
   arena.rotation.y = yaw;
   arena.updateMatrixWorld(true);
   if (mike) {
@@ -144,7 +171,7 @@ function updateGame(dt) {
   game.phaseT += dt;
   if (game.phase === 'ready') {
     const left = Math.ceil(3 - game.phaseT);
-    game.message = left > 0 ? `Si comincia tra ${left}…` : 'BOX!';
+    game.message = left > 0 ? `Si comincia tra ${left}…  (pavimento: ${floorSource})` : 'BOX!';
     if (game.phaseT >= 3) { game.phase = 'fight'; game.phaseT = 0; sfx.bell(1); mike.enabled = true; game.message = 'BOX!'; }
   } else if (game.phase === 'fight') {
     game.time = Math.max(0, game.time - dt);
@@ -169,7 +196,7 @@ renderer.setAnimationLoop((t, frame) => { const now = performance.now(); const d
 window.stepGame = (n = 1, dt = 1 / 60) => { for (let i = 0; i < n; i++) tick(dt, null); };
 
 function tick(dt, frame) {
-  if (renderer.xr.isPresenting && !placed && ++xrFrames > 15) {   // aspetta che il tracciamento sia stabile
+  if (renderer.xr.isPresenting && !placed && xrFrames > 15) {   // aspetta che il tracciamento sia stabile
     const cam = renderer.xr.getCamera();
     const p = new THREE.Vector3(); cam.getWorldPosition(p);
     {
@@ -177,6 +204,22 @@ function tick(dt, frame) {
       placeArena(p, e.y); placed = true;
     }
   }
+  if (renderer.xr.isPresenting && frame && xrFrames % 30 === 0) {
+    const y = detectFloor(frame);
+    if (y !== null && (floorSource !== 'stanza' || Math.abs(y - floorY) > 0.02)) setFloor(y, 'stanza');
+    // nessuna scansione dopo 3 s e altezza della testa poco credibile: stima (occhi ~ 1,55 m da terra)
+    if (y === null && floorSource === 'visore' && xrFrames > 200) {
+      const h = player.head.y + 0.06;
+      if (h < 1.2 || h > 2.1) setFloor(h - 1.55, 'stima');
+      else floorSource = 'visore ok';
+    }
+  }
+  // regolazione a mano con la levetta di un controller (su/giu')
+  if (renderer.xr.isPresenting) for (const src of player.sources) {
+    const ax = src.gamepad && src.gamepad.axes;
+    if (ax && ax.length >= 4 && Math.abs(ax[3]) > 0.5) setFloor(floorY - ax[3] * dt * 0.3, 'manuale');
+  }
+  if (renderer.xr.isPresenting) xrFrames++;
   if (orbit) orbit.update();
   player.update(dt);
   if (mike) {
@@ -207,11 +250,11 @@ $('enter').onclick = async () => {
   sfx.initAudio();
   try {
     const session = await navigator.xr.requestSession('immersive-ar', {
-      requiredFeatures: ['local-floor'], optionalFeatures: ['hand-tracking'],
+      requiredFeatures: ['local-floor'], optionalFeatures: ['hand-tracking', 'plane-detection'],
     });
     renderer.xr.setFoveation(1);
     await renderer.xr.setSession(session);
-    placed = false; xrFrames = 0;
+    placed = false; xrFrames = 0; floorSource = 'visore'; floorY = 0;
     resetRound();
     $('overlay').hidden = true;
     session.addEventListener('end', () => { $('overlay').hidden = false; placed = false; });
