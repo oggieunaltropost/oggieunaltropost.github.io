@@ -196,7 +196,7 @@ function newMatch() {
 function startRound() {
   girl.stop(); stool.visible = false;
   if (mike) mike.leaveCorner();
-  game.time = ROUND_S; game.phase = 'ready'; game.phaseT = 0; game.paused = false; game.kd = null;
+  game.time = ROUND_S; game.phase = 'ready'; game.phaseT = 0; game.paused = false; game.kd = null; game.announced = false; game.tenSaid = false;
   game.player.kdRound = 0; game.mike.kdRound = 0;
   game.message = `Round ${game.round} di ${rounds}`;
   if (mike) mike.enabled = false;
@@ -217,6 +217,7 @@ function knockdown(who, power) {
   f.kd++; f.kdRound++;
   mike.enabled = false;
   sfx.punchHit(1.4);
+  sfx.voiceNow('knockdown');
   if (arenaEnv) arenaEnv.cheer(2);
   if (mode === 'arena') sfx.cheer('boato', 1);
   // KO tecnico solo con il terzo atterramento nello stesso round (regola dei tre knockdown)
@@ -249,7 +250,7 @@ function updateKnockdown(dt) {
   const c = Math.floor(kd.t / 1.0);
   if (c > kd.count && c <= 10) {
     kd.count = c;
-    if (!sayCount(c)) sfx.punchBlock();
+    sfx.voiceNow('count_' + c);
     if (c <= 8) game.message = `${kd.who === 'mike' ? 'Mike' : 'Tu'} ${kd.up ? 'in piedi' : 'a terra'}… ${c}` + (kd.who === 'player' && !kd.up ? ` · colpisci il bottone! (${getUp.left})` : '');
   }
   if (kd.who === 'mike' && !kd.up && kd.count >= kd.getUpAt) { kd.up = true; mike.getUp(); }
@@ -280,7 +281,11 @@ function endMatch(winner, how) {
   const c = new THREE.Vector3().setFromMatrixPosition(arena.matrixWorld);
   party.start(c, winner === 'player' ? [0xd81e2c, 0xff7a7a, 0xffffff] : winner === 'mike' ? [0x1d4fc4, 0x7aa8ff, 0xffffff] : [0xd81e2c, 0x1d4fc4]);
   sfx.cheer('applauso', 1); sfx.cheer('boato', 0.9);
-  say(winner === 'player' ? `Hai vinto per ${how}` : winner === 'mike' ? `Vince Mike per ${how}` : 'Pareggio');
+  // verdetto dell'annunciatore, come nei veri incontri
+  const kind = how === 'KO' ? 'ko' : how === 'KO tecnico' ? 'tko' : 'points';
+  const who = winner === 'player' ? 'you' : 'mike';
+  setTimeout(() => sfx.announce(winner === 'pari' ? ['scorecards', 'draw']
+    : kind === 'points' ? ['scorecards', 'winner_intro', `win_${who}_points`] : ['winner_intro', `win_${who}_${kind}`]), 1800);
 }
 
 function handleEvents() {
@@ -354,11 +359,16 @@ function updateGame(dt) {
     game.message = left > 0 ? `Round ${game.round} di ${rounds} · si comincia tra ${left}…` : 'BOX!';
     if (left > 0 && renderer.xr.isPresenting && floorSource !== 'stanza' && floorSource !== 'mano') game.message = `Ring basso? Accovacciati e tieni una mano a terra 2 s · ${left}`;
     else if (left > 3 && game.round === 1) game.message = `Pausa: alza tutte e due le braccia sopra la testa · ${left}`;
+    if (!game.announced && game.phaseT >= READY_S - 1.6) {      // "Round one... Fight!" che finisce sul gong
+      game.announced = true;
+      sfx.announce(rounds > 1 && game.round === rounds ? 'final_round' : `round_${game.round}`);
+    }
     if (game.phaseT >= READY_S) { game.phase = 'fight'; game.phaseT = 0; sfx.bell(1); mike.enabled = true; game.message = 'BOX!'; }
   } else if (game.phase === 'fight') {
     if (game.kd) updateKnockdown(dt);
     else {
       game.time = Math.max(0, game.time - dt);
+      if (!game.tenSaid && game.time <= 10) { game.tenSaid = true; sfx.announce('ten_seconds'); }
       for (const k of ['player', 'mike']) game[k].dmg = Math.max(0, game[k].dmg - dt * 0.6);   // si riprende un po'
       flash.setBase(game.player.dmg > 55 ? (game.player.dmg - 55) / 45 * 0.35 : 0);         // vista che si annebbia
       if (game.time === 0) {

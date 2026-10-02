@@ -5,7 +5,7 @@ export function initAudio() {
   if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
   ctx = new (window.AudioContext || window.webkitAudioContext)();
   master = ctx.createGain(); master.gain.value = 0.8; master.connect(ctx.destination);
-  loadSamples();
+  loadSamples(); loadVoices();
   noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
   const d = noiseBuf.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -32,6 +32,31 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
+
+// Voce dell'annunciatore (in inglese, tools/gen_announcer.py): frasi in coda, una dopo l'altra
+const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
+  'final_round', 'ten_seconds', 'knockdown', 'winner_intro', 'scorecards', 'win_you_ko', 'win_you_tko', 'win_you_points',
+  'win_mike_ko', 'win_mike_tko', 'win_mike_points', 'draw', 'box'];
+const vbuf = {};
+let vEnd = 0;
+function loadVoices() {
+  for (const n of VOICES) fetch(`assets/voce/${n}.ogg`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+    .then(b => { vbuf[n] = b; }).catch(() => {});
+}
+export function announce(names, gain = 1.0) {
+  if (!ctx) return;
+  let t = Math.max(ctx.currentTime + 0.02, vEnd);
+  for (const n of [].concat(names)) {
+    const b = vbuf[n]; if (!b) continue;
+    const s = ctx.createBufferSource(); s.buffer = b;
+    const g = ctx.createGain(); g.gain.value = gain;
+    s.connect(g); g.connect(master); s.start(t);
+    t += b.duration + 0.2;
+  }
+  vEnd = t;
+}
+export function voiceNow(name, gain = 1.0) { vEnd = 0; announce(name, gain); }   // subito (es. conteggio)
 
 // uscendo dal gioco: silenzio totale (si riaccende con initAudio)
 export function stopAll() {
