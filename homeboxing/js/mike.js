@@ -9,7 +9,7 @@ export const MIKE = {
   reactDelay: [0.05, 0.13],   // tempi di reazione (s)
   attackEvery: [2.0, 3.8],    // pausa tra un attacco e l'altro (s)
   punchSpeed: 1.0,            // velocita' delle animazioni dei pugni
-  moveSpeed: 1.3,             // m/s
+  moveSpeed: 0.9,             // m/s (i passi si adattano alla velocita')
   stalkDist: 1.0,             // distanza di studio (m)
   attackDist: 0.70,           // distanza da cui colpisce
   combos: [['jab'], ['jab', 'cross'], ['jab', 'jab'], ['cross', 'hook_l'], ['jab', 'cross', 'hook_l'], ['hook_r'], ['jab', 'hook_r']],
@@ -24,6 +24,8 @@ const PUNCH = {
 };
 
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3();
+const _q = new THREE.Quaternion();
+const STEP_SPEED = 0.22 / 0.5;    // un ciclo di passi (0,5 s) avanza di 22 cm
 
 function rand(a, b) { return a + Math.random() * (b - a); }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
@@ -76,6 +78,15 @@ export class Mike {
     for (const c of gltf.animations) this.clips[c.name] = c;
     this.idle = this.mixer.clipAction(this.clips.idle);
     this.idle.play();
+    // passi da pugile: cicli "sul posto" che avanzano di STEP_SPEED m/s a velocita' normale
+    this.loco = {};
+    for (const n of ['step_f', 'step_b', 'step_l', 'step_r']) {
+      const a = this.mixer.clipAction(this.clips[n]);
+      a.setEffectiveWeight(0); a.play();
+      this.loco[n] = { action: a, w: 0 };
+    }
+    this.vel = new THREE.Vector3();
+    this.prevPos = new THREE.Vector3();
     this.layers = [];            // animazioni singole in corso, con il loro peso
 
     this.state = 'stalk';
@@ -156,7 +167,23 @@ export class Mike {
       if (!keep) l.action.stop();
       return keep;
     });
-    this.idle.setEffectiveWeight(Math.max(0, 1 - total));
+    // passi: direzione e velocita' nel sistema di Mike (+Z avanti, +X sua sinistra)
+    const free = Math.max(0, 1 - total);
+    const lv = _d.copy(this.vel).applyQuaternion(_q.copy(this.root.quaternion).invert());
+    const sp = Math.hypot(lv.x, lv.z);
+    const k = Math.min(1, Math.max(0, (sp - 0.05) / 0.2));
+    const s2 = Math.max(1e-6, lv.x * lv.x + lv.z * lv.z);
+    const want = { step_f: lv.z > 0 ? lv.z * lv.z / s2 : 0, step_b: lv.z < 0 ? lv.z * lv.z / s2 : 0,
+      step_l: lv.x > 0 ? lv.x * lv.x / s2 : 0, step_r: lv.x < 0 ? lv.x * lv.x / s2 : 0 };
+    let locoSum = 0;
+    const ts = Math.min(2.2, Math.max(0.6, sp / STEP_SPEED));
+    for (const [n, l] of Object.entries(this.loco)) {
+      l.w += (k * want[n] - l.w) * Math.min(1, dt * 10);
+      l.action.setEffectiveWeight(free * l.w);
+      l.action.timeScale = ts;
+      locoSum += l.w;
+    }
+    this.idle.setEffectiveWeight(free * Math.max(0, 1 - locoSum));
     this.mixer.update(dt);
     this.root.updateMatrixWorld(true);
   }
@@ -202,7 +229,7 @@ export class Mike {
       this.checkPlayerPunches(player);
       this.think(dt, player, dist);
       this.move(dt, dist, toP.clone().normalize());
-    }
+    } else this.vel.set(0, 0, 0);
     this.animate(dt);
     if (this.enabled) this.resolveMyPunch(player, dist);
   }
@@ -281,15 +308,21 @@ export class Mike {
   }
 
   move(dt, dist, dir) {
-    if (this.stun > 0) return;
+    if (this.stun > 0) { this.vel.set(0, 0, 0); if (this.moveVel) this.moveVel.set(0, 0, 0); return; }
     const c = this.cfg;
     const desired = this.state === 'approach' || this.state === 'attack' ? this.attackDist() : c.stalkDist;
     let radial = Math.max(-c.moveSpeed, Math.min(c.moveSpeed, (dist - desired) * 4));
     if (this.state === 'retreat') radial = Math.min(radial, -0.2);
     const side = _c.set(dir.z, 0, -dir.x);       // perpendicolare: gira intorno
     const strafe = this.state === 'stalk' ? Math.sin(this.time * 0.8 + this.strafe) * 0.3 : 0;
-    this.root.position.addScaledVector(dir, radial * dt).addScaledVector(side, strafe * dt);
+    // velocita' con un minimo di inerzia (un pugile non parte e non si ferma di colpo)
+    const target = _b.copy(dir).multiplyScalar(radial).addScaledVector(side, strafe);
+    this.moveVel = this.moveVel || new THREE.Vector3();
+    this.moveVel.lerp(target, Math.min(1, dt * 6));
+    this.prevPos.copy(this.root.position);
+    this.root.position.addScaledVector(this.moveVel, dt);
     if (this.bounds) this.bounds(this.root.position);
+    if (dt > 0) this.vel.subVectors(this.root.position, this.prevPos).divideScalar(dt);   // velocita' vera (con le corde)
   }
 
   // i miei pugni: hanno colpito, sono stati parati o sono andati a vuoto?

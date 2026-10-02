@@ -6,6 +6,7 @@ import { buildRing, RING_SIZE } from './ring.js';
 import { Mike, MIKE, loadMikeGLTF } from './mike.js';
 import { Player, SimInput } from './player.js';
 import { Scoreboard, HitFlash } from './hud.js';
+import { Room } from './room.js';
 import * as sfx from './sfx.js';
 
 const $ = id => document.getElementById(id);
@@ -49,13 +50,23 @@ addEventListener('resize', () => {
 // l'arena (ring + tabellone) si sistema davanti al giocatore; il giocatore sta sul lato +Z
 const arena = new THREE.Group();
 scene.add(arena);
-arena.add(buildRing());
 arena.add(key, key.target);           // luce e ombre seguono il ring
 const board = new Scoreboard();
-board.mesh.position.set(1.15, 1.95, -RING_SIZE / 2 - 0.1);
-board.mesh.lookAt(new THREE.Vector3(0, 1.6, 0.8));
 arena.add(board.mesh);
-const PLAYER_Z = 0.8;                 // dove sta il giocatore rispetto al centro del ring
+const PLAYER_Z = 0.8;                 // dove sta il giocatore rispetto al centro del ring (se c'e' spazio)
+let ringSize = 0, ringObj = null, playerZ = PLAYER_Z;
+function setRing(size, pz) {
+  playerZ = pz;
+  if (Math.abs(size - ringSize) > 1e-3) {
+    if (ringObj) arena.remove(ringObj);
+    ringObj = buildRing(size); arena.add(ringObj); ringSize = size;
+  }
+  arena.updateMatrixWorld(true);
+  board.mesh.position.set(Math.min(1.15, size / 2 - 0.2), 1.95, -size / 2 - 0.1);
+  board.mesh.lookAt(new THREE.Vector3(0, 1.6, pz).applyMatrix4(arena.matrix));
+}
+setRing(RING_SIZE, PLAYER_Z);
+const room = new Room(scene);
 const READY_S = 6;                    // secondi prima del gong
 
 const player = new Player(renderer, scene, camera);
@@ -69,7 +80,7 @@ const _inv = new THREE.Matrix4(), _p = new THREE.Vector3();
 function keepInRing(pos) {
   _inv.copy(arena.matrixWorld).invert();
   _p.copy(pos).applyMatrix4(_inv);
-  const m = RING_SIZE / 2 - 0.4;
+  const m = ringSize / 2 - 0.4;
   _p.x = Math.max(-m, Math.min(m, _p.x)); _p.z = Math.max(-m, Math.min(m, _p.z)); _p.y = 0;   // sul tappeto
   pos.copy(_p.applyMatrix4(arena.matrixWorld));
 }
@@ -86,29 +97,32 @@ function setFloor(y, source) {
 }
 
 function detectFloor(frame) {
-  const planes = frame.detectedPlanes;
   const ref = renderer.xr.getReferenceSpace();
-  if (!planes || !planes.size || !ref) return null;
-  let best = null, lowest = null;
-  for (const pl of planes) {
-    if (pl.orientation && pl.orientation !== 'horizontal') continue;
-    const pose = frame.getPose(pl.planeSpace, ref);
-    if (!pose) continue;
-    const y = pose.transform.position.y;
-    if (pl.semanticLabel === 'floor') best = best === null ? y : Math.min(best, y);
-    lowest = lowest === null ? y : Math.min(lowest, y);
-  }
-  return best ?? lowest;
+  if (!ref) return null;
+  room.update(frame, ref);
+  return room.floorY;
 }
 
+let lastPlace = null, fitted = false;
 function placeArena(headPos, yaw) {
-  // centro del ring davanti a te, con te sul lato +Z
-  const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
-  arena.position.set(headPos.x, floorY, headPos.z).addScaledVector(fwd, PLAYER_Z);
+  lastPlace = { head: headPos.clone(), yaw };
+  // ring piu' grande possibile dentro la stanza scansionata; senza scansione: 3,2 m davanti a te
+  const fit = room.fitRing(headPos, yaw, RING_SIZE, PLAYER_Z);
+  fitted = !!fit;
   arena.rotation.y = yaw;
+  if (fit) {
+    arena.position.set(fit.center.x, floorY, fit.center.z);
+    arena.updateMatrix(); setRing(fit.size, fit.playerZ);
+    console.log('ring', fit.size.toFixed(1), 'm, giocatore a', fit.playerZ.toFixed(2), 'dal centro');
+  } else {
+    const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+    arena.position.set(headPos.x, floorY, headPos.z).addScaledVector(fwd, PLAYER_Z);
+    arena.updateMatrix(); setRing(RING_SIZE, PLAYER_Z);
+  }
   arena.updateMatrixWorld(true);
   if (mike) {
-    mike.root.position.set(0, 0, -0.35).applyMatrix4(arena.matrixWorld);
+    const mz = Math.max(-(ringSize / 2 - 0.4), playerZ - 1.15);
+    mike.root.position.set(0, 0, mz).applyMatrix4(arena.matrixWorld);
     mike.root.rotation.y = yaw;               // il modello guarda verso +Z: verso il giocatore
   }
 }
@@ -190,7 +204,7 @@ function updateGame(dt) {
   const feats = xr && xr.enabledFeatures ? (xr.enabledFeatures.includes('plane-detection') ? 'piani sì' : 'piani no') : '';
   board.draw({ round: game.round, time: game.time, running: game.phase === 'fight',
     player: game.player, mike: game.mike, message: game.message,
-    diag: `pavimento: ${floorSource} · occhi a ${(player.head.y + 0.06 - floorY).toFixed(1)} m da terra ${feats ? '· ' + feats : ''}` +
+    diag: `ring ${ringSize.toFixed(1)} m · pavimento: ${floorSource} · occhi a ${(player.head.y + 0.06 - floorY).toFixed(1)} m da terra ${feats ? '· ' + feats : ''}` +
  '' });
 }
 
@@ -215,6 +229,8 @@ function tick(dt, frame) {
     const y = detectFloor(frame);
     const userSet = floorSource === 'mano' || floorSource === 'manuale';
     if (y !== null && !userSet && (floorSource !== 'stanza' || Math.abs(y - floorY) > 0.02)) setFloor(y, 'stanza');
+    // la pianta della stanza e' arrivata dopo: rimetti il ring della misura giusta
+    if (placed && !fitted && room.floorPoly && lastPlace) placeArena(lastPlace.head, lastPlace.yaw);
     // nessuna scansione dopo 3 s e altezza della testa poco credibile: stima (occhi ~ 1,55 m da terra)
     if (y === null && floorSource === 'visore' && xrFrames > 200) {
       const h = player.head.y + 0.06 - floorY;
@@ -270,7 +286,7 @@ loadMikeGLTF('assets/mike.glb', f => status(`Caricamento di Mike… ${Math.round
   mike = new Mike(gltf, scene, MIKE);
   mike.bounds = keepInRing;
   placeArena(new THREE.Vector3(0, 1.65, 0), 0);
-  window.mike = mike; window.game = game; window.player = player;   // per le prove
+  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena;   // per le prove
   status('');
   $('enter').disabled = !navigator.xr;
   if (navigator.xr) navigator.xr.isSessionSupported('immersive-ar').then(ok => {

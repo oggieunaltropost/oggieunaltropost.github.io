@@ -23,9 +23,9 @@ function canvasTexture(size = 1024) {
   return t;
 }
 
-export function buildRing() {
+export function buildRing(S = RING_SIZE) {
   const ring = new THREE.Group(); ring.name = 'ring';
-  const S = RING_SIZE, h = S / 2;
+  const h = S / 2;
 
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(S + 0.5, S + 0.5),
     new THREE.MeshStandardMaterial({ map: canvasTexture(), roughness: 0.9 }));
