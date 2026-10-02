@@ -5,15 +5,31 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 // Caratteristiche dell'avversario: per i prossimi pugili bastera' cambiare questi numeri.
 export const MIKE = {
   name: 'Mike',
-  reactChance: 0.55,          // probabilita' di reagire a un tuo pugno
-  reactDelay: [0.05, 0.13],   // tempi di reazione (s)
-  attackEvery: [2.0, 3.8],    // pausa tra un attacco e l'altro (s)
-  punchSpeed: 1.0,            // velocita' delle animazioni dei pugni
-  moveSpeed: 0.9,             // m/s (i passi si adattano alla velocita')
   stalkDist: 1.0,             // distanza di studio (m)
   attackDist: 0.70,           // distanza da cui colpisce
-  combos: [['jab'], ['jab', 'cross'], ['jab', 'jab'], ['cross', 'hook_l'], ['jab', 'cross', 'hook_l'], ['hook_r'], ['jab', 'hook_r']],
 };
+
+// Livelli. reactChance = quante volte reagisce a un tuo pugno; reactDelay = riflessi (s);
+// threatDist/threatSpeed = da quanto lontano e da che velocita' "legge" il pugno;
+// defenseSpeed = rapidita' di parate e schivate; smart = sceglie la difesa giusta per il colpo;
+// chain = difende anche il secondo pugno di una combinazione; counterChance = contrattacco;
+// guardReach = quanto copre la guardia normale (senza parare apposta);
+// openFactor = quanto reagisce subito dopo che hai parato/schivato un suo colpo (la tua finestra per colpire).
+export const LEVELS = {
+  facile: { guardReach: -0.03, stalkDist: 0.85, openFactor: 0.1, label: 'Facile', reactChance: 0.25, reactDelay: [0.14, 0.24], attackEvery: [3.0, 5.0], retreatTime: 0.8, punchSpeed: 0.8,
+    moveSpeed: 0.6, defenseSpeed: 1.1, threatDist: 0.7, threatSpeed: 1.2, smart: false, chain: false, counterChance: 0,
+    blockReach: 0.07, combos: [['jab'], ['cross'], ['jab', 'cross']] },
+  normale: { guardReach: 0.0, stalkDist: 0.9, openFactor: 0.25, label: 'Normale', reactChance: 0.55, reactDelay: [0.05, 0.13], attackEvery: [1.2, 2.4], retreatTime: 0.5, punchSpeed: 1.0,
+    moveSpeed: 0.9, defenseSpeed: 1.35, threatDist: 0.8, threatSpeed: 1.0, smart: false, chain: false, counterChance: 0.15,
+    blockReach: 0.09, combos: [['jab'], ['jab', 'cross'], ['jab', 'jab'], ['cross', 'hook_l'], ['jab', 'cross', 'hook_l'], ['hook_r'], ['jab', 'hook_r']] },
+  difficile: { guardReach: 0.03, stalkDist: 0.95, openFactor: 0.45, label: 'Difficile', reactChance: 0.8, reactDelay: [0.03, 0.08], attackEvery: [0.7, 1.6], retreatTime: 0.35, punchSpeed: 1.15,
+    moveSpeed: 1.1, defenseSpeed: 1.6, threatDist: 0.95, threatSpeed: 0.9, smart: true, chain: false, counterChance: 0.45,
+    blockReach: 0.11, combos: [['jab', 'cross'], ['jab', 'jab', 'cross'], ['cross', 'hook_l'], ['jab', 'cross', 'hook_l'], ['hook_l', 'hook_r'], ['jab', 'hook_r']] },
+  impossibile: { guardReach: 0.05, stalkDist: 1.0, openFactor: 0.95, label: 'Impossibile', reactChance: 1.0, reactDelay: [0.0, 0.012], attackEvery: [0.4, 1.1], retreatTime: 0.25, punchSpeed: 1.3,
+    moveSpeed: 1.3, defenseSpeed: 2.0, threatDist: 1.15, threatSpeed: 0.7, smart: true, chain: true, counterChance: 0.85,
+    blockReach: 0.14, combos: [['jab', 'cross', 'hook_l'], ['jab', 'jab', 'cross'], ['cross', 'hook_l', 'hook_r'], ['hook_l', 'cross'], ['jab', 'hook_r']] },
+};
+const COUNTERS = [['cross'], ['hook_l'], ['jab', 'cross'], ['hook_r']];
 
 // finestre "attive" dei pugni, in fotogrammi a 30 fps (quando il guantone puo' colpire)
 const PUNCH = {
@@ -52,8 +68,8 @@ export async function loadMikeGLTF(url, onProgress) {
 }
 
 export class Mike {
-  constructor(gltf, scene, cfg = MIKE) {
-    this.cfg = cfg;
+  constructor(gltf, scene, level = 'normale') {
+    this.setLevel(level);
     this.root = new THREE.Group(); this.root.name = 'Mike';
     this.model = gltf.scene;
     this.root.add(this.model);
@@ -103,6 +119,7 @@ export class Mike {
     this.events = [];
     this.bounds = null;          // funzione che tiene Mike dentro il ring
     this.time = 0;
+    this.openUntil = 0;
     this.impact = this.measureImpacts();
   }
 
@@ -132,6 +149,11 @@ export class Mike {
     if (this.punch) return this.impact[this.punch.name];
     if (this.state === 'approach' && this.combo.length) return this.impact[this.combo[0]];
     return null;
+  }
+
+  setLevel(name) {
+    this.levelName = LEVELS[name] ? name : 'normale';
+    this.cfg = { ...MIKE, ...LEVELS[this.levelName] };
   }
 
   // --------------------------------------------------------------- animazioni
@@ -237,38 +259,37 @@ export class Mike {
   think(dt, player, dist) {
     const c = this.cfg;
     // 1) difesa: guarda i tuoi guantoni
-    if (!this.reaction && !this.defending && this.stun <= 0 && !(this.punch && this.punch.layer.t > 0.03)) {
+    const committed = this.punch && this.punch.layer.t > 0.03 && !c.chain;
+    if (!this.reaction && this.stun <= 0 && !committed) {
       const hc = this.headCenter();
       for (const g of Object.values(player.gloves)) {
-        if (!g.mesh.visible || g.speed < 1.1 || this.seen[g.side] === g.punchId) continue;
+        if (!g.mesh.visible || g.speed < c.threatSpeed || this.seen[g.side] === g.punchId) continue;
+        if (this.defending && !c.chain) continue;
         const rel = _b.subVectors(hc, g.center); const d = rel.length();
         const closing = g.vel.dot(rel) / d;
-        if (d < 0.8 && closing > 1.0) {
+        if (d < c.threatDist && closing > c.threatSpeed * 0.9) {
           this.seen[g.side] = g.punchId;
-          if (Math.random() < c.reactChance) this.reaction = { at: this.time + rand(...c.reactDelay), glove: g, punchId: g.punchId };
+          const open = this.time < this.openUntil;            // appena parato/schivato da te: e' scoperto
+          if (Math.random() < c.reactChance * (open ? c.openFactor : 1)) this.reaction = { at: this.time + rand(...c.reactDelay), glove: g, punchId: g.punchId };
           break;
         }
       }
     }
     if (this.reaction && this.time >= this.reaction.at) {
       const g = this.reaction.glove;
-      // da che lato arriva il pugno
-      const local = this.root.worldToLocal(g.center.clone());
-      const lateral = Math.abs(g.vel.clone().applyQuaternion(this.root.quaternion.clone().invert()).x);
-      let type;
-      const r = Math.random();
-      if (lateral > 1.2 && r < 0.5) type = 'duck';                  // gancio: sotto
-      else if (r < 0.5) type = 'block';
-      else if (r < 0.85) type = local.x > 0 ? 'slip_r' : 'slip_l'; // si sposta dal lato opposto (+X = sinistra di Mike)
-      else type = 'duck';
+      const type = this.chooseDefense(g);
       if (this.punch) { this.punch = null; this.combo = []; this.setState('retreat'); }
-      this.play(type, type === 'block' ? 1.2 : 1.35);
-      this.defending = { type, until: this.time + 0.55, glove: g.side, punchId: this.reaction.punchId, hit: false };
+      if (type === 'back') this.backOff = 0.28;                       // indietro di un passo
+      else this.play(type, c.defenseSpeed);
+      this.defending = { start: this.time, type, until: this.time + 0.55 / Math.max(1, c.defenseSpeed * 0.75), glove: g.side,
+        punchId: this.reaction.punchId, hit: false };
       this.reaction = null;
     }
     if (this.defending && this.time > this.defending.until) {
-      if (!this.defending.hit && this.defending.type !== 'block') this.emit('mikeDodged');
+      const ok = !this.defending.hit;
+      if (ok && this.defending.type !== 'block') this.emit('mikeDodged');
       this.defending = null;
+      if (ok) this.maybeCounter();
     }
 
     // 2) attacco
@@ -282,6 +303,7 @@ export class Mike {
         break;
       case 'approach':
         if ((Math.abs(dist - this.attackDist()) < 0.07 || this.stateT > 1.2) && !this.defending) {
+          this.counter = false;
           this.setState('attack'); this.nextPunch();
         }
         break;
@@ -292,12 +314,51 @@ export class Mike {
         } else if (!this.punch) this.setState('retreat');
         break;
       case 'retreat':
-        if (this.stateT > 0.7) { this.setState('stalk'); this.nextAttack = rand(...c.attackEvery); }
+        if (this.stateT > c.retreatTime) { this.setState('stalk'); this.nextAttack = rand(...c.attackEvery); }
         break;
     }
   }
 
   setState(s) { this.state = s; this.stateT = 0; }
+
+  // quale difesa usare contro questo pugno
+  chooseDefense(g) {
+    const c = this.cfg;
+    const local = this.root.worldToLocal(g.center.clone());
+    const lv = g.vel.clone().applyQuaternion(_q.copy(this.root.quaternion).invert());
+    const sp = Math.max(0.01, lv.length());
+    const hook = Math.abs(lv.x) / sp > 0.5;                         // arriva di lato
+    // dove arrivera' il guantone rispetto alla testa: si sposta dal lato opposto (+X = sinistra di Mike)
+    const hc0 = this.headCenter();
+    const tA = Math.min(0.3, g.center.distanceTo(hc0) / Math.max(0.5, g.speed));
+    const arrive = this.root.worldToLocal(g.center.clone().addScaledVector(g.vel, tA));
+    const headL = this.root.worldToLocal(hc0.clone());
+    const dx = arrive.x - headL.x;
+    const away = Math.abs(dx) > 0.03 ? (dx > 0 ? 'slip_r' : 'slip_l') : (local.x > 0 ? 'slip_r' : 'slip_l');
+    const r = Math.random();
+    if (!c.smart) {
+      if (hook && r < 0.5) return 'duck';
+      return r < 0.5 ? 'block' : r < 0.85 ? away : 'duck';
+    }
+    // dove sta andando il pugno: al corpo o alla testa?
+    const top = this.torso()[1];
+    const body = g.center.y + g.vel.y * 0.12 < top.y - 0.02;
+    if (body) return r < 0.7 ? 'back' : 'block';
+    // abbassarsi serve solo se il pugno arriva all'altezza della testa o piu' in alto
+    const hc = this.headCenter();
+    const tArr = Math.min(0.3, g.center.distanceTo(hc) / Math.max(0.5, g.speed));
+    const high = g.center.y + g.vel.y * tArr > hc.y - 0.03;
+    if (hook) return high && r < 0.75 ? 'duck' : r < 0.85 ? away : 'block';
+    return r < 0.75 ? away : high && r < 0.9 ? 'duck' : 'block';
+  }
+
+  // dopo una difesa riuscita: contrattacco immediato
+  maybeCounter() {
+    if (this.stun > 0 || this.state === 'attack' || Math.random() >= this.cfg.counterChance) return;
+    this.combo = [...pick(COUNTERS)];
+    this.setState('approach');
+    this.counter = true;
+  }
   attackDist() { const a = this.aimPunch(); return a ? a.dist - 0.03 : this.cfg.attackDist; }
 
   nextPunch() {
@@ -311,8 +372,9 @@ export class Mike {
     if (this.stun > 0) { this.vel.set(0, 0, 0); if (this.moveVel) this.moveVel.set(0, 0, 0); return; }
     const c = this.cfg;
     const desired = this.state === 'approach' || this.state === 'attack' ? this.attackDist() : c.stalkDist;
-    let radial = Math.max(-c.moveSpeed, Math.min(c.moveSpeed, (dist - desired) * 4));
+    let radial = Math.max(-c.moveSpeed, Math.min(c.moveSpeed * (this.counter ? 1.6 : 1), (dist - desired) * 4));
     if (this.state === 'retreat') radial = Math.min(radial, -0.2);
+    if (this.backOff > 0) { radial = -1.6; this.backOff -= 1.6 * dt; }   // passo indietro veloce (schiva al corpo)
     const side = _c.set(dir.z, 0, -dir.x);       // perpendicolare: gira intorno
     const strafe = this.state === 'stalk' ? Math.sin(this.time * 0.8 + this.strafe) * 0.3 : 0;
     // velocita' con un minimo di inerzia (un pugile non parte e non si ferma di colpo)
@@ -333,14 +395,14 @@ export class Mike {
     if (f < spec.from) return;
     if (f > spec.to) {
       p.resolved = true;
-      if (dist < 0.9) this.emit('playerDodged');
+      if (dist < 0.9) { this.openUntil = this.time + 0.7; this.emit('playerDodged'); }
       return;
     }
     p.inRange = true;
     const { tip, center } = this.glove(spec.side);
     for (const g of Object.values(player.gloves)) {
       if (g.mesh.visible && (g.center.distanceTo(tip) < 0.15 || g.center.distanceTo(center) < 0.13)) {
-        p.resolved = true; this.emit('playerBlocked', { side: g.side }); return;
+        p.resolved = true; this.openUntil = this.time + 0.7; this.emit('playerBlocked', { side: g.side }); return;
       }
     }
     if (tip.distanceTo(player.head) < 0.17 || center.distanceTo(player.head) < 0.15) {
@@ -362,13 +424,18 @@ export class Mike {
       // in parata i guantoni coprono bene; nella guardia normale lasciano spazi
       const blocking = this.defending && this.defending.type === 'block';
       for (const s of ['l', 'r']) {
-        if (distPointSeg(gl[s].center, a, b) < g.radius + (blocking ? 0.09 : 0.035)) { ev = { type: 'mikeBlocked' }; break; }
+        if (distPointSeg(gl[s].center, a, b) < g.radius + (blocking ? this.cfg.blockReach : this.cfg.guardReach)) { ev = { type: 'mikeBlocked' }; break; }
       }
       if (!ev && distPointSeg(hc, a, b) < g.radius + 0.115) ev = { type: 'playerHit', zone: 'head' };
       if (!ev && distSegSeg(a, b, t0, t1) < g.radius + 0.16) ev = { type: 'playerHit', zone: 'body' };
       if (!ev) continue;
       g.cooldown = 0.45; g.contactPoint.copy(g.center);
       ev.side = g.side; ev.speed = g.speed;
+      const lp = this.root.worldToLocal(g.center.clone()), lh = this.root.worldToLocal(hc.clone());
+      ev.why = `t+${this.defending ? (this.time - this.defending.start).toFixed(2) : '-'} hx${lh.x.toFixed(2)} gx${lp.x.toFixed(2)} gy${(lp.y - lh.y).toFixed(2)} ${this.state}${this.defending ? '/' + this.defending.type : ''}${this.time < this.openUntil ? '/aperto' : ''}${this.punch ? '/pugno' : ''}`;
+      // dove ha colpito, nel sistema di Mike (per i lividi): x>0 = sua sinistra, y rispetto al centro della testa
+      ev.lx = lp.x; ev.ly = lp.y - lh.y;
+      ev.point = g.center.clone(); ev.dir = g.vel.clone().normalize();
       this.emit(ev.type, ev);
       if (ev.type === 'playerHit') {
         if (this.defending) this.defending.hit = true;

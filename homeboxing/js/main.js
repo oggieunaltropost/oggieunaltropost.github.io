@@ -3,7 +3,8 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { buildRing, RING_SIZE } from './ring.js';
-import { Mike, MIKE, loadMikeGLTF } from './mike.js';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js';
+import { Sweat, Bruises } from './fx.js';
 import { Player, SimInput } from './player.js';
 import { Scoreboard, HitFlash } from './hud.js';
 import { Room } from './room.js';
@@ -67,6 +68,11 @@ function setRing(size, pz) {
 }
 setRing(RING_SIZE, PLAYER_Z);
 const room = new Room(scene);
+const sweat = new Sweat(scene);
+let bruises = null;
+let level = 'normale';
+try { level = localStorage.getItem('hb-level') || 'normale'; } catch (e) {}
+if (!LEVELS[level]) level = 'normale';
 const READY_S = 6;                    // secondi prima del gong
 
 const player = new Player(renderer, scene, camera);
@@ -144,13 +150,22 @@ resetRound();
 
 function handleEvents() {
   for (const e of mike.events) {
-    (window.evlog ||= []).push(`${game.time.toFixed(1)} ${e.type} ${e.zone || e.name || ''}`);
+    (window.evlog ||= []).push(`${game.time.toFixed(1)} ${e.type} ${e.zone || e.name || ''} ${e.why || ''}`);
     switch (e.type) {
       case 'playerHit': {
         const pts = e.zone === 'head' ? 2 : 1;
         game.player.points += pts; game.player.hits++;
         game.message = e.zone === 'head' ? 'Colpo alla testa! +2' : 'Colpo al corpo +1';
         sfx.punchHit(Math.min(1.3, 0.6 + e.speed / 6)); sfx.crowd(0.08);
+        bruises.hit(e.zone, e.lx, e.ly, Math.min(1.6, e.speed / 4));
+        {
+          // qualche gocciolina rossa: solo nei colpi al viso molto forti o quando Mike e' gia' molto segnato
+          const hurt = bruises.worst();
+          const strong = e.speed > 5.5 && Math.random() < 0.45;                 // colpo molto forte
+          const worn = hurt > 0.6 && Math.random() < 0.2 + (hurt - 0.6) * 1.5;  // gia' molto segnato
+          const blood = e.zone === 'head' && (strong || worn) ? 1 + Math.floor(Math.random() * (1 + hurt * 3)) : 0;
+          sweat.burst(e.point, e.dir, Math.min(1.5, e.speed / 4), blood);
+        }
         player.pulse(e.side, 1.0, 70);
         break;
       }
@@ -202,7 +217,7 @@ function updateGame(dt) {
   }
   const xr = renderer.xr.getSession && renderer.xr.getSession();
   const feats = xr && xr.enabledFeatures ? (xr.enabledFeatures.includes('plane-detection') ? 'piani sì' : 'piani no') : '';
-  board.draw({ round: game.round, time: game.time, running: game.phase === 'fight',
+  board.draw({ round: game.round, level: LEVELS[level].label, time: game.time, running: game.phase === 'fight',
     player: game.player, mike: game.mike, message: game.message,
     diag: `ring ${ringSize.toFixed(1)} m · pavimento: ${floorSource} · occhi a ${(player.head.y + 0.06 - floorY).toFixed(1)} m da terra ${feats ? '· ' + feats : ''}` +
  '' });
@@ -212,7 +227,7 @@ function updateGame(dt) {
 let lastT = performance.now();
 let placed = false, xrFrames = 0, roomCaptureAsked = false, headMax = 0;
 const floorTouch = { left: 0, right: 0 };
-renderer.setAnimationLoop((t, frame) => { const now = performance.now(); const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now; tick(dt, frame); });
+renderer.setAnimationLoop((t, frame) => { if (window.pauseLoop) return; const now = performance.now(); const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now; tick(dt, frame); });
 // per le prove senza visore: window.stepGame(n, dt) fa avanzare il gioco di n fotogrammi
 window.stepGame = (n = 1, dt = 1 / 60) => { for (let i = 0; i < n; i++) tick(dt, null); };
 
@@ -259,6 +274,7 @@ function tick(dt, frame) {
     updateGame(dt);
   }
   flash.update(dt);
+  sweat.update(dt);
   player.endFrame();
   renderer.render(scene, camera);
 }
@@ -283,10 +299,11 @@ function calibrateByHand(dt) {
 
 // ---------------------------------------------------------------- avvio
 loadMikeGLTF('assets/mike.glb', f => status(`Caricamento di Mike… ${Math.round(f * 100)}%`)).then(gltf => {
-  mike = new Mike(gltf, scene, MIKE);
+  mike = new Mike(gltf, scene, level);
+  bruises = new Bruises(mike.model);
   mike.bounds = keepInRing;
   placeArena(new THREE.Vector3(0, 1.65, 0), 0);
-  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena;   // per le prove
+  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.sweatFx = sweat;   // per le prove
   status('');
   $('enter').disabled = !navigator.xr;
   if (navigator.xr) navigator.xr.isSessionSupported('immersive-ar').then(ok => {
@@ -303,6 +320,7 @@ $('enter').onclick = async () => {
     });
     renderer.xr.setFoveation(1);
     await renderer.xr.setSession(session);
+    if (bruises) bruises.reset();
     placed = false; xrFrames = 0; floorSource = 'visore'; floorY = 0; roomCaptureAsked = false; headMax = 0;
     resetRound();
     $('overlay').hidden = true;
@@ -328,3 +346,15 @@ function startSim() {
   });
 }
 $('sim').onclick = startSim;
+
+// livello scelto nella pagina iniziale (ricordato per la volta dopo)
+function showLevel() {
+  for (const b of document.querySelectorAll('#levels button')) b.classList.toggle('on', b.dataset.level === level);
+}
+for (const b of document.querySelectorAll('#levels button')) b.onclick = () => {
+  level = b.dataset.level;
+  try { localStorage.setItem('hb-level', level); } catch (e) {}
+  if (mike) mike.setLevel(level);
+  showLevel();
+};
+showLevel();

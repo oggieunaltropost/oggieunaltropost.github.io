@@ -6,13 +6,15 @@ export class Scoreboard {
     this.canvas = document.createElement('canvas');
     this.canvas.width = 1024; this.canvas.height = 560;
     this.tex = new THREE.CanvasTexture(this.canvas); this.tex.colorSpace = THREE.SRGBColorSpace;
-    const mat = new THREE.MeshBasicMaterial({ map: this.tex, transparent: true, toneMapped: false });
+    // sempre visibile: non viene coperto da mobili o pareti
+    const mat = new THREE.MeshBasicMaterial({ map: this.tex, transparent: true, toneMapped: false, depthTest: false, depthWrite: false });
     this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.6), mat);
     this.mesh.name = 'tabellone';
+    this.mesh.renderOrder = 1001;
     // cornice
     const frame = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.66, 0.03),
-      new THREE.MeshStandardMaterial({ color: 0x111318, roughness: 0.4, metalness: 0.5 }));
-    frame.position.z = -0.02; this.mesh.add(frame);
+      new THREE.MeshBasicMaterial({ color: 0x15171d, depthTest: false, depthWrite: false }));
+    frame.position.z = -0.02; frame.renderOrder = 1000; this.mesh.add(frame);
     this.last = '';
   }
 
@@ -24,7 +26,9 @@ export class Scoreboard {
     g.fillStyle = '#0b0d12'; g.fillRect(0, 0, W, H);
     g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillStyle = '#ffd34d'; g.font = '900 54px system-ui, sans-serif';
-    g.fillText(`ROUND ${s.round}`, W * 0.3, 52);
+    g.fillText(`ROUND ${s.round}`, W * 0.2, 52);
+    g.fillStyle = '#c9ced8'; g.font = '700 34px system-ui, sans-serif';
+    g.fillText((s.level || '').toUpperCase(), W * 0.45, 54);
     const mm = Math.floor(s.time / 60), ss = String(Math.floor(s.time % 60)).padStart(2, '0');
     g.fillStyle = s.time < 10 && s.running ? '#ff5a5a' : '#ffffff';
     g.font = '800 64px ui-monospace, monospace';

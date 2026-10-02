@@ -86,7 +86,7 @@ class Glove {
       if (_v.length() < 25) this.vel.lerp(_v, 0.55);          // scarta i salti del tracciamento
     }
     this.speed = this.vel.length();
-    const fast = this.speed > 1.2;
+    const fast = this.speed > 0.7;           // inizio di una spinta: serve a Mike per "leggere" il pugno presto
     if (fast && !this.wasFast) this.punchId++;
     this.wasFast = fast;
     if (this.cooldown > 0) {
