@@ -29,7 +29,21 @@ export class RingGirl {
       if (!o.isMesh) return;
       o.frustumCulled = false; o.castShadow = true;
       const n = o.material.name || '';
-      if (n === 'Cartello') { o.material = new THREE.MeshBasicMaterial({ map: this.tex, toneMapped: false }); this.card = o; }
+      if (n === 'Cartello') {
+        // mappatura piana: tutto il disegno (ROUND + numero) sulla faccia grande, davanti e dietro
+        const g = o.geometry; g.computeBoundingBox();
+        const bb = g.boundingBox, pos = g.attributes.position, uv = new Float32Array(pos.count * 2);
+        const big = ['x', 'y', 'z'].sort((a, b) => (bb.max[b] - bb.min[b]) - (bb.max[a] - bb.min[a]));
+        const [U, V] = [big[0], big[1]];
+        for (let i = 0; i < pos.count; i++) {
+          const p = { x: pos.getX(i), y: pos.getY(i), z: pos.getZ(i) };
+          uv[i * 2] = (p[U] - bb.min[U]) / (bb.max[U] - bb.min[U]);
+          uv[i * 2 + 1] = (p[V] - bb.min[V]) / (bb.max[V] - bb.min[V]);
+        }
+        g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+        o.material = new THREE.MeshBasicMaterial({ map: this.tex, toneMapped: false });
+        this.card = o;
+      }
       else fixHumanMaterial(o);
     });
     this.mixer = new THREE.AnimationMixer(this.model);
