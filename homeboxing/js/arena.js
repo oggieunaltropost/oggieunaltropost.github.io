@@ -1,6 +1,8 @@
 // Modalita' "Nell'arena": palazzetto virtuale intorno al ring, con tribune, pubblico animato,
 // luci, flash dei fotografi e striscioni. Tutto generato qui (niente file da scaricare).
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 const SKIN = [0x3b2417, 0x5a3825, 0x7a4e33, 0x9a6a48, 0xc08d6a, 0xe0b594, 0xf1cfb4];
 const SHIRT = [0xd81e2c, 0x1d4fc4, 0xf2f2f2, 0x1b1b1f, 0xffc93a, 0x2e8b57, 0x8a2be2, 0xff7f27, 0x4cc3e6, 0x9e9e9e, 0x6b3e26];
@@ -120,6 +122,64 @@ export class Arena {
       this.group.add(sp); this.flashes.push({ sp, t: 0 });
     }
     this.seats = seats;
+    this.R = R;
+    this.ringside = [];
+    this.loadRingside();
+  }
+
+  // Bordo ring: persone vere in 3D (blender/create_crowd.py ... glb), sedute su sedie, animate.
+  async loadRingside() {
+    const loader = new GLTFLoader();
+    const models = (await Promise.all([0, 1, 2, 3, 4, 5, 6, 7].map(i => loader.loadAsync(`assets/spettatori/s${i}.glb`).catch(() => null)))).filter(Boolean);
+    if (!models.length) return;
+    const chairMat = new THREE.MeshStandardMaterial({ color: 0x1b1d22, roughness: 0.6, metalness: 0.3 });
+    const seatG = new THREE.BoxGeometry(0.46, 0.05, 0.44), backG = new THREE.BoxGeometry(0.46, 0.45, 0.04);
+    const d = this.R + 1.25; let k = 0;
+    for (let side = 0; side < 4; side++) {
+      if (side === 0) continue;                       // dietro di te non serve (non lo vedi)
+      const rot = side * Math.PI / 2;
+      for (let j = -3; j <= 3; j++) {
+        const along = j * 0.78 + (Math.random() - 0.5) * 0.08;
+        const x = Math.sin(rot) * d + Math.cos(rot) * along, z = Math.cos(rot) * d - Math.sin(rot) * along;
+        const face = Math.atan2(-x, -z);
+        const chair = new THREE.Group();
+        const seat = new THREE.Mesh(seatG, chairMat); seat.position.y = 0.44; chair.add(seat);
+        const back = new THREE.Mesh(backG, chairMat); back.position.set(0, 0.68, 0.22); chair.add(back);
+        for (const lx of [-0.2, 0.2]) for (const lz of [-0.19, 0.19]) {
+          const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.44, 6), chairMat); leg.position.set(lx, 0.22, lz); chair.add(leg);
+        }
+        chair.position.set(x, 0, z); chair.rotation.y = face; this.group.add(chair);
+        if (Math.random() < 0.12) continue;          // qualche sedia vuota
+        const g = models[(k++) % models.length];
+        const p = SkeletonUtils.clone(g.scene);
+        p.traverse(o => { if (o.isMesh) { o.frustumCulled = false; if (o.material.name && /eyebrow|eyelash|short|bob|long|pony|braid|afro/.test(o.material.name)) { o.material.alphaTest = 0.4; o.material.transparent = false; } } });
+        p.position.set(x + Math.sin(face) * 0.04, 0, z + Math.cos(face) * 0.04); p.rotation.y = face;
+        this.group.add(p);
+        const mixer = new THREE.AnimationMixer(p);
+        const acts = {};
+        for (const c of g.animations) { acts[c.name] = mixer.clipAction(c); acts[c.name].setEffectiveWeight(0).play(); acts[c.name].time = Math.random() * c.duration; acts[c.name].timeScale = 0.85 + Math.random() * 0.3; }
+        acts.seduto.setEffectiveWeight(1);
+        this.ringside.push({ mixer, acts, cur: 'seduto', w: { seduto: 1, applaude: 0, esulta: 0 }, fan: Math.random(), next: Math.random() * 6 });
+      }
+    }
+  }
+
+  _updateRingside(dt) {
+    for (const r of this.ringside) {
+      const hype = Math.min(1, this.excite * (0.6 + r.fan));
+      r.next -= dt;
+      let want = r.cur;
+      if (hype > 0.5) want = 'esulta';
+      else if (hype > 0.2) want = 'applaude';
+      else if (r.next <= 0) { want = Math.random() < 0.18 ? 'applaude' : 'seduto'; r.next = 3 + Math.random() * 6; }
+      else if (r.cur === 'esulta') want = 'applaude';
+      r.cur = want;
+      for (const n of ['seduto', 'applaude', 'esulta']) {
+        r.w[n] += ((n === want ? 1 : 0) - r.w[n]) * Math.min(1, dt * 3);   // passaggio morbido (si alza, si siede)
+        if (r.acts[n]) r.acts[n].setEffectiveWeight(r.w[n]);
+      }
+      r.mixer.update(dt);
+    }
   }
 
   // Pubblico: persone vere create in Blender (blender/create_crowd.py) e fotografate in 3 pose
@@ -141,7 +201,7 @@ export class Arena {
     this.aPose = new THREE.InstancedBufferAttribute(aPose, 1); this.aPose.setUsage(THREE.DynamicDrawUsage);
     geo.setAttribute('aPose', this.aPose);
     geo.setAttribute('aTint', new THREE.InstancedBufferAttribute(aTint, 1));
-    const mat = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, side: THREE.DoubleSide });
+    const mat = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.35, alphaToCoverage: true, side: THREE.DoubleSide });
     mat.onBeforeCompile = sh => {
       sh.vertexShader = 'attribute vec2 aCell;\nattribute float aPose;\nattribute float aTint;\nvarying float vTint;\n' +
         sh.vertexShader.replace('#include <uv_vertex>', `#include <uv_vertex>
@@ -164,6 +224,7 @@ export class Arena {
     this.excite = Math.max(0, this.excite - dt * 0.25);
     this._frame = (this._frame || 0) + 1;
     if (this._frame % 2 === 0) this._updateCrowd(dt * 2);
+    this._updateRingside(dt);
     // flash dei fotografi, piu' frequenti quando la folla e' esaltata
     for (const f of this.flashes) {
       if (f.t > 0) { f.t -= dt; f.sp.material.opacity = Math.max(0, f.t / 0.12); continue; }
@@ -186,7 +247,8 @@ export class Arena {
       else if (hype > 0.15 || Math.sin(t * 0.37 + st.phase * 3) > 0.85) pose = Math.sin(t * st.clapRate * Math.PI + st.phase) > 0 ? 1 : 0;
       this.aPose.array[k] = pose;
       const bounce = Math.abs(Math.sin(t * (3 + st.fan * 3) + st.phase)) * (0.01 + hype * 0.1);
-      e.set(0, st.rot, 0); q.setFromEuler(e);
+      // ondeggiano un po' (nessuno sta fermo come una statua)
+      e.set(0, st.rot + Math.sin(t * 0.6 + st.phase) * 0.12, Math.sin(t * (0.9 + st.fan) + st.phase * 2) * 0.03); q.setFromEuler(e);
       m4.compose(p.set(st.x, st.y + bounce, st.z), q, one);
       this.crowd.setMatrixAt(k, m4);
     });

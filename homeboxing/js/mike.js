@@ -196,6 +196,27 @@ export class Mike {
     return null;
   }
 
+  // ---- riposo tra i round: va nel suo angolo e si siede sullo sgabello
+  goTo(p, look) { this.goal = p.clone(); this.goalLook = look.clone(); this.atGoal = false; this.enabled = false; }
+  leaveCorner() { this.goal = null; if (this.atGoal) this.resetPose(); this.atGoal = false; }
+  updateGoal(dt) {
+    const d = new THREE.Vector3(this.goal.x - this.root.position.x, 0, this.goal.z - this.root.position.z);
+    const dist = d.length();
+    if (dist > 0.04 && !this.atGoal) {
+      d.normalize();
+      this.root.position.addScaledVector(d, Math.min(dist, 0.8 * dt));
+      this.vel.copy(d).multiplyScalar(0.8);
+      const yaw = Math.atan2(d.x, d.z), dy = Math.atan2(Math.sin(yaw - this.root.rotation.y), Math.cos(yaw - this.root.rotation.y));
+      this.root.rotation.y += Math.max(-5 * dt, Math.min(5 * dt, dy));
+    } else {
+      this.vel.set(0, 0, 0);
+      const yaw = Math.atan2(this.goalLook.x - this.root.position.x, this.goalLook.z - this.root.position.z);
+      const dy = Math.atan2(Math.sin(yaw - this.root.rotation.y), Math.cos(yaw - this.root.rotation.y));
+      this.root.rotation.y += Math.max(-4 * dt, Math.min(4 * dt, dy));
+      if (!this.atGoal && Math.abs(dy) < 0.2) { this.atGoal = true; this.play('stool', 1, true); }
+    }
+  }
+
   // ---- atterramento
   knockdown() {
     this.enabled = false; this.down = true;
@@ -298,6 +319,7 @@ export class Mike {
     this.stateT += dt;
     if (this.stun > 0) this.stun -= dt;
     const head = player.head;
+    if (this.goal) { this.updateGoal(dt); this.animate(dt); return; }   // va all'angolo
 
     // guarda sempre l'avversario
     const toP = _a.set(head.x - this.root.position.x, 0, head.z - this.root.position.z);

@@ -9,6 +9,7 @@ import { Player, SimInput } from './player.js';
 import { Scoreboard, HitFlash, PauseMenu, MenuPanel } from './hud.js';
 import { Room } from './room.js';
 import { Arena } from './arena.js';
+import { RingGirl } from './ringgirl.js';
 import { ROUND_S, REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js';
 import * as sfx from './sfx.js';
 
@@ -77,6 +78,13 @@ let bruises = null;
 let rounds = 3;
 try { rounds = parseInt(localStorage.getItem('hb-rounds')) || 3; } catch (e) {}
 const party = new Celebration(scene);
+const girl = new RingGirl(scene);
+// sgabello di Mike nel suo angolo (blu), si vede solo nel riposo
+const stool = new THREE.Group();
+{ const m = new THREE.MeshStandardMaterial({ color: 0x23262d, roughness: 0.5, metalness: 0.4 });
+  const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.05, 20), m); seat.position.y = 0.5; stool.add(seat);
+  for (let i = 0; i < 3; i++) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.5, 6), m); const a = i * 2.1; l.position.set(Math.cos(a) * 0.11, 0.25, Math.sin(a) * 0.11); stool.add(l); } }
+stool.visible = false; scene.add(stool);
 let level = 'normale';
 try { level = localStorage.getItem('hb-level') || 'normale'; } catch (e) {}
 if (!LEVELS[level]) level = 'normale';
@@ -186,6 +194,8 @@ function newMatch() {
   startRound();
 }
 function startRound() {
+  girl.stop(); stool.visible = false;
+  if (mike) mike.leaveCorner();
   game.time = ROUND_S; game.phase = 'ready'; game.phaseT = 0; game.paused = false; game.kd = null;
   game.player.kdRound = 0; game.mike.kdRound = 0;
   game.message = `Round ${game.round} di ${rounds}`;
@@ -358,6 +368,14 @@ function updateGame(dt) {
           endMatch(a > b ? 'player' : a < b ? 'mike' : 'pari', 'decisione ai punti');
         } else {
           game.phase = 'rest'; game.phaseT = 0;
+          // Mike all'angolo sullo sgabello, la ragazza del ring gira col cartello del prossimo round
+          const h = ringSize / 2 - 0.42;
+          const corner = new THREE.Vector3(h, 0, -h).applyMatrix4(arena.matrixWorld);
+          const center = new THREE.Vector3().setFromMatrixPosition(arena.matrixWorld);
+          stool.position.copy(corner).addScaledVector(corner.clone().sub(center).setY(0).normalize(), -0.02);
+          stool.visible = true;
+          mike.goTo(corner.clone().addScaledVector(center.clone().sub(corner).setY(0).normalize(), 0.12), center);
+          girl.start(arena, ringSize, game.round + 1);
           if (mode === 'arena') sfx.cheer('applauso', 0.8);
           for (const k of ['player', 'mike']) game[k].dmg = Math.max(0, game[k].dmg - 25);   // all'angolo ci si riprende
         }
@@ -447,6 +465,7 @@ function tick(dt, frame) {
   }
   flash.update(dt);
   sweat.update(dt);
+  girl.update(dt, player.head);
   if (party.update(dt)) sfx.firework();
   if (arenaEnv && arenaEnv.group.visible) { arenaEnv.update(dt); sfx.crowdLevel(arenaEnv.excite); }
   player.endFrame();
@@ -526,6 +545,7 @@ function calibrateByHand(dt) {
 // ---------------------------------------------------------------- avvio
 loadMikeGLTF('assets/mike.glb', f => status(`Caricamento di Mike… ${Math.round(f * 100)}%`)).then(gltf => {
   mike = new Mike(gltf, scene, level);
+  girl.load().catch(e => console.warn('ragazza del ring', e));
   bruises = new Bruises(mike.model);
   mike.bounds = keepInRing;
   placeArena(new THREE.Vector3(0, 1.65, 0), 0);
