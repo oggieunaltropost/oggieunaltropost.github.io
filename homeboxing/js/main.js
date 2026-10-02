@@ -6,9 +6,10 @@ import { buildRing, RING_SIZE } from './ring.js';
 import { Mike, LEVELS, loadMikeGLTF } from './mike.js';
 import { Sweat, Bruises } from './fx.js';
 import { Player, SimInput } from './player.js';
-import { Scoreboard, HitFlash } from './hud.js';
+import { Scoreboard, HitFlash, PauseMenu } from './hud.js';
 import { Room } from './room.js';
 import { Arena } from './arena.js';
+import { ROUNDS, ROUND_S, REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js';
 import * as sfx from './sfx.js';
 
 const $ = id => document.getElementById(id);
@@ -95,6 +96,9 @@ const READY_S = 6;                    // secondi prima del gong
 
 const player = new Player(renderer, scene, camera);
 const flash = new HitFlash(camera);
+const pause = new PauseMenu();
+scene.add(pause.group);
+let armsUpT = 0, prevButtons = false;
 
 let mike = null;
 let sim = null, orbit = null;
@@ -151,20 +155,101 @@ function placeArena(headPos, yaw) {
   }
 }
 
-// ---------------------------------------------------------------- round e punteggi
+// ---------------------------------------------------------------- incontro: round, punti, danno, atterramenti
+const POWER = { facile: 0.7, normale: 0.9, difficile: 1.1, impossibile: 1.3 };   // forza dei pugni di Mike
+const getUp = new GetUpChallenge(scene);
+getUp.attachDark(camera);
+const fighter = () => ({ points: 0, hits: 0, blocks: 0, dodges: 0, dmg: 0, kd: 0, kdRound: 0 });
 const game = {
-  round: 1, time: 180, phase: 'ready', phaseT: 0,
-  player: { points: 0, hits: 0, blocks: 0, dodges: 0 },
-  mike: { points: 0, hits: 0, blocks: 0, dodges: 0 },
-  message: '',
+  round: 1, time: ROUND_S, phase: 'ready', phaseT: 0, paused: false,
+  player: fighter(), mike: fighter(), message: '', kd: null, result: null,
 };
-function resetRound() {
-  game.time = 180; game.phase = 'ready'; game.phaseT = 0;
-  for (const k of ['player', 'mike']) Object.assign(game[k], { points: 0, hits: 0, blocks: 0, dodges: 0 });
-  game.message = 'Pronti…';
+function newMatch() {
+  game.round = 1; game.result = null; game.kd = null;
+  game.player = fighter(); game.mike = fighter();
+  if (bruises) bruises.reset();
+  if (mike) { mike.resetPose(); mike.holdDist = null; }
+  getUp.stop();
+  startRound();
+}
+function startRound() {
+  game.time = ROUND_S; game.phase = 'ready'; game.phaseT = 0; game.paused = false; game.kd = null;
+  game.player.kdRound = 0; game.mike.kdRound = 0;
+  game.message = `Round ${game.round} di ${ROUNDS}`;
   if (mike) mike.enabled = false;
 }
-resetRound();
+const resetRound = newMatch;          // (nomi usati dal resto del codice)
+newMatch();
+
+// un colpo a segno: danno, e forse atterramento
+function landed(who, zone, power) {
+  const f = game[who];
+  f.dmg = Math.min(100, f.dmg + (zone === 'head' ? 5 + 9 * power : 3 + 5 * power));
+  if (game.kd || game.phase !== 'fight') return;
+  if (Math.random() < knockdownChance(f.dmg, power, zone)) knockdown(who, power);
+}
+
+function knockdown(who, power) {
+  const f = game[who];
+  f.kd++; f.kdRound++;
+  mike.enabled = false;
+  sfx.punchHit(1.4);
+  if (arenaEnv) arenaEnv.cheer(2);
+  if (mode === 'arena') sfx.cheer('boato', 1);
+  const kd = { who, count: 0, t: 0, up: false, tko: f.kdRound >= 3 || f.dmg >= 98 };
+  if (who === 'mike') {
+    mike.knockdown();
+    // si rialza? con tanto danno, o dopo un colpo devastante, puo' restare giu' anche al primo atterramento
+    const stay = kd.tko || Math.random() < Math.max(0, (f.dmg - 65) / 35) * 0.7 + (power > 1.3 ? 0.15 : 0) + (f.kdRound === 2 ? 0.25 : 0);
+    kd.getUpAt = stay ? 99 : Math.min(9, 3 + Math.floor(Math.random() * (2 + f.dmg / 25)));
+    game.message = 'MIKE E\' A TERRA!';
+  } else {
+    const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
+    const e = new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ');
+    if (!kd.tko) getUp.start([3, 5][f.kdRound - 1] || 7, [0.08, 0.065][f.kdRound - 1] || 0.055, player.head, e.y);
+    game.message = 'SEI A TERRA! Colpisci i bersagli gialli per rialzarti';
+    mike.holdDist = 1.7;                     // Mike va all'angolo neutro
+  }
+  if (kd.tko) game.message = who === 'mike' ? 'L\'arbitro ferma l\'incontro!' : 'L\'arbitro ti ferma!';
+  game.kd = kd;
+}
+
+function updateKnockdown(dt) {
+  const kd = game.kd, f = game[kd.who];
+  kd.t += dt;
+  if (kd.tko && kd.t > 1.5) return endMatch(kd.who === 'mike' ? 'player' : 'mike', 'KO tecnico');
+  if (kd.tko) return;
+  // conteggio: un numero al secondo
+  const c = Math.floor(kd.t / 1.0);
+  if (c > kd.count && c <= 10) {
+    kd.count = c;
+    if (!sayCount(c)) sfx.punchBlock();
+    if (c <= 8) game.message = `${kd.who === 'mike' ? 'Mike' : 'Tu'} ${kd.up ? 'in piedi' : 'a terra'}… ${c}` + (kd.who === 'player' && !kd.up ? ' · colpisci i bersagli!' : '');
+  }
+  if (kd.who === 'mike' && !kd.up && kd.count >= kd.getUpAt) { kd.up = true; mike.getUp(); }
+  if (kd.who === 'player' && !kd.up && getUp.update(dt, Object.values(player.gloves), player.head)) {
+    kd.up = true; game.message = 'In piedi! Si riprende dopo l\'8';
+  }
+  if (!kd.up && kd.count >= 10) return endMatch(kd.who === 'mike' ? 'player' : 'mike', 'KO');
+  // conteggio obbligatorio fino a 8, poi si riprende
+  if (kd.up && kd.count >= 8 && (kd.who === 'player' || mike.isUp())) {
+    f.dmg = Math.max(0, f.dmg - 15);
+    game.kd = null; getUp.stop(); mike.holdDist = null;
+    game.message = 'BOX!'; sfx.bell(1);
+    mike.enabled = true;
+  }
+}
+
+function endMatch(winner, how) {
+  game.phase = 'end'; game.phaseT = 0; game.kd = null;
+  mike.enabled = false; getUp.stop(); mike.holdDist = null;
+  sfx.bell(3);
+  if (arenaEnv) arenaEnv.cheer(2);
+  if (mode === 'arena') { sfx.cheer('boato', 1); setTimeout(() => sfx.cheer('applauso', 0.9), 2500); }
+  game.result = { winner, how };
+  game.message = winner === 'player' ? `HAI VINTO per ${how}!` : winner === 'mike' ? `Vince Mike per ${how}` : 'Pareggio ai punti';
+  say(winner === 'player' ? `Hai vinto per ${how}` : winner === 'mike' ? `Vince Mike per ${how}` : 'Pareggio');
+}
 
 function handleEvents() {
   for (const e of mike.events) {
@@ -174,26 +259,31 @@ function handleEvents() {
         const pts = e.zone === 'head' ? 2 : 1;
         game.player.points += pts; game.player.hits++;
         game.message = e.zone === 'head' ? 'Tu: colpo alla testa +2' : 'Tu: colpo al corpo +1';
-        sfx.punchHit(Math.min(1.3, 0.6 + e.speed / 6)); sfx.crowd(mode === 'arena' ? 0.25 : 0.08);
+        sfx.punchHit(Math.min(1.3, 0.6 + e.speed / 6));
+        if (mode === 'arena') { if (e.speed > 4 || e.zone === 'head') sfx.cheer('boato', Math.min(1, 0.4 + e.speed / 10)); }
+        else sfx.crowd(0.08);
         if (arenaEnv) arenaEnv.cheer(Math.min(1.5, e.speed / 4) * (e.zone === 'head' ? 1 : 0.6));
         bruises.hit(e.zone, e.lx, e.ly, Math.min(1.6, e.speed / 4));
         {
           // qualche gocciolina rossa: solo nei colpi al viso molto forti o quando Mike e' gia' molto segnato
           const hurt = bruises.worst();
-          const strong = e.speed > 5.5 && Math.random() < 0.45;                 // colpo molto forte
-          const worn = hurt > 0.6 && Math.random() < 0.2 + (hurt - 0.6) * 1.5;  // gia' molto segnato
+          const strong = e.speed > 5.5 && Math.random() < 0.45;
+          const worn = hurt > 0.6 && Math.random() < 0.2 + (hurt - 0.6) * 1.5;
           const blood = e.zone === 'head' && (strong || worn) ? 1 + Math.floor(Math.random() * (1 + hurt * 3)) : 0;
           sweat.burst(e.point, e.dir, Math.min(1.5, e.speed / 4), blood);
         }
         player.pulse(e.side, 1.0, 70);
+        landed('mike', e.zone, Math.min(1.5, e.speed / 5));
         break;
       }
       case 'mikeBlocked':
         game.mike.blocks++; game.message = 'Mike para';
+        if (mode === 'arena' && Math.random() < 0.35) sfx.cheer('ooh', 0.6);
         sfx.punchBlock(); player.pulse(e.side, 0.4, 40);
         break;
       case 'mikeDodged':
         game.mike.dodges++; game.message = 'Mike schiva';
+        if (mode === 'arena' && Math.random() < 0.5) sfx.cheer('ooh', 0.7);
         break;
       case 'mikeThrows':
         sfx.whoosh();
@@ -203,7 +293,9 @@ function handleEvents() {
         game.message = e.zone === 'body' ? 'Mike: colpo al corpo +1' : 'Mike: colpo alla testa +2';
         sfx.punchHit(e.zone === 'body' ? 0.9 : 1.2); flash.hit(e.zone === 'body' ? 0.5 : 1);
         if (arenaEnv) arenaEnv.cheer(0.6);
+        if (mode === 'arena' && e.zone === 'head') sfx.cheer('boato', 0.6);
         player.pulse('left', 0.7, 90); player.pulse('right', 0.7, 90);
+        landed('player', e.zone, POWER[level] * (0.85 + Math.random() * 0.3));
         break;
       case 'playerBlocked':
         game.player.blocks++; game.message = 'Parata!';
@@ -219,28 +311,47 @@ function handleEvents() {
 
 function updateGame(dt) {
   game.phaseT += dt;
-  if (game.phase === 'ready') {
+  mike.fatigue = game.mike.dmg / 100;
+  if (game.paused) {
+    game.message = 'PAUSA';
+  } else if (game.phase === 'ready') {
     const left = Math.ceil(READY_S - game.phaseT);
-    game.message = left > 0 ? `Si comincia tra ${left}…` : 'BOX!';
-    if (left > 0 && floorSource !== 'stanza' && floorSource !== 'mano') game.message = `Ring basso? Accovacciati e tieni una mano a terra 2 s · ${left}`;
+    game.message = left > 0 ? `Round ${game.round} di ${ROUNDS} · si comincia tra ${left}…` : 'BOX!';
+    if (left > 0 && renderer.xr.isPresenting && floorSource !== 'stanza' && floorSource !== 'mano') game.message = `Ring basso? Accovacciati e tieni una mano a terra 2 s · ${left}`;
+    else if (left > 3 && game.round === 1) game.message = `Pausa: alza tutte e due le braccia sopra la testa · ${left}`;
     if (game.phaseT >= READY_S) { game.phase = 'fight'; game.phaseT = 0; sfx.bell(1); mike.enabled = true; game.message = 'BOX!'; }
   } else if (game.phase === 'fight') {
-    game.time = Math.max(0, game.time - dt);
-    if (game.time === 0) {
-      game.phase = 'end'; game.phaseT = 0; sfx.bell(3); mike.enabled = false;
-      const a = game.player.points, b = game.mike.points;
-      game.message = a > b ? 'Hai vinto il round!' : a < b ? 'Round a Mike' : 'Pareggio';
+    if (game.kd) updateKnockdown(dt);
+    else {
+      game.time = Math.max(0, game.time - dt);
+      for (const k of ['player', 'mike']) game[k].dmg = Math.max(0, game[k].dmg - dt * 0.6);   // si riprende un po'
+      flash.setBase(game.player.dmg > 55 ? (game.player.dmg - 55) / 45 * 0.35 : 0);         // vista che si annebbia
+      if (game.time === 0) {
+        sfx.bell(3); mike.enabled = false;
+        if (game.round >= ROUNDS) {
+          const a = game.player.points, b = game.mike.points;
+          endMatch(a > b ? 'player' : a < b ? 'mike' : 'pari', 'decisione ai punti');
+        } else {
+          game.phase = 'rest'; game.phaseT = 0;
+          if (mode === 'arena') sfx.cheer('applauso', 0.8);
+          for (const k of ['player', 'mike']) game[k].dmg = Math.max(0, game[k].dmg - 25);   // all'angolo ci si riprende
+        }
+      }
     }
+  } else if (game.phase === 'rest') {
+    const left = Math.ceil(REST_S - game.phaseT);
+    game.message = `Riposo all'angolo · round ${game.round + 1} tra ${left} s`;
+    flash.setBase(0);
+    if (game.phaseT >= REST_S) { game.round++; startRound(); }
   } else if (game.phase === 'end') {
-    if (game.phaseT > 10) { game.round++; resetRound(); }
-    else if (game.phaseT > 4) game.message = `Nuovo round tra ${Math.ceil(10 - game.phaseT)} s`;
+    flash.setBase(0);
+    if (game.phaseT > 5 && !pause.group.visible) openPause(true);
   }
   const xr = renderer.xr.getSession && renderer.xr.getSession();
   const feats = xr && xr.enabledFeatures ? (xr.enabledFeatures.includes('plane-detection') ? 'piani sì' : 'piani no') : '';
-  board.draw({ round: game.round, level: LEVELS[level].label, time: game.time, running: game.phase === 'fight',
-    player: game.player, mike: game.mike, message: game.message,
-    diag: `ring ${ringSize.toFixed(1)} m · pavimento: ${floorSource} · occhi a ${(player.head.y + 0.06 - floorY).toFixed(1)} m da terra ${feats ? '· ' + feats : ''}` +
- '' });
+  board.draw({ round: game.round, rounds: ROUNDS, level: LEVELS[level].label, time: game.phase === 'rest' ? Math.max(0, REST_S - game.phaseT) : game.time,
+    running: game.phase === 'fight', player: game.player, mike: game.mike, message: game.message,
+    diag: `ring ${ringSize.toFixed(1)} m · pavimento: ${floorSource} · occhi a ${(player.head.y + 0.06 - floorY).toFixed(1)} m da terra ${feats ? '· ' + feats : ''}` });
 }
 
 // ---------------------------------------------------------------- ciclo
@@ -302,6 +413,7 @@ function tick(dt, frame) {
   if (orbit) orbit.update();
   player.update(dt);
   if (renderer.xr.isPresenting || sim) calibrateByHand(dt);
+  if (mike) updatePause(dt);
   if (mike) {
     mike.update(dt, player);
     handleEvents();
@@ -312,6 +424,37 @@ function tick(dt, frame) {
   if (arenaEnv && arenaEnv.group.visible) { arenaEnv.update(dt); sfx.crowdLevel(arenaEnv.excite); }
   player.endFrame();
   renderer.render(scene, camera);
+}
+
+// Pausa: tutte e due le braccia alzate sopra la testa per 1,2 s (in combattimento non succede),
+// oppure A/B/X/Y sui controller. Nel menu i pulsanti si premono tenendoci sopra un guantone.
+function openPause(end = false) {
+  game.paused = !end; mike.enabled = false;
+  const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
+  const e = new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ');
+  pause.open(player.head, e.y, end);
+  if (!end) sfx.bell(1);
+}
+function closePause() {
+  game.paused = false; pause.close();
+  mike.enabled = game.phase === 'fight' && !game.kd;
+}
+function updatePause(dt) {
+  const g = Object.values(player.gloves);
+  const up = g.every(x => x.mesh.visible && x.center.y > player.head.y + 0.12);
+  armsUpT = up ? armsUpT + dt : 0;
+  let pressed = false;
+  for (const s of player.sources) {
+    const b = s.gamepad && s.gamepad.buttons;
+    if (b && ((b[4] && b[4].pressed) || (b[5] && b[5].pressed))) pressed = true;
+  }
+  const click = pressed && !prevButtons; prevButtons = pressed;
+  if (!game.paused && !pause.group.visible && (armsUpT > 1.2 || click)) { armsUpT = -2; openPause(); return; }
+  if (game.paused && click) { closePause(); return; }
+  const id = pause.update(dt, g);
+  if (id === 'resume') closePause();
+  else if (id === 'restart') { closePause(); newMatch(); }
+  else if (id === 'exit') { closePause(); const s = renderer.xr.getSession(); if (s) s.end(); }
 }
 
 // Pavimento "a mano": accovacciati e appoggia una mano (o il controller) a terra per 2 secondi.
@@ -338,7 +481,7 @@ loadMikeGLTF('assets/mike.glb', f => status(`Caricamento di Mike… ${Math.round
   bruises = new Bruises(mike.model);
   mike.bounds = keepInRing;
   placeArena(new THREE.Vector3(0, 1.65, 0), 0);
-  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.sweatFx = sweat;   // per le prove
+  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.getUpFx = getUp; window.gameApi = { newMatch }; window.sweatFx = sweat;   // per le prove
   status('');
   $('enter').disabled = !navigator.xr;
   if (navigator.xr) navigator.xr.isSessionSupported('immersive-ar').then(ok => {
@@ -363,9 +506,17 @@ $('enter').onclick = async () => {
     placed = false; xrFrames = 0; floorSource = 'visore'; floorY = 0; roomCaptureAsked = false; headMax = 0;
     resetRound();
     $('overlay').hidden = true;
-    session.addEventListener('end', () => { $('overlay').hidden = false; placed = false; });
+    session.addEventListener('end', () => {
+      $('overlay').hidden = false; placed = false;
+      if (game.paused) closePause();
+      if (mike) mike.enabled = false;
+      sfx.stopAll();                                // niente suoni dopo l'uscita
+    });
   } catch (e) { status((mode === 'arena' ? 'Impossibile entrare nell\'arena: ' : 'Impossibile entrare in realtà mista: ') + e.message); }
 };
+
+// pagina nascosta (visore tolto, browser chiuso): silenzio
+document.addEventListener('visibilitychange', () => { if (document.hidden) sfx.stopAll(); });
 
 function startSim() {
   sfx.initAudio();

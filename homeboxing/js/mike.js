@@ -196,18 +196,32 @@ export class Mike {
     return null;
   }
 
+  // ---- atterramento
+  knockdown() {
+    this.enabled = false; this.down = true;
+    this.punch = null; this.combo = []; this.reaction = null; this.defending = null;
+    this.setState('stalk'); this.nextAttack = 2;
+    this.play('knockdown', 1, true);
+  }
+  getUp() { this.getupLayer = this.play('getup', 1); this.down = false; }
+  isUp() { return !this.getupLayer || this.getupLayer.t >= this.getupLayer.dur - 0.15; }
+  resetPose() {
+    for (const l of this.layers) l.out = true;
+    this.down = false; this.getupLayer = null; this.punch = null; this.combo = []; this.defending = null; this.reaction = null;
+  }
+
   setLevel(name) {
     this.levelName = LEVELS[name] ? name : 'normale';
     this.cfg = { ...MIKE, ...LEVELS[this.levelName] };
   }
 
   // --------------------------------------------------------------- animazioni
-  play(name, timeScale = 1) {
+  play(name, timeScale = 1, hold = false) {
     for (const l of this.layers) l.out = true;
     const a = this.mixer.clipAction(this.clips[name]);
     a.reset(); a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true;
     a.timeScale = timeScale; a.setEffectiveWeight(0); a.play();
-    const layer = { name, action: a, t: 0, dur: this.clips[name].duration, ts: timeScale, w: 0, out: false };
+    const layer = { name, action: a, t: 0, dur: this.clips[name].duration, ts: timeScale, w: 0, out: false, hold };
     // se la stessa azione era in uscita, quella vecchia sparisce subito
     this.layers = this.layers.filter(l => l.action !== a);
     this.layers.push(layer);
@@ -223,14 +237,14 @@ export class Mike {
       if (l.out) l.w = Math.max(0, l.w - dt / 0.07);
       else {
         let w = Math.min(1, l.t / 0.07);
-        if (l.t > l.dur - 0.14) w = Math.min(w, Math.max(0, (l.dur - l.t) / 0.14));
+        if (l.t > l.dur - 0.14 && !l.hold) w = Math.min(w, Math.max(0, (l.dur - l.t) / 0.14));
         l.w = w;
       }
       l.action.setEffectiveWeight(l.w);
       total += l.w;
     }
     this.layers = this.layers.filter(l => {
-      const keep = l.w > 0.001 || (!l.out && l.t < 0.07);
+      const keep = l.w > 0.001 || (!l.out && l.t < 0.07) || (l.hold && !l.out);
       if (!keep) l.action.stop();
       return keep;
     });
@@ -298,7 +312,8 @@ export class Mike {
       this.checkPlayerPunches(player);
       this.think(dt, player, dist);
       this.move(dt, dist, toP.clone().normalize());
-    } else this.vel.set(0, 0, 0);
+    } else if (this.holdDist && !this.down) this.move(dt, dist, toP.clone().normalize());   // si allontana (angolo neutro)
+    else this.vel.set(0, 0, 0);
     this.animate(dt);
     if (this.enabled) this.resolveMyPunch(player, dist);
   }
@@ -329,7 +344,7 @@ export class Mike {
         if (!threat) continue;
         this.seen[g.side] = g.punchId;
         const open = this.time < this.openUntil;              // appena parato/schivato da te: e' scoperto
-        if (Math.random() < c.reactChance * (open ? c.openFactor : 1)) this.reaction = { at: this.time + rand(...c.reactDelay), glove: g, punchId: g.punchId, zone: threat };
+        if (Math.random() < c.reactChance * (open ? c.openFactor : 1) * (1 - 0.35 * (this.fatigue || 0))) this.reaction = { at: this.time + rand(...c.reactDelay), glove: g, punchId: g.punchId, zone: threat };
         break;
       }
     }
@@ -457,7 +472,7 @@ export class Mike {
       this.punch = { name, layer, resolved: true, move: true };
       return;
     }
-    const layer = this.play(name, this.cfg.punchSpeed);
+    const layer = this.play(name, this.cfg.punchSpeed * (1 - 0.2 * (this.fatigue || 0)));
     this.punch = { name, layer, resolved: false, inRange: false };
     this.emit('mikeThrows', { name });
   }
@@ -465,7 +480,7 @@ export class Mike {
   move(dt, dist, dir) {
     if (this.stun > 0) { this.vel.set(0, 0, 0); if (this.moveVel) this.moveVel.set(0, 0, 0); return; }
     const c = this.cfg;
-    const desired = this.state === 'approach' || this.state === 'attack' ? this.attackDist() : c.stalkDist;
+    const desired = this.holdDist || (this.state === 'approach' || this.state === 'attack' ? this.attackDist() : c.stalkDist);
     let radial = Math.max(-c.moveSpeed, Math.min(c.moveSpeed * (this.counter ? 1.6 : 1), (dist - desired) * 4));
     if (this.state === 'retreat') radial = Math.min(radial, -0.2);
     if (this.backOff > 0) { radial = -2.6; this.backOff -= 2.6 * dt; this.moveVel.copy(dir).multiplyScalar(-2.6); }   // passo indietro veloce (schiva al corpo)

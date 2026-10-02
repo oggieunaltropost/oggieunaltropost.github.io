@@ -122,26 +122,38 @@ export class Arena {
     this.seats = seats;
   }
 
+  // Pubblico: persone vere create in Blender (blender/create_crowd.py) e fotografate in 3 pose
+  // (ferma, applaude, esulta). Ogni spettatore e' una "sagoma" con la sua foto: leggero per il visore.
+  // Atlante: 6 colonne x 8 righe, celle 256x512; persona p -> riga p/2, colonna (p%2)*3 + posa.
   _buildCrowd(seats) {
-    const n = seats.length;
-    const body = new THREE.CapsuleGeometry(0.17, 0.42, 4, 10);
-    const head = new THREE.SphereGeometry(0.105, 12, 10);
-    const hair = new THREE.SphereGeometry(0.11, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.5);
-    const arm = new THREE.CapsuleGeometry(0.05, 0.42, 4, 8); arm.translate(0, -0.26, 0);   // ruota dalla spalla
-    const mk = (g, rough = 0.8) => { const m = new THREE.InstancedMesh(g, new THREE.MeshStandardMaterial({ roughness: rough }), n);
-      m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; this.group.add(m); return m; };
-    this.mBody = mk(body); this.mHead = mk(head, 0.6); this.mHair = mk(hair, 0.9);
-    this.mArmL = mk(arm); this.mArmR = mk(arm);
-    this.people = seats.map((s, i) => {
-      const shirt = new THREE.Color(SHIRT[Math.floor(Math.random() * SHIRT.length)]).offsetHSL(0, 0, (Math.random() - 0.5) * 0.12);
-      const skin = new THREE.Color(SKIN[Math.floor(Math.random() * SKIN.length)]);
-      this.mBody.setColorAt(i, shirt); this.mArmL.setColorAt(i, shirt); this.mArmR.setColorAt(i, shirt);
-      this.mHead.setColorAt(i, skin);
-      this.mHair.setColorAt(i, new THREE.Color(HAIR[Math.floor(Math.random() * HAIR.length)]));
-      return { ...s, h: 0.92 + Math.random() * 0.16, phase: Math.random() * 10, fan: Math.random(),
-        standing: Math.random() < 0.25, armUp: 0, look: (Math.random() - 0.5) * 0.4 };
+    const n = seats.length, PEOPLE = 16, COLS = 6, ROWS = 8;
+    const tex = new THREE.TextureLoader().load('assets/pubblico.webp');
+    tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+    const geo = new THREE.PlaneGeometry(1.15, 2.3); geo.translate(0, 1.15, 0);   // piedi a terra
+    const aCell = new Float32Array(n * 2), aPose = new Float32Array(n), aTint = new Float32Array(n);
+    this.people = seats.map((st, k) => {
+      const who = Math.floor(Math.random() * PEOPLE);
+      aCell[k * 2] = (who % 2) * 3; aCell[k * 2 + 1] = Math.floor(who / 2);
+      aTint[k] = 0.5 + Math.random() * 0.25;          // in penombra rispetto al ring
+      return { ...st, phase: Math.random() * 10, fan: Math.random(), pose: 0, clapRate: 3 + Math.random() * 2 };
     });
-    for (const m of [this.mBody, this.mHead, this.mHair, this.mArmL, this.mArmR]) m.instanceColor.needsUpdate = true;
+    geo.setAttribute('aCell', new THREE.InstancedBufferAttribute(aCell, 2));
+    this.aPose = new THREE.InstancedBufferAttribute(aPose, 1); this.aPose.setUsage(THREE.DynamicDrawUsage);
+    geo.setAttribute('aPose', this.aPose);
+    geo.setAttribute('aTint', new THREE.InstancedBufferAttribute(aTint, 1));
+    const mat = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, side: THREE.DoubleSide });
+    mat.onBeforeCompile = sh => {
+      sh.vertexShader = 'attribute vec2 aCell;\nattribute float aPose;\nattribute float aTint;\nvarying float vTint;\n' +
+        sh.vertexShader.replace('#include <uv_vertex>', `#include <uv_vertex>
+          vMapUv = vec2((aCell.x + aPose + uv.x) / ${COLS}.0, 1.0 - (aCell.y + 1.0 - uv.y) / ${ROWS}.0);
+          vTint = aTint;`);
+      sh.fragmentShader = 'varying float vTint;\n' + sh.fragmentShader.replace('#include <map_fragment>',
+        '#include <map_fragment>\n diffuseColor.rgb *= vTint;');
+    };
+    this.crowd = new THREE.InstancedMesh(geo, mat, n);
+    this.crowd.frustumCulled = false;
+    this.crowd.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.group.add(this.crowd);
   }
 
   // la folla reagisce: colpo forte = esulta
@@ -165,34 +177,20 @@ export class Arena {
 
   _updateCrowd(dt) {
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), one = new THREE.Vector3(1, 1, 1);
-    const p = new THREE.Vector3(), base = new THREE.Matrix4(), off = new THREE.Matrix4();
-    const ex = this.excite, t = this.time;
-    this.people.forEach((s, i) => {
-      const hype = Math.min(1, ex * (0.5 + s.fan));
-      const stand = s.standing || hype > 0.35;
-      const bounce = Math.abs(Math.sin(t * (3 + s.fan * 3) + s.phase)) * (0.02 + hype * 0.12);
-      const sit = stand ? 0 : -0.32;
-      s.armUp += ((hype > 0.25 ? 1 : 0) - s.armUp) * Math.min(1, dt * 6);
-      e.set(0, s.rot + s.look * (1 - hype), 0); q.setFromEuler(e);
-      base.compose(p.set(s.x, s.y, s.z), q, one);
-      const k = s.h;
-      // corpo
-      off.makeTranslation(0, (0.55 + sit + bounce) * k, 0);
-      this.mBody.setMatrixAt(i, m4.multiplyMatrices(base, off));
-      // testa e capelli
-      off.makeTranslation(0, (1.02 + sit + bounce) * k, 0);
-      this.mHead.setMatrixAt(i, m4.multiplyMatrices(base, off));
-      off.makeTranslation(0, (1.04 + sit + bounce) * k, -0.005);
-      this.mHair.setMatrixAt(i, m4.multiplyMatrices(base, off));
-      // braccia: giu' lungo i fianchi, su quando esultano (e si agitano)
-      for (const [mesh, sx] of [[this.mArmL, 1], [this.mArmR, -1]]) {
-        const wave = Math.sin(t * 7 + s.phase + sx) * 0.35 * s.armUp;
-        const ang = 0.15 + s.armUp * (2.6 + wave);
-        const r = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(-ang * 0.25, 0, sx * ang));
-        off.makeTranslation(sx * 0.2, (0.8 + sit + bounce) * k, 0).multiply(r);
-        mesh.setMatrixAt(i, m4.multiplyMatrices(base, off));
-      }
+    const p = new THREE.Vector3(), ex = this.excite, t = this.time;
+    this.people.forEach((st, k) => {
+      const hype = Math.min(1, ex * (0.5 + st.fan));
+      // posa: 0 ferma, 1 applaude, 2 esulta. Calmi: ogni tanto applaudono; esaltati: braccia al cielo
+      let pose = 0;
+      if (hype > 0.45) pose = Math.sin(t * 2 + st.phase) > -0.6 ? 2 : 1;
+      else if (hype > 0.15 || Math.sin(t * 0.37 + st.phase * 3) > 0.85) pose = Math.sin(t * st.clapRate * Math.PI + st.phase) > 0 ? 1 : 0;
+      this.aPose.array[k] = pose;
+      const bounce = Math.abs(Math.sin(t * (3 + st.fan * 3) + st.phase)) * (0.01 + hype * 0.1);
+      e.set(0, st.rot, 0); q.setFromEuler(e);
+      m4.compose(p.set(st.x, st.y + bounce, st.z), q, one);
+      this.crowd.setMatrixAt(k, m4);
     });
-    for (const m of [this.mBody, this.mHead, this.mHair, this.mArmL, this.mArmR]) m.instanceMatrix.needsUpdate = true;
+    this.crowd.instanceMatrix.needsUpdate = true;
+    this.aPose.needsUpdate = true;
   }
 }
