@@ -173,7 +173,7 @@ function handleEvents() {
       case 'playerHit': {
         const pts = e.zone === 'head' ? 2 : 1;
         game.player.points += pts; game.player.hits++;
-        game.message = e.zone === 'head' ? 'Colpo alla testa! +2' : 'Colpo al corpo +1';
+        game.message = e.zone === 'head' ? 'Tu: colpo alla testa +2' : 'Tu: colpo al corpo +1';
         sfx.punchHit(Math.min(1.3, 0.6 + e.speed / 6)); sfx.crowd(mode === 'arena' ? 0.25 : 0.08);
         if (arenaEnv) arenaEnv.cheer(Math.min(1.5, e.speed / 4) * (e.zone === 'head' ? 1 : 0.6));
         bruises.hit(e.zone, e.lx, e.ly, Math.min(1.6, e.speed / 4));
@@ -200,7 +200,7 @@ function handleEvents() {
         break;
       case 'mikeHit':
         game.mike.points += e.zone === 'body' ? 1 : 2; game.mike.hits++;
-        game.message = e.zone === 'body' ? 'Mike ti colpisce al corpo!' : 'Mike ti colpisce!';
+        game.message = e.zone === 'body' ? 'Mike: colpo al corpo +1' : 'Mike: colpo alla testa +2';
         sfx.punchHit(e.zone === 'body' ? 0.9 : 1.2); flash.hit(e.zone === 'body' ? 0.5 : 1);
         if (arenaEnv) arenaEnv.cheer(0.6);
         player.pulse('left', 0.7, 90); player.pulse('right', 0.7, 90);
@@ -278,6 +278,20 @@ function tick(dt, frame) {
       roomCaptureAsked = true;
       session.initiateRoomCapture().catch(() => {});
     }
+  }
+  // Nell'arena (realta' virtuale) il Quest non da' la scansione della stanza: il pavimento si stima
+  // dall'altezza dei tuoi occhi, misurata quando giochi nella stanza (pavimento vero) e salvata.
+  if (renderer.xr.isPresenting && mode === 'arena' && xrFrames > 40 && xrFrames < 600 &&
+      (floorSource === 'visore' || floorSource === 'stima')) {
+    let eye = 1.55;
+    try { eye = parseFloat(localStorage.getItem('hb-eye')) || 1.55; } catch (e) {}
+    const y = headMax - eye;
+    if (floorSource === 'visore' || Math.abs(y - floorY) > 0.02) setFloor(y, 'stima');
+  }
+  if (renderer.xr.isPresenting && mode !== 'arena' && xrFrames % 300 === 0 && xrFrames > 600 &&
+      (floorSource === 'stanza' || floorSource === 'mano')) {
+    const eye = headMax - floorY;
+    if (eye > 1.2 && eye < 2.1) try { localStorage.setItem('hb-eye', eye.toFixed(3)); } catch (e) {}
   }
   // regolazione a mano con la levetta di un controller (su/giu')
   if (renderer.xr.isPresenting) for (const src of player.sources) {
