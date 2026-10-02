@@ -9,6 +9,33 @@ export const MIKE = {
   attackDist: 0.70,           // distanza da cui colpisce
 };
 
+// Combinazioni della boxe. Numeri: 1 jab, 2 diretto, 3 gancio sinistro, 4 gancio destro,
+// 5 montante sinistro, 6 montante destro; "b" = al corpo. Dentro ci possono stare schivate e abbassate.
+const C = {
+  '1': ['jab'], '2': ['cross'], '1-1': ['jab', 'jab'], '1-2': ['jab', 'cross'], '1-1-2': ['jab', 'jab', 'cross'],
+  '1-2-3': ['jab', 'cross', 'hook_l'], '1-2-3-2': ['jab', 'cross', 'hook_l', 'cross'], '3-2': ['hook_l', 'cross'],
+  '2-3': ['cross', 'hook_l'], '3-2-3': ['hook_l', 'cross', 'hook_l'], '2-3-2': ['cross', 'hook_l', 'cross'],
+  '1-6': ['jab', 'uppercut_r'], '1-6-3-2': ['jab', 'uppercut_r', 'hook_l', 'cross'], '5-2': ['uppercut_l', 'cross'],
+  '6-3': ['uppercut_r', 'hook_l'], '1-2-5-2': ['jab', 'cross', 'uppercut_l', 'cross'], '3-4': ['hook_l', 'hook_r'],
+  '1-schivata-2': ['jab', 'slip_r', 'cross'], '1-2-schivata-2-3': ['jab', 'cross', 'slip_l', 'cross', 'hook_l'],
+  '1-2-abbassata-3-2': ['jab', 'cross', 'duck', 'hook_l', 'cross'], 'abbassata-6-3': ['duck', 'uppercut_r', 'hook_l'],
+  '2b': ['body_r'], '1-2b': ['jab', 'body_r'], '3b-3': ['body_l', 'hook_l'], '2-3b': ['cross', 'body_l'],
+  '1-3b-3': ['jab', 'body_l', 'hook_l'], '2b-3-2': ['body_r', 'hook_l', 'cross'], '3b-4': ['body_l', 'hook_r'],
+  '6-3b-3': ['uppercut_r', 'body_l', 'hook_l'],
+};
+const combos = (...names) => names.map(n => C[n]);
+// se tieni la guardia alta, Mike lavora al corpo e con montanti e ganci che entrano di lato
+const BODY_COMBOS = combos('2b', '1-2b', '3b-3', '2-3b', '1-3b-3', '2b-3-2', '3b-4', '6-3b-3', '5-2', '3-4');
+// contrattacchi: [tipo del tuo pugno][difesa usata] -> risposte possibili
+const COUNTER_TABLE = {
+  jab: { slip: combos('2', '2-3', '6-3'), duck: combos('6-3', '2b-3-2'), block: combos('1-2', '2') },
+  cross: { slip: combos('3-2', '3-2', '5-2'), duck: combos('3-2', '5-2'), block: combos('1-2', '3-2') },
+  hook: { duck: combos('6-3', '3-2', '3b-3'), slip: combos('2-3'), block: combos('5-2', '1-2') },
+  body: { block_low: combos('3-2', '2-3', '3-4'), back: combos('1-2') },
+};
+const COUNTERS = combos('2', '3-2', '1-2', '6-3');
+const MOVES = new Set(['slip_l', 'slip_r', 'duck']);
+
 // Livelli. reactChance = quante volte reagisce a un tuo pugno; reactDelay = riflessi (s);
 // threatDist/threatSpeed = da quanto lontano e da che velocita' "legge" il pugno;
 // defenseSpeed = rapidita' di parate e schivate; smart = sceglie la difesa giusta per il colpo;
@@ -21,24 +48,22 @@ export const LEVELS = {
   facile: { label: 'Facile', guardReach: -0.03, stalkDist: 0.85, openFactor: 0.1, reactChance: 0.25, reactDelay: [0.14, 0.24],
     attackEvery: [3.0, 5.0], retreatTime: 0.8, punchSpeed: 0.8, moveSpeed: 0.6, defenseSpeed: 1.1, threatDist: 0.8,
     threatSpeed: 1.6, smart: false, chain: false, counterChance: 0, blockReach: 0.07, bodyBias: 0.15, feints: 0, lowGuard: 0.6,
-    combos: [['jab'], ['cross'], ['jab', 'cross']] },
+    combos: combos('1', '2', '1-2', '1-1') },
   normale: { label: 'Normale', guardReach: 0.0, stalkDist: 0.9, openFactor: 0.25, reactChance: 0.55, reactDelay: [0.05, 0.13],
     attackEvery: [1.2, 2.4], retreatTime: 0.5, punchSpeed: 1.0, moveSpeed: 0.9, defenseSpeed: 1.35, threatDist: 0.95,
     threatSpeed: 1.3, smart: false, chain: false, counterChance: 0.15, blockReach: 0.09, bodyBias: 0.45, feints: 0.08, lowGuard: 0.5,
-    combos: [['jab'], ['jab', 'cross'], ['jab', 'jab'], ['cross', 'hook_l'], ['jab', 'cross', 'hook_l'], ['hook_r'], ['jab', 'hook_r']] },
+    combos: combos('1', '1-2', '1-1-2', '1-2-3', '3-2', '2-3', '1-6', '1-2b', '1-schivata-2') },
   difficile: { label: 'Difficile', guardReach: 0.03, stalkDist: 0.95, openFactor: 0.45, reactChance: 0.8, reactDelay: [0.02, 0.06],
     attackEvery: [0.7, 1.6], retreatTime: 0.35, punchSpeed: 1.15, moveSpeed: 1.1, defenseSpeed: 1.6, threatDist: 1.1,
     threatSpeed: 1.1, smart: true, chain: true, counterChance: 0.45, blockReach: 0.11, bodyBias: 0.65, feints: 0.15, lowGuard: 0.4,
-    combos: [['jab', 'cross'], ['jab', 'jab', 'cross'], ['cross', 'hook_l'], ['jab', 'cross', 'hook_l'], ['hook_l', 'hook_r'], ['jab', 'hook_r'], ['jab', 'body_r']] },
+    combos: combos('1-2', '1-1-2', '1-2-3', '1-2-3-2', '1-6-3-2', '3-2-3', '2-3-2', '1-2-5-2', '1-schivata-2',
+      '1-2-schivata-2-3', '1-2-abbassata-3-2', 'abbassata-6-3', '1-3b-3') },
   impossibile: { label: 'Impossibile', guardReach: 0.07, stalkDist: 1.0, openFactor: 0.95, reactChance: 1.0, reactDelay: [0.0, 0.0],
     attackEvery: [0.4, 1.1], retreatTime: 0.25, punchSpeed: 1.3, moveSpeed: 1.3, defenseSpeed: 2.0, threatDist: 1.3,
     threatSpeed: 0.9, smart: true, chain: true, counterChance: 0.85, blockReach: 0.15, bodyBias: 0.85, feints: 0.22, lowGuard: 0.3,
-    combos: [['jab', 'cross', 'hook_l'], ['jab', 'jab', 'cross'], ['cross', 'hook_l', 'hook_r'], ['hook_l', 'cross'], ['jab', 'hook_r'], ['jab', 'body_r', 'hook_l']] },
+    combos: combos('1-2-3', '1-2-3-2', '1-6-3-2', '3-2-3', '2-3-2', '1-2-5-2', '1-2-schivata-2-3',
+      '1-2-abbassata-3-2', 'abbassata-6-3', '1-schivata-2', '6-3b-3', '2b-3-2', '3-4') },
 };
-// se tieni la guardia alta, Mike lavora al corpo e con i ganci che entrano di lato
-const BODY_COMBOS = [['body_r'], ['jab', 'body_r'], ['body_l', 'hook_l'], ['cross', 'body_l'], ['body_l', 'hook_r'],
-  ['hook_l', 'body_r'], ['jab', 'body_l', 'hook_l']];
-const COUNTERS = [['cross'], ['hook_l'], ['jab', 'cross'], ['hook_r']];
 
 // finestre "attive" dei pugni, in fotogrammi a 30 fps (quando il guantone puo' colpire)
 const PUNCH = {
@@ -48,6 +73,8 @@ const PUNCH = {
   hook_r: { side: 'r', from: 6, to: 11, zone: 'head' },
   body_l: { side: 'l', from: 5, to: 10, zone: 'body' },
   body_r: { side: 'r', from: 3, to: 8, zone: 'body' },
+  uppercut_l: { side: 'l', from: 4, to: 8, zone: 'head' },
+  uppercut_r: { side: 'r', from: 4, to: 9, zone: 'head' },
 };
 // parte "ferma" delle difese (fotogrammi): la tiene finche' il tuo pugno e' ancora in arrivo
 const HOLD = { block: [3, 12], block_low: [3, 12], slip_l: [4, 10], slip_r: [4, 10], duck: [5, 11] };
@@ -163,7 +190,8 @@ export class Mike {
 
   // il pugno da preparare o in corso (per distanza e angolo)
   aimPunch() {
-    if (this.punch) return this.impact[this.punch.name];
+    if (this.punch && this.impact[this.punch.name]) return this.impact[this.punch.name];
+    if (this.punch && this.combo.length) return this.impact[this.combo.find(n => this.impact[n])];
     if (this.state === 'approach' && this.combo.length) return this.impact[this.combo[0]];
     return null;
   }
@@ -308,10 +336,13 @@ export class Mike {
     if (this.reaction && this.time >= this.reaction.at) {
       const g = this.reaction.glove;
       const type = this.chooseDefense(g, this.reaction.zone);
+      // che pugno era (tu in guardia normale: sinistro = jab, destro = diretto)
+      const lvx = Math.abs(g.vel.clone().applyQuaternion(_q.copy(this.root.quaternion).invert()).x) / Math.max(0.01, g.speed);
+      const kind = this.reaction.zone === 'body' ? 'body' : lvx > 0.5 ? 'hook' : g.side === 'left' ? 'jab' : 'cross';
       if (this.punch) { this.punch = null; this.combo = []; this.setState('retreat'); }
       if (type === 'back') this.backOff = 0.32;                       // indietro di un passo
       else this.play(type, c.defenseSpeed);
-      this.defending = { start: this.time, type, until: this.time + 0.55 / Math.max(1, c.defenseSpeed * 0.75), glove: g.side,
+      this.defending = { kind, start: this.time, type, until: this.time + 0.55 / Math.max(1, c.defenseSpeed * 0.75), glove: g.side,
         punchId: this.reaction.punchId, hit: false };
       this.reaction = null;
     }
@@ -329,8 +360,9 @@ export class Mike {
     if (this.defending && this.time > this.defending.until) {
       const ok = !this.defending.hit;
       if (ok && this.defending.type !== 'block') this.emit('mikeDodged');
+      this.defending_last = this.defending;
       this.defending = null;
-      if (ok) this.maybeCounter();
+      if (ok) this.maybeCounter(this.defending_last);
     }
 
     // ritmo della guardia: mentre ti studia ogni tanto la abbassa; appena c'e' pericolo o attacca la rialza
@@ -358,13 +390,13 @@ export class Mike {
         }
         break;
       case 'approach':
-        if ((Math.abs(dist - this.attackDist()) < 0.07 || this.stateT > 1.2) && !this.defending) {
+        if ((Math.abs(dist - this.attackDist()) < 0.07 || this.stateT > (this.counter ? 0.35 : 1.2)) && !this.defending) {
           this.counter = false;
           this.setState('attack'); this.nextPunch();
         }
         break;
       case 'attack':
-        if (this.punch && this.punch.layer.t > this.punch.layer.dur * 0.72) {
+        if (this.punch && this.punch.layer.t > this.punch.layer.dur * (this.punch.move ? 0.5 : 0.72)) {
           if (this.combo.length && this.stun <= 0) this.nextPunch();
           else { this.punch = null; this.setState('retreat'); }
         } else if (!this.punch) this.setState('retreat');
@@ -408,9 +440,11 @@ export class Mike {
   }
 
   // dopo una difesa riuscita: contrattacco immediato
-  maybeCounter() {
+  maybeCounter(d) {
     if (this.stun > 0 || this.state === 'attack' || Math.random() >= this.cfg.counterChance) return;
-    this.combo = [...pick(COUNTERS)];
+    const key = d && (d.type.startsWith('slip') ? 'slip' : d.type);
+    const opts = d && COUNTER_TABLE[d.kind] && COUNTER_TABLE[d.kind][key];
+    this.combo = [...pick(opts || COUNTERS)];
     this.setState('approach');
     this.counter = true;
   }
@@ -418,6 +452,11 @@ export class Mike {
 
   nextPunch() {
     const name = this.combo.shift();
+    if (MOVES.has(name)) {                                   // movimento di difesa dentro la combinazione
+      const layer = this.play(name, this.cfg.defenseSpeed);
+      this.punch = { name, layer, resolved: true, move: true };
+      return;
+    }
     const layer = this.play(name, this.cfg.punchSpeed);
     this.punch = { name, layer, resolved: false, inRange: false };
     this.emit('mikeThrows', { name });
