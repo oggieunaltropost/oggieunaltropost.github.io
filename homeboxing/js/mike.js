@@ -119,7 +119,9 @@ export class Mike {
       o.frustumCulled = false;
       o.castShadow = true;
       const m = o.material, n = m.name || '';
-      if (n === 'Capelli') { m.transparent = true; m.depthWrite = false; m.vertexColors = true; o.renderOrder = 2; }
+      // capelli rasati: ritaglio netto invece della trasparenza (che sulla nuca "sfarfallava" con la pelle)
+      if (n === 'Capelli') { m.transparent = false; m.depthWrite = true; m.vertexColors = true; m.alphaTest = 0.45; }
+      else if (/teeth|tongue/i.test(n)) { m.transparent = false; m.alphaTest = 0; o.castShadow = false; }
       else if (n.includes('eyebrow') || n.includes('eyelash')) { m.transparent = true; m.depthWrite = false; m.alphaTest = 0.05; o.renderOrder = 2; o.castShadow = false; }
       // occhi: si tiene solo il bulbo con l'iride; la cornea (velo bianco semitrasparente) si scarta del tutto
       else if (n.includes('high-poly')) { m.transparent = false; m.alphaTest = 0.9; m.depthWrite = true; m.roughness = 0.15; o.castShadow = false; }
@@ -278,7 +280,7 @@ export class Mike {
     this._morph('squint_l', p * 0.6); this._morph('squint_r', p * 0.6);
     this._morph('brow_l', p * 0.8); this._morph('brow_r', p * 0.8);
     this._morph('grimace', p * 0.9);
-    this._morph('mouth_open', Math.max(pant, p * 0.3));
+    this._morph('mouth_open', Math.max(pant * 0.5, p * 0.25));
     this._morph('nose_l', pant * 0.8); this._morph('nose_r', pant * 0.8);
     // fiatone: spalle e petto che salgono e scendono
     if (tired > 0 && this.bones.spine_03) this.bones.spine_03.rotation.x -= tired * 0.03 * Math.sin(this.breath * Math.PI);
@@ -289,7 +291,7 @@ export class Mike {
     this.enabled = false; this.down = true;
     this.punch = null; this.combo = []; this.reaction = null; this.defending = null;
     this.setState('stalk'); this.nextAttack = 2;
-    this.play('knockdown', 1, true);
+    this.play('knockdown', 0.8, true);      // caduta un po' piu' lenta
   }
   getUp() { this.getupLayer = this.play('getup', 1); this.down = false; }
   isUp() { return !this.getupLayer || this.getupLayer.t >= this.getupLayer.dur - 0.15; }

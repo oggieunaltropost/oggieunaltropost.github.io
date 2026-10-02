@@ -431,7 +431,7 @@ function updateGame(dt) {
     const left = Math.ceil(READY_S - game.phaseT);
     game.message = left > 0 ? `Round ${game.round} di ${rounds} · si comincia tra ${left}…` : 'BOX!';
     if (left > 0 && renderer.xr.isPresenting && floorSource !== 'stanza' && floorSource !== 'mano') game.message = `Ring basso? Accovacciati e tieni una mano a terra 2 s · ${left}`;
-    else if (left > 3 && game.round === 1) game.message = `Pausa: alza tutte e due le braccia sopra la testa · ${left}`;
+    else if (left > 3 && game.round === 1) game.message = `Pausa: alza le due mani all'altezza della fronte · ${left}`;
     if (left <= 3 && left > 0) countdown.show(left, 0.5); else countdown.hide();
     if (!game.announced && game.phaseT >= READY_S - 1.6) {      // "Round one... Fight!" che finisce sul gong
       game.announced = true;
@@ -595,7 +595,7 @@ function updateMainMenu(dt, gloves) {
 
 function updatePause(dt) {
   const g = Object.values(player.gloves);
-  const up = g.every(x => x.mesh.visible && x.center.y > player.head.y + 0.12);
+  const up = g.every(x => x.mesh.visible && x.center.y > player.head.y + 0.11);   // mani alla fronte (piu' su il visore non le vede)
   armsUpT = up ? armsUpT + dt : 0;
   let pressed = false;
   for (const s of player.sources) {
@@ -604,7 +604,7 @@ function updatePause(dt) {
   }
   const click = pressed && !prevButtons; prevButtons = pressed;
   if (game.phase === 'menu') { updateMainMenu(dt, g); return; }
-  if (!game.paused && !pause.group.visible && (armsUpT > 1.2 || click)) { armsUpT = -2; openPause(); return; }
+  if (!game.paused && !pause.group.visible && game.phase !== 'end' && (armsUpT > 1.5 || click)) { armsUpT = -2; openPause(); return; }
   if (game.paused && click) { closePause(); return; }
   const id = pause.update(dt, g);
   if (id === 'resume') closePause();
@@ -658,9 +658,8 @@ $('enter').onclick = async () => {
     renderer.xr.setFoveation(1);
     await renderer.xr.setSession(session);
     if (bruises) bruises.reset();
-    game.phase = 'menu';
     placed = false; xrFrames = 0; floorSource = 'visore'; floorY = 0; roomCaptureAsked = false; headMax = 0;
-    resetRound();
+    newMatch(); game.phase = 'menu'; setPeople(false);       // si entra nello stage con il menu, la partita non parte
     $('overlay').hidden = true;
     session.addEventListener('end', () => {
       $('overlay').hidden = false; placed = false;
