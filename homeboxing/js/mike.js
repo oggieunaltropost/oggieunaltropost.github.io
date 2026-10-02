@@ -235,7 +235,7 @@ export class Mike {
     g.fillStyle = '#f4f4f0'; g.fillRect(0, 0, 2048, 160);
     g.fillStyle = '#c99a2e'; g.fillRect(0, 14, 2048, 10); g.fillRect(0, 128, 2048, 10);
     g.fillStyle = '#1239a8'; g.font = '900 78px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    for (let i = 0; i < 2; i++) g.fillText('HOME BOXING  ★', 512 + i * 1024, 78);
+    g.fillText('HOME BOXING ★', 1024, 80);             // una sola scritta, centrata sul davanti (u = 0.5 = +Z)
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
     tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping; tex.anisotropy = 4;
     const geo = band.geometry; geo.computeBoundingBox();

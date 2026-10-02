@@ -45,6 +45,10 @@ key.castShadow = true;
 key.shadow.mapSize.set(1024, 1024);
 Object.assign(key.shadow.camera, { left: -2, right: 2, top: 2, bottom: -2, near: 0.5, far: 8 });
 key.shadow.bias = -0.0005;
+// luce di riempimento dal punto di vista del giocatore (come le luci TV a bordo ring): illumina gambe e viso di Mike
+const fill = new THREE.DirectionalLight(0xfff4ea, 0.4);
+fill.position.set(0, 0.3, 0.5); fill.target.position.set(0, -0.6, -3);
+camera.add(fill); camera.add(fill.target);
 
 addEventListener('resize', () => {
   if (renderer.xr.isPresenting) return;
@@ -103,6 +107,7 @@ function applyMode() {
   hemi.intensity = inArena ? 0.2 : 1.1;
   scene.environmentIntensity = inArena ? 0.3 : 0.7;     // nel palazzetto il pubblico resta in penombra
   key.intensity = inArena ? 0.9 : 2.2;
+  fill.intensity = inArena ? 2.2 : 0.5;
   scene.background = inArena ? new THREE.Color(0x05060a) : (sim ? new THREE.Color(0x2a2c31) : null);
   scene.fog = inArena ? new THREE.Fog(0x05060a, 9, 26) : null;
   sfx.crowdAmbient(inArena);
