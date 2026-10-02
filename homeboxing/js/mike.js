@@ -120,7 +120,7 @@ export class Mike {
       o.castShadow = true;
       const m = o.material, n = m.name || '';
       // capelli rasati: ritaglio netto invece della trasparenza (che sulla nuca "sfarfallava" con la pelle)
-      if (n === 'Capelli') { m.transparent = false; m.depthWrite = true; m.vertexColors = true; m.alphaTest = 0.45; }
+      if (n === 'Capelli') { m.transparent = false; m.depthWrite = true; m.vertexColors = true; m.alphaTest = 0.45; m.roughness = 1; m.envMapIntensity = 0.15; m.specularIntensity = 0.2; }
       else if (/teeth|tongue/i.test(n)) { m.transparent = false; m.alphaTest = 0; o.castShadow = false; }
       else if (n.includes('eyebrow') || n.includes('eyelash')) { m.transparent = true; m.depthWrite = false; m.alphaTest = 0.05; o.renderOrder = 2; o.castShadow = false; }
       // occhi: si tiene solo il bulbo con l'iride; la cornea (velo bianco semitrasparente) si scarta del tutto
@@ -171,6 +171,14 @@ export class Mike {
     // viso: morph target (blender: unita' espressive MakeHuman)
     this.face = null;
     this.model.traverse(o => { if (o.isMesh && o.morphTargetDictionary && 'blink_l' in o.morphTargetDictionary) this.face = o; });
+    if (this.face) {
+      // interno della bocca: scuro, cosi' quando ansima a bocca aperta non si vede attraverso la testa
+      const sk = this.face.skeleton, hi = sk.bones.findIndex(b => b.name === 'head');
+      const cav = new THREE.Mesh(new THREE.SphereGeometry(0.024, 16, 12), new THREE.MeshBasicMaterial({ color: 0x1a0806 }));
+      cav.scale.set(1.5, 1.1, 0.8);
+      cav.position.set(0, 1.612, 0.118).applyMatrix4(this.face.bindMatrix).applyMatrix4(sk.boneInverses[hi]);
+      sk.bones[hi].add(cav);
+    }
     this.blinkT = 2; this.pain = 0; this.breath = 0;
     this.impact = this.measureImpacts();
   }
@@ -274,14 +282,14 @@ export class Mike {
     const p = Math.min(1, this.pain);
     const tired = Math.max(0, ((this.fatigue || 0) - 0.66) / 0.34);          // sotto un terzo di energia: fiatone
     this.breath += dt * (2.2 + tired * 2.5);
-    const pant = tired * (0.35 + 0.35 * Math.sin(this.breath * Math.PI));
+    const pant = tired * (0.5 + 0.5 * Math.sin(this.breath * Math.PI));
     if (this.down) { blink = 0.75; }
     this._morph('blink_l', Math.max(blink, p * 0.7)); this._morph('blink_r', Math.max(blink, p * 0.9));
     this._morph('squint_l', p * 0.6); this._morph('squint_r', p * 0.6);
     this._morph('brow_l', p * 0.8); this._morph('brow_r', p * 0.8);
     this._morph('grimace', p * 0.9);
-    this._morph('mouth_open', Math.max(pant * 0.5, p * 0.25));
-    this._morph('nose_l', pant * 0.8); this._morph('nose_r', pant * 0.8);
+    this._morph('mouth_open', Math.max(pant * 0.75, p * 0.25));     // fiatone: bocca che si apre e chiude
+    this._morph('nose_l', pant * 0.6); this._morph('nose_r', pant * 0.6);
     // fiatone: spalle e petto che salgono e scendono
     if (tired > 0 && this.bones.spine_03) this.bones.spine_03.rotation.x -= tired * 0.03 * Math.sin(this.breath * Math.PI);
   }
@@ -291,7 +299,7 @@ export class Mike {
     this.enabled = false; this.down = true;
     this.punch = null; this.combo = []; this.reaction = null; this.defending = null;
     this.setState('stalk'); this.nextAttack = 2;
-    this.play('knockdown', 0.8, true);      // caduta un po' piu' lenta
+    this.play('knockdown', 1, true);        // la clip e' gia' lenta: barcolla stordito, poi va giu'
   }
   getUp() { this.getupLayer = this.play('getup', 1); this.down = false; }
   isUp() { return !this.getupLayer || this.getupLayer.t >= this.getupLayer.dur - 0.15; }

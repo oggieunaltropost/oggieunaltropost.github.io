@@ -194,8 +194,8 @@ const KD_REFILL = [75, 50, 25];
 const getUp = new GetUpChallenge(scene);
 getUp.attachDark(camera);
 const countdown = new CountdownHUD(camera);
-const nextMenu = new MenuPanel({ title: 'FINE ROUND', width: 0.8, height: 0.34, rows: [
-  { y: -0.04, h: 0.13, buttons: [{ id: 'next', text: 'VAI AL PROSSIMO ROUND', w: 0.7, color: 0x1f8a4c }] },
+const nextMenu = new MenuPanel({ title: 'PROSSIMO ROUND TRA 30 s', titleH: 0.045, width: 0.36, height: 0.15, rows: [
+  { y: -0.025, h: 0.06, buttons: [{ id: 'next', text: 'VAI AL PROSSIMO ROUND', w: 0.32, color: 0x1f8a4c }] },
 ] });
 scene.add(nextMenu.group);
 const fighter = () => ({ points: 0, hits: 0, blocks: 0, dodges: 0, dmg: 0, kd: 0, kdRound: 0, penalties: 0 });
@@ -437,7 +437,6 @@ function updateGame(dt) {
     game.message = left > 0 ? `Round ${game.round} di ${rounds} · si comincia tra ${left}…` : 'BOX!';
     if (left > 0 && renderer.xr.isPresenting && floorSource !== 'stanza' && floorSource !== 'mano') game.message = `Ring basso? Accovacciati e tieni una mano a terra 2 s · ${left}`;
     else if (left > 3 && game.round === 1) game.message = `Pausa: alza le due mani all'altezza della fronte · ${left}`;
-    if (left <= 3 && left > 0) countdown.show(left, 0.5); else countdown.hide();
     if (!game.announced && game.phaseT >= READY_S - 1.6) {      // "Round one... Fight!" che finisce sul gong
       game.announced = true;
       sfx.announce(rounds > 1 && game.round === rounds ? 'final_round' : `round_${game.round}`);
@@ -448,13 +447,8 @@ function updateGame(dt) {
     else if (game.foul) updateFoul(dt);
     else {
       game.time = Math.max(0, game.time - dt);
-      // ultimi 10 secondi: conto alla rovescia a voce (sempre piu' acuta) e numero animato in un angolo
-      const sec = Math.ceil(game.time);
-      if (game.time <= 10 && sec > 0 && sec !== game.lastCount) {
-        game.lastCount = sec;
-        sfx.voiceRate('count_' + sec, 1 + (10 - sec) * 0.045);
-        countdown.show(sec, (10 - sec) / 9);
-      }
+      // ultimi 10 secondi: solo l'annuncio a voce "Ten seconds!" (niente numeri a schermo)
+      if (game.time <= 10 && game.lastCount !== 10 && roundSecs > 15) { game.lastCount = 10; sfx.announce('ten_seconds'); }
       if (!game.fill) for (const k of ['player', 'mike']) game[k].dmg = Math.max(0, game[k].dmg - dt * 0.5);   // si riprende un po'
       flash.setBase(game.player.dmg > 55 ? (game.player.dmg - 55) / 45 * 0.35 : 0);         // vista che si annebbia
       if (game.time === 0) {
@@ -468,6 +462,7 @@ function updateGame(dt) {
   } else if (game.phase === 'rest') {
     const left = Math.ceil(REST_S - game.phaseT);
     game.message = `Riposo all'angolo · round ${game.round + 1} tra ${left} s`;
+    nextMenu.setTitle(`ROUND ${game.round + 1} TRA ${left} s`);
     flash.setBase(0);
     if (!game.girlStarted && mike.atGoal) { game.girlStarted = true; girl.start(arena, ringSize, game.round + 1); }
     if (nextMenu.update(dt, Object.values(player.gloves)) === 'next') { sfx.punchBlock(); game.phaseT = REST_S; }
