@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Home Boxing</title>
+  <style>
+    :root { --bg: #0d0f14; --fg: #f4f5f7; --red: #d81e2c; --blue: #1d4fc4; --muted: #a7adba; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+    canvas { display: block; }
+    #overlay { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; overflow-y: auto;
+      background: radial-gradient(circle at 50% 25%, #2a1418, var(--bg) 70%); }
+    .card { max-width: 560px; width: 100%; text-align: center; }
+    h1 { margin: 8px 0 4px; font-size: 46px; letter-spacing: 1px; text-transform: uppercase; }
+    h1 b { color: var(--red); }
+    p { color: var(--muted); line-height: 1.5; margin: 8px 0; }
+    .buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin: 22px 0 8px; }
+    button { font: inherit; font-size: 18px; font-weight: 700; padding: 14px 22px; border-radius: 14px; border: 0;
+      cursor: pointer; background: var(--red); color: #fff; }
+    button.secondary { background: #262b36; color: var(--fg); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    #status { min-height: 1.5em; color: #f3d6d9; }
+    ul { text-align: left; color: var(--muted); font-size: 15px; line-height: 1.6; padding-left: 20px; }
+    #simhelp { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); font-size: 13px;
+      background: rgba(0,0,0,0.55); padding: 8px 14px; border-radius: 10px; color: #dde; text-align: center; }
+    [hidden] { display: none !important; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./node_modules/three/build/three.module.js",
+      "three/addons/": "./node_modules/three/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="overlay">
+    <div class="card">
+      <h1>Home <b>Boxing</b></h1>
+      <p>Il ring appare nella tua stanza. Sul ring ti aspetta <b>Mike</b>, peso massimo, 1,80 m, angolo blu.</p>
+      <ul>
+        <li>Si gioca <b>a mani nude</b> (chiudi i pugni) oppure con i <b>controller</b>.</li>
+        <li>Fai spazio intorno a te: almeno 2 × 2 metri liberi.</li>
+        <li>Colpi alla testa 2 punti, al corpo 1. Para con i guantoni davanti al viso o schiva spostando la testa.</li>
+        <li>Round da 3 minuti. Il ring si mette davanti a te quando entri.</li>
+      </ul>
+      <div class="buttons">
+        <button id="enter" disabled>Entra nel ring</button>
+        <button id="sim" class="secondary">Anteprima su PC</button>
+      </div>
+      <div id="status">Caricamento di Mike…</div>
+    </div>
+  </div>
+  <div id="simhelp" hidden>
+    Mouse = guantoni · clic sinistro = jab sinistro · clic destro = diretto destro · tieni premuto Spazio = guardia<br>
+    A / D = schiva a sinistra/destra · C = abbassati · W / S = avanti/indietro · V = vista dall'esterno
+  </div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

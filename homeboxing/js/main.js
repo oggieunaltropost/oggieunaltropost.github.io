@@ -1,0 +1,238 @@
+// Home Boxing - avvio, realta' mista, round e punteggi.
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { buildRing, RING_SIZE } from './ring.js';
+import { Mike, MIKE, loadMikeGLTF } from './mike.js';
+import { Player, SimInput } from './player.js';
+import { Scoreboard, HitFlash } from './hud.js';
+import * as sfx from './sfx.js';
+
+const $ = id => document.getElementById(id);
+const status = t => { $('status').textContent = t; };
+
+// ---------------------------------------------------------------- scena
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.xr.enabled = true;
+renderer.xr.setReferenceSpaceType('local-floor');
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.02, 60);
+camera.position.set(0, 1.65, 0);
+scene.add(camera);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.7;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x404048, 1.1));
+const key = new THREE.DirectionalLight(0xfff1e0, 2.2);
+key.position.set(1.2, 3.5, 1.5);
+key.castShadow = true;
+key.shadow.mapSize.set(1024, 1024);
+Object.assign(key.shadow.camera, { left: -2, right: 2, top: 2, bottom: -2, near: 0.5, far: 8 });
+key.shadow.bias = -0.0005;
+
+addEventListener('resize', () => {
+  if (renderer.xr.isPresenting) return;
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// l'arena (ring + tabellone) si sistema davanti al giocatore; il giocatore sta sul lato +Z
+const arena = new THREE.Group();
+scene.add(arena);
+arena.add(buildRing());
+arena.add(key, key.target);           // luce e ombre seguono il ring
+const board = new Scoreboard();
+board.mesh.position.set(1.15, 1.95, -RING_SIZE / 2 - 0.1);
+board.mesh.lookAt(new THREE.Vector3(0, 1.6, 0.8));
+arena.add(board.mesh);
+const PLAYER_Z = 0.8;                 // dove sta il giocatore rispetto al centro del ring
+
+const player = new Player(renderer, scene, camera);
+const flash = new HitFlash(camera);
+
+let mike = null;
+let sim = null, orbit = null;
+
+// tiene Mike dentro le corde
+const _inv = new THREE.Matrix4(), _p = new THREE.Vector3();
+function keepInRing(pos) {
+  _inv.copy(arena.matrixWorld).invert();
+  _p.copy(pos).applyMatrix4(_inv);
+  const m = RING_SIZE / 2 - 0.4;
+  _p.x = Math.max(-m, Math.min(m, _p.x)); _p.z = Math.max(-m, Math.min(m, _p.z)); _p.y = 0;
+  pos.copy(_p.applyMatrix4(arena.matrixWorld));
+}
+
+function placeArena(headPos, yaw) {
+  // centro del ring davanti a te, con te sul lato +Z
+  const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+  arena.position.set(headPos.x, 0, headPos.z).addScaledVector(fwd, PLAYER_Z);
+  arena.rotation.y = yaw;
+  arena.updateMatrixWorld(true);
+  if (mike) {
+    mike.root.position.set(0, 0, -0.35).applyMatrix4(arena.matrixWorld);
+    mike.root.rotation.y = yaw;               // il modello guarda verso +Z: verso il giocatore
+  }
+}
+
+// ---------------------------------------------------------------- round e punteggi
+const game = {
+  round: 1, time: 180, phase: 'ready', phaseT: 0,
+  player: { points: 0, hits: 0, blocks: 0, dodges: 0 },
+  mike: { points: 0, hits: 0, blocks: 0, dodges: 0 },
+  message: '',
+};
+function resetRound() {
+  game.time = 180; game.phase = 'ready'; game.phaseT = 0;
+  for (const k of ['player', 'mike']) Object.assign(game[k], { points: 0, hits: 0, blocks: 0, dodges: 0 });
+  game.message = 'Pronti…';
+  if (mike) mike.enabled = false;
+}
+resetRound();
+
+function handleEvents() {
+  for (const e of mike.events) {
+    (window.evlog ||= []).push(`${game.time.toFixed(1)} ${e.type} ${e.zone || e.name || ''}`);
+    switch (e.type) {
+      case 'playerHit': {
+        const pts = e.zone === 'head' ? 2 : 1;
+        game.player.points += pts; game.player.hits++;
+        game.message = e.zone === 'head' ? 'Colpo alla testa! +2' : 'Colpo al corpo +1';
+        sfx.punchHit(Math.min(1.3, 0.6 + e.speed / 6)); sfx.crowd(0.08);
+        player.pulse(e.side, 1.0, 70);
+        break;
+      }
+      case 'mikeBlocked':
+        game.mike.blocks++; game.message = 'Mike para';
+        sfx.punchBlock(); player.pulse(e.side, 0.4, 40);
+        break;
+      case 'mikeDodged':
+        game.mike.dodges++; game.message = 'Mike schiva';
+        break;
+      case 'mikeThrows':
+        sfx.whoosh();
+        break;
+      case 'mikeHit':
+        game.mike.points += 2; game.mike.hits++;
+        game.message = 'Mike ti colpisce!';
+        sfx.punchHit(1.2); flash.hit(1);
+        player.pulse('left', 0.7, 90); player.pulse('right', 0.7, 90);
+        break;
+      case 'playerBlocked':
+        game.player.blocks++; game.message = 'Parata!';
+        sfx.punchBlock(); player.pulse(e.side, 0.6, 50);
+        break;
+      case 'playerDodged':
+        game.player.dodges++; game.message = 'Schivata!';
+        break;
+    }
+  }
+  mike.events.length = 0;
+}
+
+function updateGame(dt) {
+  game.phaseT += dt;
+  if (game.phase === 'ready') {
+    const left = Math.ceil(3 - game.phaseT);
+    game.message = left > 0 ? `Si comincia tra ${left}…` : 'BOX!';
+    if (game.phaseT >= 3) { game.phase = 'fight'; game.phaseT = 0; sfx.bell(1); mike.enabled = true; game.message = 'BOX!'; }
+  } else if (game.phase === 'fight') {
+    game.time = Math.max(0, game.time - dt);
+    if (game.time === 0) {
+      game.phase = 'end'; game.phaseT = 0; sfx.bell(3); mike.enabled = false;
+      const a = game.player.points, b = game.mike.points;
+      game.message = a > b ? 'Hai vinto il round!' : a < b ? 'Round a Mike' : 'Pareggio';
+    }
+  } else if (game.phase === 'end') {
+    if (game.phaseT > 10) { game.round++; resetRound(); }
+    else if (game.phaseT > 4) game.message = `Nuovo round tra ${Math.ceil(10 - game.phaseT)} s`;
+  }
+  board.draw({ round: game.round, time: game.time, running: game.phase === 'fight',
+    player: game.player, mike: game.mike, message: game.message });
+}
+
+// ---------------------------------------------------------------- ciclo
+let lastT = performance.now();
+let placed = false, xrFrames = 0;
+renderer.setAnimationLoop((t, frame) => { const now = performance.now(); const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now; tick(dt, frame); });
+// per le prove senza visore: window.stepGame(n, dt) fa avanzare il gioco di n fotogrammi
+window.stepGame = (n = 1, dt = 1 / 60) => { for (let i = 0; i < n; i++) tick(dt, null); };
+
+function tick(dt, frame) {
+  if (renderer.xr.isPresenting && !placed && ++xrFrames > 15) {   // aspetta che il tracciamento sia stabile
+    const cam = renderer.xr.getCamera();
+    const p = new THREE.Vector3(); cam.getWorldPosition(p);
+    {
+      const e = new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ');
+      placeArena(p, e.y); placed = true;
+    }
+  }
+  if (orbit) orbit.update();
+  player.update(dt);
+  if (mike) {
+    mike.update(dt, player);
+    handleEvents();
+    updateGame(dt);
+  }
+  flash.update(dt);
+  player.endFrame();
+  renderer.render(scene, camera);
+}
+
+// ---------------------------------------------------------------- avvio
+loadMikeGLTF('assets/mike.glb', f => status(`Caricamento di Mike… ${Math.round(f * 100)}%`)).then(gltf => {
+  mike = new Mike(gltf, scene, MIKE);
+  mike.bounds = keepInRing;
+  placeArena(new THREE.Vector3(0, 1.65, 0), 0);
+  window.mike = mike; window.game = game; window.player = player;   // per le prove
+  status('');
+  $('enter').disabled = !navigator.xr;
+  if (navigator.xr) navigator.xr.isSessionSupported('immersive-ar').then(ok => {
+    if (!ok) { $('enter').disabled = true; status('Questo browser non supporta la realtà mista: usa il browser del Quest 3.'); }
+  });
+  if (new URLSearchParams(location.search).has('sim')) startSim();
+}).catch(e => { console.error(e); status('Errore nel caricamento di Mike: ' + e.message); });
+
+$('enter').onclick = async () => {
+  sfx.initAudio();
+  try {
+    const session = await navigator.xr.requestSession('immersive-ar', {
+      requiredFeatures: ['local-floor'], optionalFeatures: ['hand-tracking'],
+    });
+    renderer.xr.setFoveation(1);
+    await renderer.xr.setSession(session);
+    placed = false; xrFrames = 0;
+    resetRound();
+    $('overlay').hidden = true;
+    session.addEventListener('end', () => { $('overlay').hidden = false; placed = false; });
+  } catch (e) { status('Impossibile entrare in realtà mista: ' + e.message); }
+};
+
+function startSim() {
+  sfx.initAudio();
+  $('overlay').hidden = true; $('simhelp').hidden = false;
+  sim = new SimInput(camera, renderer.domElement);
+  sim.base.set(0, 1.65, 0);
+  player.sim = sim; window.sim = sim;
+  scene.background = new THREE.Color(0x2a2c31);
+  resetRound();
+  addEventListener('keydown', e => {
+    if (e.code !== 'KeyV') return;
+    sim.spectator = !sim.spectator;
+    if (sim.spectator) {
+      orbit = new OrbitControls(camera, renderer.domElement);
+      camera.position.set(2.4, 1.9, 0.6); orbit.target.set(0, 1.2, -0.6);
+    } else { orbit.dispose(); orbit = null; }
+  });
+}
+$('sim').onclick = startSim;
