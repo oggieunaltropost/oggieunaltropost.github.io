@@ -3,6 +3,15 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const SPEED = 0.62;          // m/s: un ciclo di camminata (1 s) = 62 cm (blender/create_ringgirl.py)
+// Materiali dei personaggi MakeHuman: niente trasparenza sulla pelle e sui vestiti (altrimenti si vede
+// "dentro" la testa e il viso sembra tagliato); capelli, sopracciglia e occhi con ritaglio netto.
+export function fixHumanMaterial(o) {
+  const m = o.material, n = (m.name || '').toLowerCase();
+  if (/eyebrow|eyelash|hair|short0|bob0|long0|ponytail|braid|afro/.test(n)) { m.transparent = false; m.alphaTest = 0.45; }
+  else if (/high-poly|eye/.test(n)) { m.transparent = false; m.alphaTest = 0.4; }
+  else { m.transparent = false; m.alphaTest = 0; m.opacity = 1; }
+  m.depthWrite = true; m.side = THREE.FrontSide; m.needsUpdate = true;
+}
 
 export class RingGirl {
   constructor(scene) {
@@ -21,7 +30,7 @@ export class RingGirl {
       o.frustumCulled = false; o.castShadow = true;
       const n = o.material.name || '';
       if (n === 'Cartello') { o.material = new THREE.MeshBasicMaterial({ map: this.tex, toneMapped: false }); this.card = o; }
-      else if (/eyebrow|eyelash|ponytail/.test(n)) { o.material.alphaTest = 0.4; o.material.transparent = false; }
+      else fixHumanMaterial(o);
     });
     this.mixer = new THREE.AnimationMixer(this.model);
     this.walk = this.mixer.clipAction(g.animations.find(a => a.name === 'cammina'));

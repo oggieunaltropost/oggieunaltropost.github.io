@@ -466,6 +466,9 @@ function tick(dt, frame) {
   flash.update(dt);
   sweat.update(dt);
   girl.update(dt, player.head);
+  if (stool.visible && mike && mike.atGoal) {         // lo sgabello esattamente sotto Mike seduto
+    stool.position.copy(mike.root.position).addScaledVector(mike.forward(), -0.07);
+  }
   if (party.update(dt)) sfx.firework();
   if (arenaEnv && arenaEnv.group.visible) { arenaEnv.update(dt); sfx.crowdLevel(arenaEnv.excite); }
   player.endFrame();

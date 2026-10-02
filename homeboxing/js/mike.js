@@ -377,7 +377,7 @@ export class Mike {
       const lvx = Math.abs(g.vel.clone().applyQuaternion(_q.copy(this.root.quaternion).invert()).x) / Math.max(0.01, g.speed);
       const kind = this.reaction.zone === 'body' ? 'body' : lvx > 0.5 ? 'hook' : g.side === 'left' ? 'jab' : 'cross';
       if (this.punch) { this.punch = null; this.combo = []; this.setState('retreat'); }
-      if (type === 'back') this.backOff = 0.32;                       // indietro di un passo
+      if (type === 'back') this.backOff = 0.3;                       // indietro di un passo
       else this.play(type, c.defenseSpeed);
       this.defending = { kind, start: this.time, type, until: this.time + 0.55 / Math.max(1, c.defenseSpeed * 0.75), glove: g.side,
         punchId: this.reaction.punchId, hit: false };
@@ -505,7 +505,7 @@ export class Mike {
     const desired = this.holdDist || (this.state === 'approach' || this.state === 'attack' ? this.attackDist() : c.stalkDist);
     let radial = Math.max(-c.moveSpeed, Math.min(c.moveSpeed * (this.counter ? 1.6 : 1), (dist - desired) * 4));
     if (this.state === 'retreat') radial = Math.min(radial, -0.2);
-    if (this.backOff > 0) { radial = -2.6; this.backOff -= 2.6 * dt; this.moveVel.copy(dir).multiplyScalar(-2.6); }   // passo indietro veloce (schiva al corpo)
+    if (this.backOff > 0) { radial = -1.1; this.backOff -= 1.1 * dt; }   // passo indietro (schiva al corpo), con i passi
     const side = _c.set(dir.z, 0, -dir.x);       // perpendicolare: gira intorno
     const strafe = this.state === 'stalk' ? Math.sin(this.time * 0.8 + this.strafe) * 0.3 : 0;
     // velocita' con un minimo di inerzia (un pugile non parte e non si ferma di colpo)

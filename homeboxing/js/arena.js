@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { fixHumanMaterial } from './ringgirl.js';
 
 const SKIN = [0x3b2417, 0x5a3825, 0x7a4e33, 0x9a6a48, 0xc08d6a, 0xe0b594, 0xf1cfb4];
 const SHIRT = [0xd81e2c, 0x1d4fc4, 0xf2f2f2, 0x1b1b1f, 0xffc93a, 0x2e8b57, 0x8a2be2, 0xff7f27, 0x4cc3e6, 0x9e9e9e, 0x6b3e26];
@@ -152,7 +153,7 @@ export class Arena {
         if (Math.random() < 0.12) continue;          // qualche sedia vuota
         const g = models[(k++) % models.length];
         const p = SkeletonUtils.clone(g.scene);
-        p.traverse(o => { if (o.isMesh) { o.frustumCulled = false; if (o.material.name && /eyebrow|eyelash|short|bob|long|pony|braid|afro/.test(o.material.name)) { o.material.alphaTest = 0.4; o.material.transparent = false; } } });
+        p.traverse(o => { if (o.isMesh) { o.frustumCulled = false; fixHumanMaterial(o); } });
         p.position.set(x + Math.sin(face) * 0.04, 0, z + Math.cos(face) * 0.04); p.rotation.y = face;
         this.group.add(p);
         const mixer = new THREE.AnimationMixer(p);
