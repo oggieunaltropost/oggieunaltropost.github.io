@@ -31,6 +31,9 @@ export class Arena {
     const R = ringSize / 2;
 
     // pavimento del palazzetto e zona intorno al ring
+    // cupola scura del palazzetto: copre davvero tutta la stanza (anche in alto)
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(28, 32, 16), new THREE.MeshBasicMaterial({ color: 0x06070b, side: THREE.BackSide, fog: false }));
+    this.group.add(dome);
     const floor = new THREE.Mesh(new THREE.CircleGeometry(30, 64), new THREE.MeshStandardMaterial({ color: 0x15171c, roughness: 0.9 }));
     floor.rotation.x = -Math.PI / 2; floor.position.y = -0.002; floor.receiveShadow = true;
     this.group.add(floor);
@@ -145,7 +148,7 @@ export class Arena {
         const face = Math.atan2(-x, -z);
         const chair = new THREE.Group();
         const seat = new THREE.Mesh(seatG, chairMat); seat.position.y = 0.44; chair.add(seat);
-        const back = new THREE.Mesh(backG, chairMat); back.position.set(0, 0.68, 0.22); chair.add(back);
+        const back = new THREE.Mesh(backG, chairMat); back.position.set(0, 0.68, -0.22); chair.add(back);   // schienale dietro la persona
         for (const lx of [-0.2, 0.2]) for (const lz of [-0.19, 0.19]) {
           const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.44, 6), chairMat); leg.position.set(lx, 0.22, lz); chair.add(leg);
         }
@@ -154,15 +157,22 @@ export class Arena {
         const g = models[(k++) % models.length];
         const p = SkeletonUtils.clone(g.scene);
         p.traverse(o => { if (o.isMesh) { o.frustumCulled = false; fixHumanMaterial(o); } });
-        p.position.set(x + Math.sin(face) * 0.04, 0, z + Math.cos(face) * 0.04); p.rotation.y = face;
+        p.position.set(x - Math.sin(face) * 0.02, 0, z - Math.cos(face) * 0.02); p.rotation.y = face;
         this.group.add(p);
+        if (this.peopleOn === false) p.visible = false;
         const mixer = new THREE.AnimationMixer(p);
         const acts = {};
         for (const c of g.animations) { acts[c.name] = mixer.clipAction(c); acts[c.name].setEffectiveWeight(0).play(); acts[c.name].time = Math.random() * c.duration; acts[c.name].timeScale = 0.85 + Math.random() * 0.3; }
         acts.seduto.setEffectiveWeight(1);
-        this.ringside.push({ mixer, acts, cur: 'seduto', w: { seduto: 1, applaude: 0, esulta: 0 }, fan: Math.random(), next: Math.random() * 6 });
+        this.ringside.push({ obj: p, mixer, acts, cur: 'seduto', w: { seduto: 1, applaude: 0, esulta: 0 }, fan: Math.random(), next: Math.random() * 6 });
       }
     }
+  }
+
+  setPeople(v) {
+    this.peopleOn = v;
+    if (this.crowd) this.crowd.visible = v;
+    for (const r of this.ringside) r.obj.visible = v;
   }
 
   _updateRingside(dt) {

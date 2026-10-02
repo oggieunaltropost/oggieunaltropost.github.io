@@ -35,8 +35,8 @@ export class Room {
         if (isFloor) floor = floor === null ? y : Math.min(floor, y);
         if (isFloor) { this._drop(pl); continue; }        // il pavimento non deve coprire il ring
       }
-      // occlusore: pareti, porte, finestre, mobili (ma niente piani vicini al pavimento)
-      if (horizontal && this.floorY !== null && y < this.floorY + 0.15) { this._drop(pl); continue; }
+      // occlusore: solo pareti, porte e finestre (verticali); i mobili no, altrimenti Mike sparisce dietro un tavolo
+      if (horizontal || (pl.semanticLabel && !/wall|door|window/i.test(pl.semanticLabel))) { this._drop(pl); continue; }
       const e = this.planes.get(pl);
       if (e && e.changed === pl.lastChangedTime) { e.mesh.matrix.copy(m); continue; }
       this._drop(pl);

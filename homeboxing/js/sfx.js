@@ -37,7 +37,7 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
   'final_round', 'ten_seconds', 'knockdown', 'winner_intro', 'scorecards', 'win_you_ko', 'win_you_tko', 'win_you_points',
-  'win_mike_ko', 'win_mike_tko', 'win_mike_points', 'draw', 'box'];
+  'win_mike_ko', 'win_mike_tko', 'win_mike_points', 'draw', 'box', 'lowblow_1', 'lowblow_2', 'dq', 'win_mike_dq', 'win_you_dq'];
 const vbuf = {};
 let vEnd = 0;
 function loadVoices() {
@@ -57,6 +57,12 @@ export function announce(names, gain = 1.0) {
   vEnd = t;
 }
 export function voiceNow(name, gain = 1.0) { vEnd = 0; announce(name, gain); }   // subito (es. conteggio)
+// subito, con l'intonazione alzata (rate > 1: piu' acuta e veloce)
+export function voiceRate(name, rate = 1, gain = 1.0) {
+  const b = vbuf[name]; if (!ctx || !b) return;
+  const s = ctx.createBufferSource(); s.buffer = b; s.playbackRate.value = rate;
+  const g = ctx.createGain(); g.gain.value = gain; s.connect(g); g.connect(master); s.start();
+}
 
 // uscendo dal gioco: silenzio totale (si riaccende con initAudio)
 export function stopAll() {

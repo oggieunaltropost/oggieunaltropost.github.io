@@ -51,7 +51,12 @@ export class RingGirl {
     this.stand = this.mixer.clipAction(g.animations.find(a => a.name === 'ferma'));
     this.walk.play(); this.stand.play(); this.stand.setEffectiveWeight(0);
     this.ready = true;
+    this.face = null;
+    this.model.traverse(o => { if (o.isMesh && o.morphTargetDictionary && 'blink_l' in o.morphTargetDictionary) this.face = o; });
+    this.blinkT = 2; this.gesture = null; this.gestured = false;
   }
+
+  _morph(name, v) { if (this.face) this.face.morphTargetInfluences[this.face.morphTargetDictionary[name]] = v; }
 
   _draw(round) {
     const g = this.canvas.getContext('2d'), W = 512, H = 360;
@@ -67,10 +72,10 @@ export class RingGirl {
   start(arena, ringSize, round) {
     if (!this.ready) return;
     this._draw(round);
-    const a = ringSize / 2 - 0.5;
+    const a = Math.max(0.35, ringSize / 2 - 0.95);      // giro interno: passa lontano da Mike seduto all'angolo
     const pts = [[-a, -a], [a, -a], [a, a], [-a, a]].map(([x, z]) => new THREE.Vector3(x, 0, z).applyMatrix4(arena.matrixWorld));
     this.path = [...pts, pts[0]];
-    this.seg = 0; this.u = 0; this.pause = 0; this.paused = false;
+    this.seg = 0; this.u = 0; this.pause = 0; this.paused = false; this.gestured = false; this.gesture = null;
     this.root.position.copy(pts[0]);
     this.root.visible = true;
   }
@@ -99,5 +104,21 @@ export class RingGirl {
     this.mixer.update(dt);
     this.root.updateMatrixWorld(true);
     if (this.card) this.card.lookAt(look);       // il cartello e' sempre girato verso di te
+    // viso: sorriso, battito di ciglia; quando ti passa vicino un occhiolino o un bacio (a caso)
+    this.blinkT -= dt;
+    let bl = 0;
+    if (this.blinkT < 0.12) bl = 1;
+    if (this.blinkT < 0) this.blinkT = 2 + Math.random() * 3;
+    const near = this.root.position.distanceTo(new THREE.Vector3(look.x, this.root.position.y, look.z)) < 1.5;
+    if (near && !this.gestured) { this.gestured = true; this.gesture = { kind: Math.random() < 0.5 ? 'wink' : 'kiss', t: 0 }; }
+    let wink = 0, kiss = 0;
+    if (this.gesture) {
+      const g = this.gesture; g.t += dt;
+      const k = Math.sin(Math.min(1, g.t / 1.2) * Math.PI);
+      if (g.kind === 'wink') wink = Math.min(1, k * 1.6); else kiss = k;
+      if (g.t > 1.2) this.gesture = null;
+    }
+    this._morph('blink_l', Math.max(bl, wink)); this._morph('blink_r', bl);
+    this._morph('kiss', kiss); this._morph('smile', 0.55 * (1 - kiss));
   }
 }

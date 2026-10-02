@@ -6,11 +6,11 @@ import { buildRing, RING_SIZE } from './ring.js';
 import { Mike, LEVELS, loadMikeGLTF } from './mike.js';
 import { Sweat, Bruises, Celebration } from './fx.js';
 import { Player, SimInput } from './player.js';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel } from './hud.js';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD } from './hud.js';
 import { Room } from './room.js';
 import { Arena } from './arena.js';
 import { RingGirl } from './ringgirl.js';
-import { ROUND_S, REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js';
 import * as sfx from './sfx.js';
 
 const $ = id => document.getElementById(id);
@@ -76,6 +76,9 @@ const sweat = new Sweat(scene);
 let bruises = null;
 // round per incontro (dal menu: 1, 3, 6 o 12; di base 3)
 let rounds = 3;
+// durata dei round (dal menu: 1, 2 o 3 minuti; di base 3)
+let roundSecs = 180;
+try { roundSecs = parseInt(localStorage.getItem('hb-roundsec')) || 180; } catch (e) {}
 try { rounds = parseInt(localStorage.getItem('hb-rounds')) || 3; } catch (e) {}
 const party = new Celebration(scene);
 const girl = new RingGirl(scene);
@@ -111,12 +114,14 @@ const flash = new HitFlash(camera);
 const pause = new PauseMenu();
 scene.add(pause.group);
 // menu principale dentro il gioco (stanza o arena, livello, inizia, esci)
-const mainMenu = new MenuPanel({ title: 'HOME BOXING', subtitle: 'tieni un guantone sul pulsante', width: 1.0, height: 0.95, rows: [
-  { label: 'DOVE', y: 0.22, buttons: [{ id: 'm:stanza', text: 'Nella stanza', w: 0.42 }, { id: 'm:arena', text: 'Nell\'arena', w: 0.42 }] },
-  { label: 'LIVELLO', y: 0.06, buttons: [{ id: 'l:facile', text: 'Facile', w: 0.205 }, { id: 'l:normale', text: 'Normale', w: 0.205 },
+const mainMenu = new MenuPanel({ title: 'HOME BOXING', subtitle: 'tieni un guantone sul pulsante', width: 1.0, height: 1.26, rows: [
+  { label: 'DOVE', y: 0.37, buttons: [{ id: 'm:stanza', text: 'Nella stanza', w: 0.42 }, { id: 'm:arena', text: 'Nell\'arena', w: 0.42 }] },
+  { label: 'LIVELLO', y: 0.21, buttons: [{ id: 'l:facile', text: 'Facile', w: 0.205 }, { id: 'l:normale', text: 'Normale', w: 0.205 },
     { id: 'l:difficile', text: 'Difficile', w: 0.205 }, { id: 'l:impossibile', text: 'Impossibile', w: 0.205 }] },
-  { label: 'ROUND', y: -0.1, buttons: [{ id: 'r:1', text: '1', w: 0.15 }, { id: 'r:3', text: '3', w: 0.15 }, { id: 'r:6', text: '6', w: 0.15 }, { id: 'r:12', text: '12', w: 0.15 }] },
-  { y: -0.3, h: 0.12, buttons: [{ id: 'start', text: 'INIZIA INCONTRO', w: 0.52, color: 0x1f8a4c }, { id: 'quit', text: 'ESCI DAL GIOCO', w: 0.34, color: 0xc4161f }] },
+  { label: 'ROUND', y: 0.05, buttons: [{ id: 'r:1', text: '1', w: 0.15 }, { id: 'r:3', text: '3', w: 0.15 }, { id: 'r:6', text: '6', w: 0.15 }, { id: 'r:12', text: '12', w: 0.15 }] },
+  { label: 'DURATA DI UN ROUND', y: -0.11, buttons: [{ id: 'd:60', text: '1 min', w: 0.2 }, { id: 'd:120', text: '2 min', w: 0.2 }, { id: 'd:180', text: '3 min', w: 0.2 }] },
+  { label: 'REGOLA DEI 3 ATTERRAMENTI', y: -0.27, buttons: [{ id: 'k:si', text: 'Sì', w: 0.2 }, { id: 'k:no', text: 'No', w: 0.2 }] },
+  { y: -0.45, h: 0.12, buttons: [{ id: 'start', text: 'INIZIA INCONTRO', w: 0.52, color: 0x1f8a4c }, { id: 'quit', text: 'ESCI DAL GIOCO', w: 0.34, color: 0xc4161f }] },
 ] });
 scene.add(mainMenu.group);
 let armsUpT = 0, prevButtons = false;
@@ -177,26 +182,42 @@ function placeArena(headPos, yaw) {
 }
 
 // ---------------------------------------------------------------- incontro: round, punti, danno, atterramenti
-const POWER = { facile: 0.7, normale: 0.9, difficile: 1.1, impossibile: 1.3 };   // forza dei pugni di Mike
+const POWER = { facile: 0.75, normale: 0.95, difficile: 1.15, impossibile: 1.35 };   // forza dei pugni di Mike
+// Atterramenti: si va giu' solo a energia zero. Rialzandosi l'energia risale sempre meno; quando non ce n'e'
+// piu' da recuperare si resta giu': KO. Con la "regola dei 3 KO" il terzo atterramento chiude l'incontro.
+const KD_REFILL = [75, 50, 25];
 const getUp = new GetUpChallenge(scene);
 getUp.attachDark(camera);
-const fighter = () => ({ points: 0, hits: 0, blocks: 0, dodges: 0, dmg: 0, kd: 0, kdRound: 0 });
+const countdown = new CountdownHUD(camera);
+const nextMenu = new MenuPanel({ title: 'FINE ROUND', width: 0.8, height: 0.34, rows: [
+  { y: -0.04, h: 0.13, buttons: [{ id: 'next', text: 'VAI AL PROSSIMO ROUND', w: 0.7, color: 0x1f8a4c }] },
+] });
+scene.add(nextMenu.group);
+const fighter = () => ({ points: 0, hits: 0, blocks: 0, dodges: 0, dmg: 0, kd: 0, kdRound: 0, penalties: 0 });
 const game = {
-  round: 1, time: ROUND_S, phase: 'ready', phaseT: 0, paused: false,
-  player: fighter(), mike: fighter(), message: '', kd: null, result: null,
+  round: 1, time: roundSecs, phase: 'ready', phaseT: 0, paused: false,
+  player: fighter(), mike: fighter(), message: '', kd: null, result: null, foul: null, fill: null,
 };
+let threeKO = true;
+try { threeKO = localStorage.getItem('hb-3ko') !== 'no'; } catch (e) {}
+
+function setPeople(v) {                      // nel menu il ring e' vuoto: niente Mike, niente pubblico
+  if (mike) mike.root.visible = v;
+  if (arenaEnv) arenaEnv.setPeople(v);
+}
 function newMatch() {
-  game.round = 1; game.result = null; game.kd = null;
+  game.round = 1; game.result = null; game.kd = null; game.foul = null; game.fill = null;
   game.player = fighter(); game.mike = fighter();
   if (bruises) bruises.reset();
   if (mike) { mike.resetPose(); mike.holdDist = null; }
-  getUp.stop();
+  getUp.stop(); setPeople(true);
   startRound();
 }
 function startRound() {
-  girl.stop(); stool.visible = false;
+  girl.stop(); stool.visible = false; nextMenu.close(); countdown.hide();
   if (mike) mike.leaveCorner();
-  game.time = ROUND_S; game.phase = 'ready'; game.phaseT = 0; game.paused = false; game.kd = null; game.announced = false; game.tenSaid = false;
+  game.time = roundSecs; game.phase = 'ready'; game.phaseT = 0; game.paused = false; game.kd = null; game.foul = null;
+  game.announced = false; game.lastCount = 0; game.girlStarted = false;
   game.player.kdRound = 0; game.mike.kdRound = 0;
   game.message = `Round ${game.round} di ${rounds}`;
   if (mike) mike.enabled = false;
@@ -204,12 +225,12 @@ function startRound() {
 const resetRound = newMatch;          // (nomi usati dal resto del codice)
 newMatch();
 
-// un colpo a segno: danno, e forse atterramento
+// un colpo a segno: danno; a energia zero si va giu'
 function landed(who, zone, power) {
   const f = game[who];
-  f.dmg = Math.min(100, f.dmg + (zone === 'head' ? 5 + 9 * power : 3 + 5 * power));
-  if (game.kd || game.phase !== 'fight') return;
-  if (Math.random() < knockdownChance(f.dmg, power, zone)) knockdown(who, power);
+  f.dmg = Math.min(100, f.dmg + (zone === 'head' ? 3.5 + 6 * power : 2 + 3.5 * power));
+  if (game.kd || game.phase !== 'fight' || game.foul) return;
+  if (f.dmg >= 100) knockdown(who, power);
 }
 
 function knockdown(who, power) {
@@ -220,24 +241,23 @@ function knockdown(who, power) {
   sfx.voiceNow('knockdown');
   if (arenaEnv) arenaEnv.cheer(2);
   if (mode === 'arena') sfx.cheer('boato', 1);
-  // KO tecnico solo con il terzo atterramento nello stesso round (regola dei tre knockdown)
-  const kd = { who, count: 0, t: 0, up: false, tko: f.kdRound >= 3 };
+  const refill = KD_REFILL[f.kd - 1] || 0;
+  const kd = { who, count: 0, t: 0, up: false, refill, final: refill <= 0, tko: threeKO && f.kd >= 3 };
   if (who === 'mike') {
     mike.knockdown();
-    // si rialza? con tanto danno, o dopo un colpo devastante, puo' restare giu' anche al primo atterramento
-    // resta giu' (KO al 10)? piu' probabile se e' gia' andato giu' o il colpo era devastante
-    const stay = kd.tko || Math.random() < 0.08 + (power > 1.3 ? 0.15 : 0) + (f.kd >= 2 ? 0.25 : 0) + Math.max(0, f.kd - 2) * 0.2;
-    kd.getUpAt = stay ? 99 : Math.min(9, 3 + Math.floor(Math.random() * (2 + f.dmg / 25)));
+    kd.getUpAt = kd.final || kd.tko ? 99 : 4 + Math.floor(Math.random() * 5);      // si rialza tra il 4 e l'8
     game.message = 'MIKE E\' A TERRA!';
   } else {
     const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
     const e = new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ');
-    const n = f.kdRound === 1 ? 10 : 20;                  // 10 colpi la prima volta, 20 la seconda (la terza e' KO tecnico)
-    if (!kd.tko) getUp.start(n, 0.11, player.head, e.y);
-    game.message = `SEI A TERRA! Colpisci ${n} volte il bottone per rialzarti`;
+    const n = [10, 20, 30][f.kd - 1] || 30;
+    if (!kd.final && !kd.tko) {
+      getUp.start(n, 0.11, player.head, e.y);
+      game.message = `SEI A TERRA! Colpisci ${n} volte il bottone per rialzarti`;
+    } else game.message = 'SEI A TERRA… non hai piu\' energia';
     mike.holdDist = 1.7;                     // Mike va all'angolo neutro
   }
-  if (kd.tko) game.message = who === 'mike' ? 'L\'arbitro ferma l\'incontro!' : 'L\'arbitro ti ferma!';
+  if (kd.tko) game.message = (who === 'mike' ? 'Mike' : 'Tu') + ': terzo atterramento, l\'arbitro ferma l\'incontro!';
   game.kd = kd;
 }
 
@@ -246,21 +266,20 @@ function updateKnockdown(dt) {
   kd.t += dt;
   if (kd.tko && kd.t > 1.5) return endMatch(kd.who === 'mike' ? 'player' : 'mike', 'KO tecnico');
   if (kd.tko) return;
-  // conteggio: un numero al secondo
-  const c = Math.floor(kd.t / 1.0);
+  const c = Math.floor(kd.t / 1.0);                     // conteggio: un numero al secondo
   if (c > kd.count && c <= 10) {
     kd.count = c;
     sfx.voiceNow('count_' + c);
-    if (c <= 8) game.message = `${kd.who === 'mike' ? 'Mike' : 'Tu'} ${kd.up ? 'in piedi' : 'a terra'}… ${c}` + (kd.who === 'player' && !kd.up ? ` · colpisci il bottone! (${getUp.left})` : '');
+    if (c <= 8) game.message = `${kd.who === 'mike' ? 'Mike' : 'Tu'} ${kd.up ? 'in piedi' : 'a terra'}… ${c}` + (kd.who === 'player' && !kd.up && !kd.final ? ` · colpisci il bottone! (${getUp.left})` : '');
   }
   if (kd.who === 'mike' && !kd.up && kd.count >= kd.getUpAt) { kd.up = true; mike.getUp(); }
-  if (kd.who === 'player' && !kd.up && getUp.update(dt, Object.values(player.gloves))) {
+  if (kd.who === 'player' && !kd.up && !kd.final && getUp.update(dt, Object.values(player.gloves))) {
     kd.up = true; game.message = 'In piedi! Si riprende dopo l\'8';
   }
   if (!kd.up && kd.count >= 10) return endMatch(kd.who === 'mike' ? 'player' : 'mike', 'KO');
-  // conteggio obbligatorio fino a 8, poi si riprende
+  // conteggio obbligatorio fino a 8, poi si riprende: l'energia risale (animazione sulla barra)
   if (kd.up && kd.count >= 8 && (kd.who === 'player' || mike.isUp())) {
-    f.dmg = Math.max(0, Math.min(f.dmg - 15, 70));      // si e' ripreso un po'
+    game.fill = { who: kd.who, from: f.dmg, to: 100 - kd.refill, t: 0 };
     game.kd = null; getUp.stop(); mike.holdDist = null;
     game.message = 'BOX!'; sfx.bell(1);
     mike.enabled = true;
@@ -268,8 +287,8 @@ function updateKnockdown(dt) {
 }
 
 function endMatch(winner, how) {
-  game.phase = 'end'; game.phaseT = 0; game.kd = null;
-  mike.enabled = false; getUp.stop(); mike.holdDist = null;
+  game.phase = 'end'; game.phaseT = 0; game.kd = null; game.foul = null;
+  mike.enabled = false; getUp.stop(); mike.holdDist = null; countdown.hide(); nextMenu.close();
   sfx.bell(3);
   if (arenaEnv) arenaEnv.cheer(2);
   if (mode === 'arena') { sfx.cheer('boato', 1); setTimeout(() => sfx.cheer('applauso', 0.9), 2500); }
@@ -277,21 +296,53 @@ function endMatch(winner, how) {
   const pts = `${game.player.points}-${game.mike.points}`;
   game.message = winner === 'player' ? `HAI VINTO per ${how}!` : winner === 'mike' ? `Vince Mike per ${how}` : `Pareggio ai punti (${pts})`;
   if (how.includes('punti') && winner !== 'pari') game.message += ` (${pts})`;
+  if (winner === 'mike' && !mike.down) mike.celebrate();          // Mike esulta a braccia alzate
   // festa per il vincitore: coriandoli e fuochi d'artificio nei suoi colori
   const c = new THREE.Vector3().setFromMatrixPosition(arena.matrixWorld);
   party.start(c, winner === 'player' ? [0xd81e2c, 0xff7a7a, 0xffffff] : winner === 'mike' ? [0x1d4fc4, 0x7aa8ff, 0xffffff] : [0xd81e2c, 0x1d4fc4]);
   sfx.cheer('applauso', 1); sfx.cheer('boato', 0.9);
   // verdetto dell'annunciatore, come nei veri incontri
-  const kind = how === 'KO' ? 'ko' : how === 'KO tecnico' ? 'tko' : 'points';
+  const kind = how === 'KO' ? 'ko' : how === 'KO tecnico' ? 'tko' : how === 'squalifica' ? 'dq' : 'points';
   const who = winner === 'player' ? 'you' : 'mike';
   setTimeout(() => sfx.announce(winner === 'pari' ? ['scorecards', 'draw']
-    : kind === 'points' ? ['scorecards', 'winner_intro', `win_${who}_points`] : ['winner_intro', `win_${who}_${kind}`]), 1800);
+    : kind === 'points' ? ['scorecards', 'winner_intro', `win_${who}_points`]
+    : kind === 'dq' ? [`win_${who}_dq`] : ['winner_intro', `win_${who}_${kind}`]), kind === 'dq' ? 2600 : 1800);
+}
+
+// colpo basso: niente punti, Mike si accascia; penalita' (alla terza squalifica); si riprende col gong
+function lowBlow() {
+  const p = ++game.player.penalties;
+  game.mike.dmg = Math.min(99, game.mike.dmg + 10);
+  sfx.punchHit(0.8);
+  mike.lowBlowed();
+  if (arenaEnv) arenaEnv.cheer(0.4);
+  if (mode === 'arena') sfx.cheer('ooh', 1);
+  if (p >= 3) {
+    game.message = 'Terzo colpo basso: SQUALIFICATO!';
+    sfx.voiceNow('dq');
+    game.foul = { t: 0, dq: true };
+  } else {
+    game.message = `Colpo basso! Penalità ${p} di 3`;
+    sfx.voiceNow('lowblow_' + p);
+    game.foul = { t: 0 };
+  }
+}
+function updateFoul(dt) {
+  const f = game.foul;
+  f.t += dt;
+  // Mike prima si riprende e si rimette in guardia; con la terza penalita' poi gli danno la vittoria (ed esulta)
+  if (f.t > 5.5 && !f.recovered) { f.recovered = true; mike.resetPose(); }
+  if (f.dq) { if (f.t > 7) endMatch('mike', 'squalifica'); return; }
+  if (f.t > 7) { game.foul = null; sfx.announce('box'); sfx.bell(1); mike.enabled = true; game.message = 'BOX!'; }
 }
 
 function handleEvents() {
   for (const e of mike.events) {
     (window.evlog ||= []).push(`${game.time.toFixed(1)} ${e.type} ${e.zone || e.name || ''} ${e.why || ''}`);
     switch (e.type) {
+      case 'lowBlow':
+        lowBlow();
+        break;
       case 'playerHit': {
         const pts = e.zone === 'head' ? 2 : 1;
         game.player.points += pts; game.player.hits++;
@@ -346,9 +397,31 @@ function handleEvents() {
   mike.events.length = 0;
 }
 
+function startRest() {
+  game.phase = 'rest'; game.phaseT = 0; countdown.hide();
+  // Mike all'angolo sullo sgabello; la ragazza del ring entra quando lui e' seduto
+  const h = ringSize / 2 - 0.42;
+  const corner = new THREE.Vector3(h, 0, -h).applyMatrix4(arena.matrixWorld);
+  const center = new THREE.Vector3().setFromMatrixPosition(arena.matrixWorld);
+  stool.position.copy(corner); stool.visible = true;
+  mike.goTo(corner.clone().addScaledVector(center.clone().sub(corner).setY(0).normalize(), 0.12), center);
+  if (mode === 'arena') sfx.cheer('applauso', 0.8);
+  for (const k of ['player', 'mike']) game[k].dmg = Math.max(0, game[k].dmg - 25);   // all'angolo ci si riprende
+  const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
+  const e = new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ');
+  nextMenu.open(player.head, e.y, 0.5, 0.35);
+}
+
 function updateGame(dt) {
   game.phaseT += dt;
   mike.fatigue = game.mike.dmg / 100;
+  mike.lowBlowAllowed = game.mike.dmg <= 50;           // il colpo basso "riesce" solo se Mike ha almeno meta' energia
+  if (game.fill) {                                      // energia che risale dopo un atterramento
+    game.fill.t += dt;
+    const k = Math.min(1, game.fill.t / 1.8);
+    game[game.fill.who].dmg = game.fill.from + (game.fill.to - game.fill.from) * (1 - Math.pow(1 - k, 3));
+    if (k >= 1) game.fill = null;
+  }
   if (game.phase === 'menu') {
     game.message = 'Scegli dal menu davanti a te';
     flash.setBase(0);
@@ -359,46 +432,44 @@ function updateGame(dt) {
     game.message = left > 0 ? `Round ${game.round} di ${rounds} · si comincia tra ${left}…` : 'BOX!';
     if (left > 0 && renderer.xr.isPresenting && floorSource !== 'stanza' && floorSource !== 'mano') game.message = `Ring basso? Accovacciati e tieni una mano a terra 2 s · ${left}`;
     else if (left > 3 && game.round === 1) game.message = `Pausa: alza tutte e due le braccia sopra la testa · ${left}`;
+    if (left <= 3 && left > 0) countdown.show(left, 0.5); else countdown.hide();
     if (!game.announced && game.phaseT >= READY_S - 1.6) {      // "Round one... Fight!" che finisce sul gong
       game.announced = true;
       sfx.announce(rounds > 1 && game.round === rounds ? 'final_round' : `round_${game.round}`);
     }
-    if (game.phaseT >= READY_S) { game.phase = 'fight'; game.phaseT = 0; sfx.bell(1); mike.enabled = true; game.message = 'BOX!'; }
+    if (game.phaseT >= READY_S) { game.phase = 'fight'; game.phaseT = 0; sfx.bell(1); mike.enabled = true; game.message = 'BOX!'; countdown.hide(); }
   } else if (game.phase === 'fight') {
     if (game.kd) updateKnockdown(dt);
+    else if (game.foul) updateFoul(dt);
     else {
       game.time = Math.max(0, game.time - dt);
-      if (!game.tenSaid && game.time <= 10) { game.tenSaid = true; sfx.announce('ten_seconds'); }
-      for (const k of ['player', 'mike']) game[k].dmg = Math.max(0, game[k].dmg - dt * 0.6);   // si riprende un po'
+      // ultimi 10 secondi: conto alla rovescia a voce (sempre piu' acuta) e numero animato in un angolo
+      const sec = Math.ceil(game.time);
+      if (game.time <= 10 && sec > 0 && sec !== game.lastCount) {
+        game.lastCount = sec;
+        sfx.voiceRate('count_' + sec, 1 + (10 - sec) * 0.045);
+        countdown.show(sec, (10 - sec) / 9);
+      }
+      if (!game.fill) for (const k of ['player', 'mike']) game[k].dmg = Math.max(0, game[k].dmg - dt * 0.5);   // si riprende un po'
       flash.setBase(game.player.dmg > 55 ? (game.player.dmg - 55) / 45 * 0.35 : 0);         // vista che si annebbia
       if (game.time === 0) {
-        sfx.bell(3); mike.enabled = false;
+        sfx.bell(3); mike.enabled = false; countdown.hide();
         if (game.round >= rounds) {
           const a = game.player.points, b = game.mike.points;
           endMatch(a > b ? 'player' : a < b ? 'mike' : 'pari', 'decisione ai punti');
-        } else {
-          game.phase = 'rest'; game.phaseT = 0;
-          // Mike all'angolo sullo sgabello, la ragazza del ring gira col cartello del prossimo round
-          const h = ringSize / 2 - 0.42;
-          const corner = new THREE.Vector3(h, 0, -h).applyMatrix4(arena.matrixWorld);
-          const center = new THREE.Vector3().setFromMatrixPosition(arena.matrixWorld);
-          stool.position.copy(corner).addScaledVector(corner.clone().sub(center).setY(0).normalize(), -0.02);
-          stool.visible = true;
-          mike.goTo(corner.clone().addScaledVector(center.clone().sub(corner).setY(0).normalize(), 0.12), center);
-          girl.start(arena, ringSize, game.round + 1);
-          if (mode === 'arena') sfx.cheer('applauso', 0.8);
-          for (const k of ['player', 'mike']) game[k].dmg = Math.max(0, game[k].dmg - 25);   // all'angolo ci si riprende
-        }
+        } else startRest();
       }
     }
   } else if (game.phase === 'rest') {
     const left = Math.ceil(REST_S - game.phaseT);
     game.message = `Riposo all'angolo · round ${game.round + 1} tra ${left} s`;
     flash.setBase(0);
+    if (!game.girlStarted && mike.atGoal) { game.girlStarted = true; girl.start(arena, ringSize, game.round + 1); }
+    if (nextMenu.update(dt, Object.values(player.gloves)) === 'next') { sfx.punchBlock(); game.phaseT = REST_S; }
     if (game.phaseT >= REST_S) { game.round++; startRound(); }
   } else if (game.phase === 'end') {
     flash.setBase(0);
-    if (game.phaseT > 5 && !pause.group.visible) openPause(true);
+    if (game.phaseT > 6 && !pause.group.visible) openPause(true);
   }
   const xr = renderer.xr.getSession && renderer.xr.getSession();
   const feats = xr && xr.enabledFeatures ? (xr.enabledFeatures.includes('plane-detection') ? 'piani sì' : 'piani no') : '';
@@ -474,6 +545,7 @@ function tick(dt, frame) {
     updateGame(dt);
   }
   flash.update(dt);
+  countdown.update(dt);
   sweat.update(dt);
   girl.update(dt, player.head);
   if (stool.visible && mike && mike.atGoal) {         // lo sgabello esattamente sotto Mike seduto
@@ -500,10 +572,11 @@ function closePause() {
 }
 function showMainMenu() {
   newMatch(); game.phase = 'menu'; game.message = 'Menu';
+  setPeople(false);
   mike.enabled = false; pause.close();
   const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
   const e = new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ');
-  mainMenu.select(['m:' + mode, 'l:' + level, 'r:' + rounds]);
+  mainMenu.select(['m:' + mode, 'l:' + level, 'r:' + rounds, 'd:' + roundSecs, threeKO ? 'k:si' : 'k:no']);
   mainMenu.open(player.head, e.y);
 }
 function updateMainMenu(dt, gloves) {
@@ -512,10 +585,12 @@ function updateMainMenu(dt, gloves) {
   sfx.punchBlock();
   if (id.startsWith('m:')) { mode = id.slice(2); try { localStorage.setItem('hb-mode', mode); } catch (e) {} applyMode(); placed = false; xrFrames = 16; }
   else if (id.startsWith('l:')) { level = id.slice(2); try { localStorage.setItem('hb-level', level); } catch (e) {} mike.setLevel(level); }
+  else if (id.startsWith('d:')) { roundSecs = parseInt(id.slice(2)); try { localStorage.setItem('hb-roundsec', roundSecs); } catch (e) {} }
+  else if (id.startsWith('k:')) { threeKO = id === 'k:si'; try { localStorage.setItem('hb-3ko', threeKO ? 'si' : 'no'); } catch (e) {} }
   else if (id.startsWith('r:')) { rounds = parseInt(id.slice(2)); try { localStorage.setItem('hb-rounds', rounds); } catch (e) {} }
   else if (id === 'start') { mainMenu.close(); newMatch(); return; }
   else if (id === 'quit') { mainMenu.close(); const s = renderer.xr.getSession(); if (s) s.end(); return; }
-  mainMenu.select(['m:' + mode, 'l:' + level, 'r:' + rounds]);
+  mainMenu.select(['m:' + mode, 'l:' + level, 'r:' + rounds, 'd:' + roundSecs, threeKO ? 'k:si' : 'k:no']);
 }
 
 function updatePause(dt) {
@@ -556,7 +631,7 @@ function calibrateByHand(dt) {
 }
 
 // ---------------------------------------------------------------- avvio
-loadMikeGLTF('assets/mike.glb', f => status(`Caricamento di Mike… ${Math.round(f * 100)}%`)).then(gltf => {
+loadMikeGLTF('assets/mike.glb', f => status(`Caricamento gioco… ${Math.min(100, Math.round(f * 100))}%`)).then(gltf => {
   mike = new Mike(gltf, scene, level);
   girl.load().catch(e => console.warn('ragazza del ring', e));
   bruises = new Bruises(mike.model);

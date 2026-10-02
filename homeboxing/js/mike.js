@@ -45,21 +45,21 @@ const MOVES = new Set(['slip_l', 'slip_r', 'duck']);
 // bodyBias = quanto va al corpo se tieni la guardia alta; feints = finte al secondo mentre ti studia;
 // lowGuard = quanto spesso abbassa la guardia mentre ti studia (e lascia la testa scoperta).
 export const LEVELS = {
-  facile: { label: 'Facile', guardReach: -0.03, stalkDist: 0.85, openFactor: 0.1, reactChance: 0.25, reactDelay: [0.14, 0.24],
-    attackEvery: [3.0, 5.0], retreatTime: 0.8, punchSpeed: 0.8, moveSpeed: 0.6, defenseSpeed: 1.1, threatDist: 0.8,
-    threatSpeed: 1.6, smart: false, chain: false, counterChance: 0, blockReach: 0.07, bodyBias: 0.15, feints: 0, lowGuard: 0.6,
-    combos: combos('1', '2', '1-2', '1-1') },
-  normale: { label: 'Normale', guardReach: 0.0, stalkDist: 0.9, openFactor: 0.25, reactChance: 0.55, reactDelay: [0.05, 0.13],
-    attackEvery: [1.2, 2.4], retreatTime: 0.5, punchSpeed: 1.0, moveSpeed: 0.9, defenseSpeed: 1.35, threatDist: 0.95,
-    threatSpeed: 1.3, smart: false, chain: false, counterChance: 0.15, blockReach: 0.09, bodyBias: 0.45, feints: 0.08, lowGuard: 0.5,
+  facile: { label: 'Facile', guardReach: -0.03, stalkDist: 0.85, openFactor: 0.1, reactChance: 0.35, reactDelay: [0.14, 0.24],
+    attackEvery: [2.2, 3.8], retreatTime: 0.8, punchSpeed: 0.8, moveSpeed: 0.6, defenseSpeed: 1.1, threatDist: 0.8,
+    threatSpeed: 1.6, smart: false, chain: false, counterChance: 0.1, blockReach: 0.07, bodyBias: 0.15, feints: 0, lowGuard: 0.6,
+    combos: combos('1', '2', '1-2', '1-1', '1-1-2', '2-3') },
+  normale: { label: 'Normale', guardReach: 0.0, stalkDist: 0.9, openFactor: 0.25, reactChance: 0.68, reactDelay: [0.05, 0.13],
+    attackEvery: [0.9, 1.8], retreatTime: 0.5, punchSpeed: 1.0, moveSpeed: 0.9, defenseSpeed: 1.35, threatDist: 0.95,
+    threatSpeed: 1.3, smart: false, chain: false, counterChance: 0.35, blockReach: 0.09, bodyBias: 0.45, feints: 0.08, lowGuard: 0.5,
     combos: combos('1', '1-2', '1-1-2', '1-2-3', '3-2', '2-3', '1-6', '1-2b', '1-schivata-2') },
-  difficile: { label: 'Difficile', guardReach: 0.03, stalkDist: 0.95, openFactor: 0.45, reactChance: 0.8, reactDelay: [0.02, 0.06],
-    attackEvery: [0.7, 1.6], retreatTime: 0.35, punchSpeed: 1.15, moveSpeed: 1.1, defenseSpeed: 1.6, threatDist: 1.1,
-    threatSpeed: 1.1, smart: true, chain: true, counterChance: 0.45, blockReach: 0.11, bodyBias: 0.65, feints: 0.15, lowGuard: 0.4,
+  difficile: { label: 'Difficile', guardReach: 0.03, stalkDist: 0.95, openFactor: 0.45, reactChance: 0.9, reactDelay: [0.02, 0.06],
+    attackEvery: [0.5, 1.2], retreatTime: 0.35, punchSpeed: 1.15, moveSpeed: 1.1, defenseSpeed: 1.6, threatDist: 1.1,
+    threatSpeed: 1.1, smart: true, chain: true, counterChance: 0.65, blockReach: 0.11, bodyBias: 0.65, feints: 0.15, lowGuard: 0.4,
     combos: combos('1-2', '1-1-2', '1-2-3', '1-2-3-2', '1-6-3-2', '3-2-3', '2-3-2', '1-2-5-2', '1-schivata-2',
       '1-2-schivata-2-3', '1-2-abbassata-3-2', 'abbassata-6-3', '1-3b-3') },
   impossibile: { label: 'Impossibile', guardReach: 0.07, stalkDist: 1.0, openFactor: 0.95, reactChance: 1.0, reactDelay: [0.0, 0.0],
-    attackEvery: [0.4, 1.1], retreatTime: 0.25, punchSpeed: 1.3, moveSpeed: 1.3, defenseSpeed: 2.0, threatDist: 1.3,
+    attackEvery: [0.3, 0.8], retreatTime: 0.25, punchSpeed: 1.3, moveSpeed: 1.3, defenseSpeed: 2.0, threatDist: 1.3,
     threatSpeed: 0.9, smart: true, chain: true, counterChance: 0.85, blockReach: 0.15, bodyBias: 0.85, feints: 0.22, lowGuard: 0.3,
     combos: combos('1-2-3', '1-2-3-2', '1-6-3-2', '3-2-3', '2-3-2', '1-2-5-2', '1-2-schivata-2-3',
       '1-2-abbassata-3-2', 'abbassata-6-3', '1-schivata-2', '6-3b-3', '2b-3-2', '3-4') },
@@ -121,9 +121,10 @@ export class Mike {
       const m = o.material, n = m.name || '';
       if (n === 'Capelli') { m.transparent = true; m.depthWrite = false; m.vertexColors = true; o.renderOrder = 2; }
       else if (n.includes('eyebrow') || n.includes('eyelash')) { m.transparent = true; m.depthWrite = false; m.alphaTest = 0.05; o.renderOrder = 2; o.castShadow = false; }
-      else if (n.includes('high-poly')) { m.transparent = false; m.alphaTest = 0.4; o.castShadow = false; }
+      else if (n.includes('high-poly')) { m.transparent = false; m.alphaTest = 0; m.depthWrite = true; o.castShadow = false; }   // occhi ben visibili
       if (m.envMapIntensity !== undefined) m.envMapIntensity = 0.8;
     });
+    this.brandShorts();
     const bone = n => this.model.getObjectByName(n);
     this.bones = {};
     for (const n of ['head', 'neck_01', 'spine_01', 'spine_02', 'spine_03', 'hand_l', 'hand_r', 'lowerarm_l', 'lowerarm_r', 'pelvis'])
@@ -164,6 +165,10 @@ export class Mike {
     this.bounds = null;          // funzione che tiene Mike dentro il ring
     this.time = 0;
     this.openUntil = 0;
+    // viso: morph target (blender: unita' espressive MakeHuman)
+    this.face = null;
+    this.model.traverse(o => { if (o.isMesh && o.morphTargetDictionary && 'blink_l' in o.morphTargetDictionary) this.face = o; });
+    this.blinkT = 2; this.pain = 0; this.breath = 0;
     this.impact = this.measureImpacts();
   }
 
@@ -215,6 +220,67 @@ export class Mike {
       this.root.rotation.y += Math.max(-4 * dt, Math.min(4 * dt, dy));
       if (!this.atGoal && Math.abs(dy) < 0.2) { this.atGoal = true; this.play('stool', 1, true); }
     }
+  }
+
+  // fascia bianca dei calzoncini con la scritta HOME BOXING tra due righe dorate (mappatura cilindrica)
+  brandShorts() {
+    let band = null;
+    this.model.traverse(o => { if (o.isMesh && o.material.name === 'Raso bianco') band = o; });
+    if (!band) return;
+    const c = document.createElement('canvas'); c.width = 2048; c.height = 160;
+    const g = c.getContext('2d');
+    g.fillStyle = '#f4f4f0'; g.fillRect(0, 0, 2048, 160);
+    g.fillStyle = '#c99a2e'; g.fillRect(0, 14, 2048, 10); g.fillRect(0, 128, 2048, 10);
+    g.fillStyle = '#1239a8'; g.font = '900 78px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    for (let i = 0; i < 2; i++) g.fillText('HOME BOXING  ★', 512 + i * 1024, 78);
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping; tex.anisotropy = 4;
+    const geo = band.geometry; geo.computeBoundingBox();
+    const bb = geo.boundingBox, pos = geo.attributes.position, uv = new Float32Array(pos.count * 2);
+    const h = (bb.max.y - bb.min.y) * 0.19;                 // altezza della fascia (la parte alta)
+    const cx = (bb.max.x + bb.min.x) / 2, cz = (bb.max.z + bb.min.z) / 2;
+    for (let i = 0; i < pos.count; i++) {
+      uv[i * 2] = Math.atan2(pos.getX(i) - cx, pos.getZ(i) - cz) / (2 * Math.PI) + 0.5;
+      uv[i * 2 + 1] = (pos.getY(i) - (bb.max.y - h)) / h;   // sotto la fascia resta bianco (bordo del disegno)
+    }
+    geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    band.material = band.material.clone(); band.material.map = tex; band.material.color.set(0xffffff); band.material.needsUpdate = true;
+  }
+
+  // ---- colpo basso e vittoria
+  lowBlowed() {
+    this.enabled = false; this.punch = null; this.combo = []; this.reaction = null; this.defending = null;
+    this.setState('stalk'); this.nextAttack = 2;
+    this.play('lowblow', 1, true); this.pain = 1.6;
+  }
+  celebrate() {
+    for (const l of this.layers) l.out = true;
+    const a = this.mixer.clipAction(this.clips.celebrate);
+    a.reset(); a.setLoop(THREE.LoopRepeat, Infinity); a.setEffectiveWeight(0); a.play();
+    this.layers.push({ name: 'celebrate', action: a, t: 0, dur: 1e9, ts: 1, w: 0, out: false, hold: true });
+  }
+
+  // ---- espressioni: battito di ciglia, smorfia quando lo colpisci, fiatone quando e' stanco
+  _morph(n, v) { if (this.face) this.face.morphTargetInfluences[this.face.morphTargetDictionary[n]] = v; }
+  updateFace(dt) {
+    if (!this.face) return;
+    this.blinkT -= dt;
+    let blink = this.blinkT < 0.13 ? 1 : 0;
+    if (this.blinkT < 0) this.blinkT = 1.8 + Math.random() * 3.5;
+    this.pain = Math.max(0, this.pain - dt * 1.4);
+    const p = Math.min(1, this.pain);
+    const tired = Math.max(0, ((this.fatigue || 0) - 0.66) / 0.34);          // sotto un terzo di energia: fiatone
+    this.breath += dt * (2.2 + tired * 2.5);
+    const pant = tired * (0.35 + 0.35 * Math.sin(this.breath * Math.PI));
+    if (this.down) { blink = 0.75; }
+    this._morph('blink_l', Math.max(blink, p * 0.7)); this._morph('blink_r', Math.max(blink, p * 0.9));
+    this._morph('squint_l', p * 0.6); this._morph('squint_r', p * 0.6);
+    this._morph('brow_l', p * 0.8); this._morph('brow_r', p * 0.8);
+    this._morph('grimace', p * 0.9);
+    this._morph('mouth_open', Math.max(pant, p * 0.3));
+    this._morph('nose_l', pant * 0.8); this._morph('nose_r', pant * 0.8);
+    // fiatone: spalle e petto che salgono e scendono
+    if (tired > 0 && this.bones.spine_03) this.bones.spine_03.rotation.x -= tired * 0.03 * Math.sin(this.breath * Math.PI);
   }
 
   // ---- atterramento
@@ -289,6 +355,7 @@ export class Mike {
     this.idle.setEffectiveWeight(idleW * (1 - this.low));
     this.idleLow.setEffectiveWeight(idleW * this.low);
     this.mixer.update(dt);
+    this.updateFace(dt);
     this.root.updateMatrixWorld(true);
   }
 
@@ -416,6 +483,11 @@ export class Mike {
     switch (this.state) {
       case 'stalk':
         this.nextAttack -= dt;
+        {
+          // ti scopri (guantoni lontani dal viso) o hai appena tirato a vuoto: Mike ne approfitta
+          const open = Object.values(player.gloves).filter(g => g.mesh.visible && g.center.distanceTo(player.head) > 0.42).length;
+          if (open && Math.random() < dt * (0.6 + c.counterChance * 2) * open) this.nextAttack = Math.min(this.nextAttack, 0.05);
+        }
         if (this.nextAttack <= 0 && !this.defending && this.stun <= 0) {
           // guardia alta (tutti e due i guantoni vicino al viso)? allora va al corpo o di gancio
           const high = Object.values(player.gloves).every(g => g.mesh.visible && g.center.distanceTo(player.head) < 0.42);
@@ -489,6 +561,7 @@ export class Mike {
 
   nextPunch() {
     const name = this.combo.shift();
+    if (!name || !this.clips[name]) { this.punch = null; this.setState('retreat'); return; }
     if (MOVES.has(name)) {                                   // movimento di difesa dentro la combinazione
       const layer = this.play(name, this.cfg.defenseSpeed);
       this.punch = { name, layer, resolved: true, move: true };
@@ -569,6 +642,14 @@ export class Mike {
       if (g.travel(towardMike) < 0.12) continue;           // deve essere partito davvero (non Mike che ci finisce contro)
       const [a, b] = g.segment();
       let ev = null;
+      // colpo basso: il pugno arriva sotto la cintura (vale solo finche' Mike ha almeno meta' energia)
+      const belt = this.bonePos('pelvis').y + 0.10;          // bordo alto dei calzoncini
+      const groin = this.bonePos('pelvis').addScaledVector(this.forward(), 0.13).add(new THREE.Vector3(0, -0.13, 0));
+      if (this.lowBlowAllowed && g.center.y < belt && distPointSeg(groin, a, b) < g.radius + 0.14) {
+        g.cooldown = 0.6; g.contactPoint.copy(g.center);
+        this.emit('lowBlow', { side: g.side });
+        continue;
+      }
       // in parata i guantoni coprono bene; nella guardia normale lasciano spazi
       const blocking = this.defending && this.defending.type === 'block';
       const blockLow = this.defending && this.defending.type === 'block_low';
@@ -594,6 +675,7 @@ export class Mike {
         this.stun = 0.35;
         if (this.punch && Math.random() < 0.6) { this.punch = null; this.combo = []; this.setState('retreat'); }
         this.play(ev.zone === 'head' ? 'hit_head' : 'hit_body', 1.1);
+        this.pain = ev.zone === 'head' ? 1.1 : 0.8;          // smorfia
       }
     }
   }

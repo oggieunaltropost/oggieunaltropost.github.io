@@ -104,22 +104,24 @@ export class Bruises {
         float sw = 0.0;
         for (int i = 0; i < ${N}; i++) {
           float d = distance(position, uBruise[i].xyz);
-          sw += uBruiseLevel[i] * (1.0 - smoothstep(0.0, uBruise[i].w, d));
+          sw += uBruiseLevel[i] * (1.0 - smoothstep(0.0, uBruise[i].w, d)) * ((i == 0 || i == 1) ? 2.0 : 1.0);
         }
         transformed += normal * min(sw, 1.0) * ${(0.005 * k).toFixed(5)};   // gonfiore`);
       sh.fragmentShader = decl + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
-        float bz = 0.0, cut = 0.0;
+        float bz = 0.0, cut = 0.0, eyeb = 0.0;
         for (int i = 0; i < ${N}; i++) {
           float d = distance(vRest, uBruise[i].xyz);
           float f = uBruiseLevel[i] * (1.0 - smoothstep(uBruise[i].w * 0.25, uBruise[i].w, d));
           bz = max(bz, f);
+          if (i == 0 || i == 1) eyeb = max(eyeb, f);
           if (i == 4 || i == 5) cut = max(cut, smoothstep(0.75, 1.0, uBruiseLevel[i]) * (1.0 - smoothstep(0.0, uBruise[i].w * 0.3, d)));
         }
         // livido: prima arrossato, poi violaceo e scuro; sull'arcata un taglio rosso quando e' al massimo
         vec3 redd = diffuseColor.rgb * vec3(1.25, 0.72, 0.72);
         vec3 purple = diffuseColor.rgb * vec3(0.52, 0.30, 0.42);
         diffuseColor.rgb = mix(diffuseColor.rgb, mix(redd, purple, smoothstep(0.35, 0.9, bz)), smoothstep(0.0, 0.5, bz) * 0.9);
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.32, 0.015, 0.02), cut * 0.9);`);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.32, 0.015, 0.02), cut * 0.9);
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.22, 0.12, 0.2), smoothstep(0.45, 1.0, eyeb) * 0.85);   // occhio nero`);
     };
     mat.needsUpdate = true;
   }

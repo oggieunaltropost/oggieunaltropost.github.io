@@ -46,7 +46,8 @@ export class Scoreboard {
       g.fillStyle = e > 0.5 ? '#3cc46b' : e > 0.25 ? '#f0b429' : '#e5484d'; g.fillRect(x - 200, 338, 400 * e, 20);
       g.font = '500 28px system-ui, sans-serif'; g.fillStyle = '#c9ced8';
       g.fillText(`Colpi ${p.hits} · Parate ${p.blocks} · Schivate ${p.dodges}`, x, 392);
-      if (p.kd) { g.fillStyle = '#ff8a8a'; g.fillText(`A terra ${p.kd} ${p.kd === 1 ? 'volta' : 'volte'}`, x, 428); }
+      const extra = [p.kd ? `A terra ${p.kd} ${p.kd === 1 ? 'volta' : 'volte'}` : '', p.penalties ? `Penalità ${p.penalties}/3` : ''].filter(Boolean).join(' · ');
+      if (extra) { g.fillStyle = p.penalties ? '#ffd34d' : '#ff8a8a'; g.fillText(extra, x, 428); }
     };
     col(W * 0.27, 'TU', '#c4161f', s.player);
     col(W * 0.73, 'MIKE', '#1a49b8', s.mike);
@@ -109,7 +110,9 @@ export class PauseMenu {
   _label(text, x, y, w, h, color, px) {
     const c = document.createElement('canvas'); c.width = 512; c.height = Math.round(512 * h / w);
     const g = c.getContext('2d');
-    g.fillStyle = color; g.font = `800 ${px}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    let size = px;
+    do { g.font = `800 ${size}px system-ui, sans-serif`; size -= 2; } while (g.measureText(text).width > c.width * 0.94 && size > 10);
+    g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText(text, c.width / 2, c.height / 2);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthTest: false }));
@@ -122,7 +125,9 @@ export class PauseMenu {
   setTitle(text) {
     const { canvas: c, tex, color, px } = this.title.userData, g = c.getContext('2d');
     g.clearRect(0, 0, c.width, c.height);
-    g.fillStyle = color; g.font = `800 ${px}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    let size = px;
+    do { g.font = `800 ${size}px system-ui, sans-serif`; size -= 2; } while (g.measureText(text).width > c.width * 0.94 && size > 10);
+    g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText(text, c.width / 2, c.height / 2); tex.needsUpdate = true;
   }
 
@@ -179,7 +184,8 @@ export class MenuPanel {
           new THREE.MeshBasicMaterial({ color: b.color || 0x2a2f3a, depthTest: false }));
         base.renderOrder = 1101; g.add(base);
         const sel = new THREE.Mesh(new THREE.PlaneGeometry(b.w + 0.012, h + 0.012),
-          new THREE.MeshBasicMaterial({ color: 0xffd34d, depthTest: false }));
+          new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false }));
+        sel.scale.set(1 + 0.02 / b.w, 1.25, 1);
         sel.position.z = -0.02; sel.renderOrder = 1100; sel.visible = false; g.add(sel);
         const fill = new THREE.Mesh(new THREE.PlaneGeometry(b.w, h),
           new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthTest: false }));
@@ -195,7 +201,7 @@ export class MenuPanel {
     for (const b of this.buttons) {
       const on = ids.includes(b.id);
       b.sel.visible = on;
-      b.base.material.color.setHex(on ? 0xb8860b : b.color0);      // scelta attuale: oro
+      b.base.material.color.setHex(on ? 0x16a34a : b.color0);      // scelta attuale: verde acceso
     }
   }
   open(head, yaw, dist = 0.55, drop = 0.2) {
@@ -217,5 +223,38 @@ export class MenuPanel {
       if (b.t >= this.hold) { b.t = -0.6; return b.id; }      // pausa breve prima di poterlo ripremere
     }
     return null;
+  }
+}
+
+// Numero del conto alla rovescia in un angolo della vista: entra grande e "pulsa", dal giallo al rosso.
+export class CountdownHUD {
+  constructor(camera) {
+    this.canvas = document.createElement('canvas'); this.canvas.width = this.canvas.height = 256;
+    this.tex = new THREE.CanvasTexture(this.canvas); this.tex.colorSpace = THREE.SRGBColorSpace;
+    this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.075, 0.075),
+      new THREE.MeshBasicMaterial({ map: this.tex, transparent: true, depthTest: false, toneMapped: false }));
+    this.mesh.renderOrder = 1300; this.mesh.position.set(0.12, 0.085, -0.4); this.mesh.visible = false;
+    camera.add(this.mesh);
+    this.n = null; this.t = 0;
+  }
+  show(n, urgency = 0) {
+    if (n === this.n && this.mesh.visible) return;
+    this.n = n; this.t = 0; this.mesh.visible = true;
+    const g = this.canvas.getContext('2d');
+    g.clearRect(0, 0, 256, 256);
+    const col = `rgb(255, ${Math.round(211 - 180 * urgency)}, ${Math.round(77 - 60 * urgency)})`;
+    g.fillStyle = 'rgba(10,12,18,0.7)'; g.beginPath(); g.arc(128, 128, 120, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = col; g.lineWidth = 10; g.stroke();
+    g.fillStyle = col; g.font = '900 150px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(String(n), 128, 138);
+    this.tex.needsUpdate = true;
+  }
+  hide() { this.mesh.visible = false; this.n = null; }
+  update(dt) {
+    if (!this.mesh.visible) return;
+    this.t += dt;
+    const k = Math.max(0, 1 - this.t / 0.35);                 // entra grande e si assesta
+    this.mesh.scale.setScalar(1 + 0.6 * k * k);
+    this.mesh.material.opacity = Math.min(1, 0.4 + this.t * 3);
   }
 }
