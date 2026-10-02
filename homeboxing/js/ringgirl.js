@@ -8,7 +8,7 @@ const SPEED = 0.62;          // m/s: un ciclo di camminata (1 s) = 62 cm (blende
 export function fixHumanMaterial(o) {
   const m = o.material, n = (m.name || '').toLowerCase();
   if (/eyebrow|eyelash|hair|short0|bob0|long0|ponytail|braid|afro/.test(n)) { m.transparent = false; m.alphaTest = 0.45; }
-  else if (/high-poly|eye/.test(n)) { m.transparent = false; m.alphaTest = 0.4; }
+  else if (/high-poly|eye/.test(n)) { m.transparent = false; m.alphaTest = 0.9; m.roughness = 0.15; }   // solo il bulbo, niente velo della cornea
   else { m.transparent = false; m.alphaTest = 0; m.opacity = 1; }
   m.depthWrite = true; m.side = THREE.FrontSide; m.needsUpdate = true;
 }

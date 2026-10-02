@@ -121,7 +121,8 @@ export class Mike {
       const m = o.material, n = m.name || '';
       if (n === 'Capelli') { m.transparent = true; m.depthWrite = false; m.vertexColors = true; o.renderOrder = 2; }
       else if (n.includes('eyebrow') || n.includes('eyelash')) { m.transparent = true; m.depthWrite = false; m.alphaTest = 0.05; o.renderOrder = 2; o.castShadow = false; }
-      else if (n.includes('high-poly')) { m.transparent = false; m.alphaTest = 0; m.depthWrite = true; o.castShadow = false; }   // occhi ben visibili
+      // occhi: si tiene solo il bulbo con l'iride; la cornea (velo bianco semitrasparente) si scarta del tutto
+      else if (n.includes('high-poly')) { m.transparent = false; m.alphaTest = 0.9; m.depthWrite = true; m.roughness = 0.15; o.castShadow = false; }
       if (m.envMapIntensity !== undefined) m.envMapIntensity = 0.8;
     });
     this.brandShorts();
