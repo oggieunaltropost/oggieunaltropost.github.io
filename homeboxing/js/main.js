@@ -107,7 +107,7 @@ function applyMode() {
   hemi.intensity = inArena ? 0.2 : 1.1;
   scene.environmentIntensity = inArena ? 0.3 : 0.7;     // nel palazzetto il pubblico resta in penombra
   key.intensity = inArena ? 0.9 : 2.2;
-  fill.intensity = inArena ? 2.2 : 0.5;
+  fill.intensity = inArena ? 1.5 : 0.5;
   scene.background = inArena ? new THREE.Color(0x05060a) : (sim ? new THREE.Color(0x2a2c31) : null);
   scene.fog = inArena ? new THREE.Fog(0x05060a, 9, 26) : null;
   sfx.crowdAmbient(inArena);
