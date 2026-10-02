@@ -516,6 +516,14 @@ export class Mike {
         p.resolved = true; this.openUntil = this.time + 0.7; this.emit('playerBlocked', { side: g.side }); return;
       }
     }
+    // la tua guardia alta (tutti e due i guantoni davanti al viso) ferma i colpi dritti e i montanti;
+    // i ganci, che arrivano di lato, passano a volte
+    const guardUp = Object.values(player.gloves).every(g => g.mesh.visible && g.center.distanceTo(player.head) < 0.32);
+    if (p.hookThrough === undefined) p.hookThrough = Math.random() < 0.45;
+    if (guardUp && spec.zone === 'head' && (!p.name.startsWith('hook') || !p.hookThrough) &&
+        (tip.distanceTo(player.head) < 0.3 || center.distanceTo(player.head) < 0.28)) {
+      p.resolved = true; this.openUntil = this.time + 0.7; this.emit('playerBlocked', { side: 'left' }); return;
+    }
     if (spec.zone === 'body') {
       // il tuo corpo: dal petto alla pancia, sotto la testa
       const top = player.head.clone().add(new THREE.Vector3(0, -0.28, 0)), bot = player.head.clone().add(new THREE.Vector3(0, -0.62, 0));
@@ -534,8 +542,9 @@ export class Mike {
     const towardMike = this.forward().negate();
     const gl = { l: this.glove('l'), r: this.glove('r') };
     for (const g of Object.values(player.gloves)) {
-      if (!g.mesh.visible || g.cooldown > 0 || g.speed < 1.3) continue;
-      if (g.vel.dot(towardMike) < 0.4) continue;           // deve andare verso Mike
+      if (!g.mesh.visible || g.cooldown > 0 || g.peakSpeed() < 1.8) continue;
+      if (g.vel.dot(towardMike) < -0.3) continue;          // non mentre torna indietro
+      if (g.travel(towardMike) < 0.12) continue;           // deve essere partito davvero (non Mike che ci finisce contro)
       const [a, b] = g.segment();
       let ev = null;
       // in parata i guantoni coprono bene; nella guardia normale lasciano spazi
@@ -550,7 +559,7 @@ export class Mike {
       if (!ev && distSegSeg(a, b, t0, t1) < g.radius + 0.16) ev = { type: 'playerHit', zone: 'body' };
       if (!ev) continue;
       g.cooldown = 0.45; g.contactPoint.copy(g.center);
-      ev.side = g.side; ev.speed = g.speed;
+      ev.side = g.side; ev.speed = g.peakSpeed();
       const lp = this.root.worldToLocal(g.center.clone()), lh = this.root.worldToLocal(hc.clone());
       ev.why = `t+${this.defending ? (this.time - this.defending.start).toFixed(2) : '-'} hx${lh.x.toFixed(2)} gx${lp.x.toFixed(2)} gy${(lp.y - lh.y).toFixed(2)} ${this.state}${this.defending ? '/' + this.defending.type : ''}${this.time < this.openUntil ? '/aperto' : ''}${this.punch ? '/pugno' : ''}`;
       // dove ha colpito, nel sistema di Mike (per i lividi): x>0 = sua sinistra, y rispetto al centro della testa

@@ -64,6 +64,18 @@ class Glove {
     this.contactPoint = new THREE.Vector3();
     this.punchId = 0;                       // cresce a ogni nuova "spinta" in avanti
     this.wasFast = false;
+    this.hist = [];                         // posizioni recenti, per capire se il pugno e' partito davvero
+    this.clock = 0;
+  }
+
+  // velocita' massima negli ultimi 0,25 s (al contatto il pugno sta gia' rallentando)
+  peakSpeed() { let m = this.speed; for (const h of this.hist) m = Math.max(m, h.s || 0); return m; }
+
+  // quanto si e' spostato il pugno nella direzione dir negli ultimi 0,25 s
+  travel(dir) {
+    let best = 0;
+    for (const h of this.hist) best = Math.max(best, _v.subVectors(this.center, h.p).dot(dir));
+    return best;
   }
 
   // wrist = polso, fwd = verso le nocche, back = dorso della mano
@@ -97,6 +109,9 @@ class Glove {
       if (_v.length() < 25) this.vel.lerp(_v, 0.55);          // scarta i salti del tracciamento
     }
     this.speed = this.vel.length();
+    this.clock += dt;
+    this.hist.push({ t: this.clock, p: this.center.clone(), s: this.speed });
+    while (this.hist.length && this.clock - this.hist[0].t > 0.25) this.hist.shift();
     const fast = this.speed > 0.7;           // inizio di una spinta: serve a Mike per "leggere" il pugno presto
     if (fast && !this.wasFast) this.punchId++;
     this.wasFast = fast;

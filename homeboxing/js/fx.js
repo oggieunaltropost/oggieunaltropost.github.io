@@ -151,3 +151,96 @@ export class Bruises {
     for (let i = 0; i < N; i++) this.uniforms.uBruiseLevel.value[i] = 0;
   }
 }
+
+// ---------------------------------------------------------------- festa per il vincitore
+// Coriandoli che scendono volteggiando + fuochi d'artificio che scoppiano sopra il ring.
+export class Celebration {
+  constructor(scene, max = 700) {
+    this.group = new THREE.Group(); scene.add(this.group);
+    const g = new THREE.PlaneGeometry(0.035, 0.022);
+    this.conf = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, toneMapped: false }), max);
+    this.conf.frustumCulled = false; this.conf.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.group.add(this.conf);
+    this.c = Array.from({ length: max }, () => ({ p: new THREE.Vector3(), v: new THREE.Vector3(), r: new THREE.Euler(), w: new THREE.Vector3(), life: 0 }));
+    // scintille dei fuochi
+    const sg = new THREE.SphereGeometry(0.018, 6, 4);
+    this.sparkMax = 900;
+    this.spark = new THREE.InstancedMesh(sg, new THREE.MeshBasicMaterial({ toneMapped: false }), this.sparkMax);
+    this.spark.frustumCulled = false; this.spark.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.group.add(this.spark);
+    this.s = Array.from({ length: this.sparkMax }, () => ({ p: new THREE.Vector3(), v: new THREE.Vector3(), life: 0, max: 1 }));
+    this.next = 0; this.nextS = 0; this.t = 0; this.active = 0; this.colors = [];
+    this._m = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._sc = new THREE.Vector3();
+    this.hideAll();
+  }
+  hideAll() {
+    const z = new THREE.Matrix4().makeScale(0, 0, 0);
+    for (let i = 0; i < this.c.length; i++) this.conf.setMatrixAt(i, z);
+    for (let i = 0; i < this.sparkMax; i++) this.spark.setMatrixAt(i, z);
+    this.conf.instanceMatrix.needsUpdate = this.spark.instanceMatrix.needsUpdate = true;
+  }
+  // center = centro del ring; colors = colori del vincitore
+  start(center, colors, seconds = 9) {
+    this.center = center.clone(); this.colors = colors.map(c => new THREE.Color(c)); this.active = seconds; this.t = 0;
+    this.confT = 0; this.fireT = 0;
+  }
+  _confetto() {
+    const d = this.c[this.next], i = this.next; this.next = (this.next + 1) % this.c.length;
+    d.p.copy(this.center).add(new THREE.Vector3((Math.random() - 0.5) * 4, 3.2 + Math.random() * 0.8, (Math.random() - 0.5) * 4));
+    d.v.set((Math.random() - 0.5) * 0.3, -0.5 - Math.random() * 0.4, (Math.random() - 0.5) * 0.3);
+    d.r.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+    d.w.set((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8);
+    d.life = 6;
+    const pal = Math.random() < 0.6 ? this.colors : [new THREE.Color(0xffd34d), new THREE.Color(0xffffff)];
+    this.conf.setColorAt(i, pal[Math.floor(Math.random() * pal.length)]);
+    this.conf.instanceColor.needsUpdate = true;
+  }
+  _firework() {
+    const at = this.center.clone().add(new THREE.Vector3((Math.random() - 0.5) * 3, 2.6 + Math.random() * 1.2, (Math.random() - 0.5) * 3 - 0.5));
+    const col = Math.random() < 0.7 ? this.colors[Math.floor(Math.random() * this.colors.length)] : new THREE.Color(0xffd34d);
+    for (let k = 0; k < 70; k++) {
+      const s = this.s[this.nextS], i = this.nextS; this.nextS = (this.nextS + 1) % this.sparkMax;
+      s.p.copy(at);
+      s.v.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar(1.2 + Math.random() * 1.0);
+      s.life = s.max = 1.1 + Math.random() * 0.5;
+      this.spark.setColorAt(i, col);
+    }
+    this.spark.instanceColor.needsUpdate = true;
+    return at;
+  }
+  // restituisce dove e' scoppiato un fuoco (per il suono), oppure null
+  update(dt) {
+    let boom = null;
+    if (this.active > 0) {
+      this.active -= dt;
+      this.confT += dt * 80;
+      while (this.confT > 1) { this._confetto(); this.confT--; }
+      this.fireT -= dt;
+      if (this.fireT <= 0) { boom = this._firework(); this.fireT = 0.5 + Math.random() * 0.6; }
+    }
+    for (let i = 0; i < this.c.length; i++) {
+      const d = this.c[i];
+      if (d.life <= 0) continue;
+      d.life -= dt;
+      d.p.addScaledVector(d.v, dt); d.p.x += Math.sin(this.t * 3 + i) * 0.003;
+      d.r.x += d.w.x * dt; d.r.y += d.w.y * dt; d.r.z += d.w.z * dt;
+      this._q.setFromEuler(d.r);
+      const s = d.life > 0 && d.p.y > this.center.y ? 1 : 0;
+      this._m.compose(d.p, this._q, this._sc.set(s, s, s));
+      this.conf.setMatrixAt(i, this._m);
+    }
+    for (let i = 0; i < this.sparkMax; i++) {
+      const s = this.s[i];
+      if (s.life <= 0) { if (s.max) { this.spark.setMatrixAt(i, this._m.makeScale(0, 0, 0)); s.max = 0; } continue; }
+      s.life -= dt;
+      s.v.y -= 1.5 * dt; s.v.multiplyScalar(1 - dt * 1.2);
+      s.p.addScaledVector(s.v, dt);
+      const k = Math.max(0, s.life / s.max);
+      this._m.compose(s.p, this._q.identity(), this._sc.set(k, k, k));
+      this.spark.setMatrixAt(i, this._m);
+    }
+    this.t += dt;
+    this.conf.instanceMatrix.needsUpdate = this.spark.instanceMatrix.needsUpdate = true;
+    return boom;
+  }
+}

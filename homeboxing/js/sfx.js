@@ -39,6 +39,14 @@ export function stopAll() {
   if (ctx && ctx.state === 'running') ctx.suspend();
 }
 
+// fuoco d'artificio: botto e crepitio
+export function firework() {
+  if (!ctx) return; const t = ctx.currentTime;
+  tone(t, 0.5, 90, 0.7, 'sine', 35);
+  noise(t, 0.6, 1200, 0.5, 0.5);
+  for (let i = 0; i < 10; i++) noise(t + 0.15 + Math.random() * 0.6, 0.04, 4000, 2, 0.12, 'bandpass');
+}
+
 // colpo pieno: tonfo sordo + schiocco del cuoio
 export function punchHit(strength = 1) {
   if (!ctx) return; const t = ctx.currentTime;

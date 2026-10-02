@@ -28,20 +28,26 @@ export function say(text) {
 }
 export function sayCount(n) { return say(NUM[n] || String(n)); }
 
-// Bersagli luminosi da colpire per rialzarsi: uno alla volta, davanti a te.
+// Per rialzarti: un bottone luminoso da colpire N volte (10 al primo atterramento, 20 al secondo)
+// prima che l'arbitro arrivi a 10. Ogni colpo conta solo se il guantone esce dal bottone e ci rientra.
 export class GetUpChallenge {
   constructor(scene) {
     this.group = new THREE.Group(); this.group.visible = false; scene.add(this.group);
-    this.target = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16),
-      new THREE.MeshBasicMaterial({ color: 0xffd34d, transparent: true, opacity: 0.9, depthTest: false }));
+    this.target = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.35, 40),
+      new THREE.MeshBasicMaterial({ color: 0xffd34d, transparent: true, opacity: 0.95, depthTest: false }));
+    this.target.rotation.x = Math.PI / 2;           // il bottone guarda verso di te
     this.target.renderOrder = 1200;
-    const ring = new THREE.Mesh(new THREE.RingGeometry(1.25, 1.45, 32),
-      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, depthTest: false, side: THREE.DoubleSide }));
-    ring.renderOrder = 1201; this.target.add(ring); this.ring = ring;
-    this.group.add(this.target);
-    // buio quando sei a terra
-    this.dark = null;
-    this.done = false; this.left = 0; this.t = 0;
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.1, 10, 48),
+      new THREE.MeshBasicMaterial({ color: 0xc4161f, depthTest: false }));
+    ring.renderOrder = 1201;
+    this.pad = new THREE.Group(); this.pad.add(this.target, ring); this.group.add(this.pad);
+    // scritta sopra il bottone
+    this.canvas = document.createElement('canvas'); this.canvas.width = 1024; this.canvas.height = 256;
+    this.tex = new THREE.CanvasTexture(this.canvas); this.tex.colorSpace = THREE.SRGBColorSpace;
+    this.label = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.115),
+      new THREE.MeshBasicMaterial({ map: this.tex, transparent: true, depthTest: false }));
+    this.label.renderOrder = 1202; this.group.add(this.label);
+    this.dark = null; this.done = false; this.left = 0; this.t = 0; this.inside = { left: false, right: false }; this.bump = 0;
   }
 
   attachDark(camera) {
@@ -51,34 +57,46 @@ export class GetUpChallenge {
     camera.add(this.dark);
   }
 
-  // n bersagli, raggio r: piu' atterramenti = piu' bersagli e piu' piccoli
+  _draw() {
+    const g = this.canvas.getContext('2d'), W = 1024, H = 256;
+    g.clearRect(0, 0, W, H);
+    g.fillStyle = 'rgba(10,12,18,0.85)'; g.fillRect(0, 0, W, H);
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = '#ffd34d'; g.font = '900 64px system-ui, sans-serif';
+    g.fillText(`COLPISCI ${this.n} VOLTE PER RIALZARTI`, W / 2, 80);
+    g.fillStyle = '#ffffff'; g.font = '800 92px system-ui, sans-serif';
+    g.fillText(`ancora ${this.left}`, W / 2, 182);
+    this.tex.needsUpdate = true;
+  }
+
   start(n, r, head, yaw) {
-    this.left = n; this.r = r; this.done = false; this.t = 0;
-    this.yaw = yaw; this.group.visible = true;
+    this.n = n; this.left = n; this.r = r; this.done = false; this.t = 0; this.bump = 0;
+    this.inside = { left: true, right: true };      // al primo fotogramma non conta niente
+    const f = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+    // davanti a te, all'altezza del petto, a portata di pugno
+    const p = head.clone().addScaledVector(f, 0.5).add(new THREE.Vector3(0, -0.22, 0));
+    this.pad.position.copy(p); this.pad.rotation.set(0, yaw, 0); this.pad.scale.setScalar(r);
+    this.label.position.copy(p).add(new THREE.Vector3(0, r + 0.12, 0)); this.label.rotation.set(0, yaw, 0);
+    this.group.visible = true;
     if (this.dark) { this.dark.visible = true; this.dark.material.opacity = 0.62; }
-    this._place(head);
+    this._draw();
   }
 
-  _place(head) {
-    const f = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw)), r = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
-    const p = head.clone().addScaledVector(f, 0.38 + Math.random() * 0.14)
-      .addScaledVector(r, (Math.random() - 0.5) * 0.6).add(new THREE.Vector3(0, -0.28 + Math.random() * 0.4, 0));
-    this.target.position.copy(p);
-    this.target.scale.setScalar(this.r);
-  }
-
-  // true quando hai colpito tutti i bersagli
-  update(dt, gloves, head) {
+  // true quando hai colpito il bottone tutte le volte richieste
+  update(dt, gloves) {
     if (!this.group.visible) return false;
     this.t += dt;
-    this.ring.rotation.z += dt * 3;
-    this.target.material.opacity = 0.65 + 0.3 * Math.sin(this.t * 8);
-    this.target.lookAt(head);
-    const hit = gloves.some(g => g.mesh.visible && g.center.distanceTo(this.target.position) < this.r + 0.07);
-    if (hit) {
-      this.left--;
-      if (this.left <= 0) { this.done = true; this.stop(); return true; }
-      this._place(head);
+    this.bump = Math.max(0, this.bump - dt * 6);
+    this.pad.scale.setScalar(this.r * (1 + 0.25 * this.bump));
+    this.target.material.color.setHex(this.bump > 0.3 ? 0xffffff : 0xffd34d);
+    const c = this.pad.position;
+    for (const g of gloves) {
+      const now = g.mesh.visible && g.center.distanceTo(c) < this.r + 0.07;
+      if (now && !this.inside[g.side] && g.speed > 0.8) {   // il guantone e' appena entrato con un pugno: un colpo
+        this.left--; this.bump = 1; this._draw();
+        if (this.left <= 0) { this.done = true; this.stop(); return true; }
+      }
+      this.inside[g.side] = now;
     }
     return false;
   }
