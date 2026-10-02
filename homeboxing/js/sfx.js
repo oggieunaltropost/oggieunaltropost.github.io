@@ -62,6 +62,24 @@ export function bell(times = 1) {
   }
 }
 
+// brusio continuo del pubblico nel palazzetto (sale quando la folla si esalta)
+let amb = null;
+export function crowdAmbient(on) {
+  if (!ctx) return;
+  if (on && !amb) {
+    const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true;
+    const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 700; f.Q.value = 0.5;
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 0.23;
+    const lg = ctx.createGain(); lg.gain.value = 180; lfo.connect(lg); lg.connect(f.frequency);
+    const g = ctx.createGain(); g.gain.value = 0.05;
+    s.connect(f); f.connect(g); g.connect(master); s.start(); lfo.start();
+    amb = { s, g, lfo };
+  } else if (!on && amb) { amb.s.stop(); amb.lfo.stop(); amb = null; }
+}
+export function crowdLevel(x) {
+  if (amb) amb.g.gain.setTargetAtTime(0.05 + x * 0.22, ctx.currentTime, 0.15);
+}
+
 // incitamento quando un colpo va a segno (fruscio di folla breve)
 export function crowd(gain = 0.15) {
   if (!ctx) return; const t = ctx.currentTime;

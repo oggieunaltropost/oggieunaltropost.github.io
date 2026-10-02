@@ -6,15 +6,17 @@ export class Scoreboard {
     this.canvas = document.createElement('canvas');
     this.canvas.width = 1024; this.canvas.height = 560;
     this.tex = new THREE.CanvasTexture(this.canvas); this.tex.colorSpace = THREE.SRGBColorSpace;
-    // sempre visibile: non viene coperto da mobili o pareti
-    const mat = new THREE.MeshBasicMaterial({ map: this.tex, transparent: true, toneMapped: false, depthTest: false, depthWrite: false });
+    // Disegnato subito dopo le pareti/mobili invisibili e senza controllare la profondita': i mobili
+    // non lo coprono. Scrive pero' la sua profondita', quindi Mike (davanti) ci passa sopra.
+    // (con depthTest spento WebGL non scrive la profondita': per questo si usa AlwaysDepth)
+    const mat = new THREE.MeshBasicMaterial({ map: this.tex, toneMapped: false, depthFunc: THREE.AlwaysDepth, depthWrite: true, fog: false });
     this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.6), mat);
     this.mesh.name = 'tabellone';
-    this.mesh.renderOrder = 1001;
+    this.mesh.renderOrder = -5;
     // cornice
     const frame = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.66, 0.03),
-      new THREE.MeshBasicMaterial({ color: 0x15171d, depthTest: false, depthWrite: false }));
-    frame.position.z = -0.02; frame.renderOrder = 1000; this.mesh.add(frame);
+      new THREE.MeshBasicMaterial({ color: 0x15171d, depthFunc: THREE.AlwaysDepth, depthWrite: true, fog: false }));
+    frame.position.z = -0.02; frame.renderOrder = -6; this.mesh.add(frame);
     this.last = '';
   }
 

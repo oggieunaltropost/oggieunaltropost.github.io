@@ -79,6 +79,17 @@ class Glove {
   }
 
   update(dt) {
+    // nei pugni veloci il tracciamento delle mani a volte si perde per qualche fotogramma:
+    // per 0,12 s il guantone continua per la sua strada invece di "saltare" al bersaglio
+    if (!this.active) {
+      this.lostT = (this.lostT || 0) + dt;
+      if (this.lostT < 0.12 && this.speed > 1.0 && this.mesh.visible) {
+        this.center.addScaledVector(this.vel, dt);
+        this.mesh.position.addScaledVector(this.vel, dt);
+        this.active = true; this.coasting = true;
+        return;
+      }
+    } else { this.lostT = 0; this.coasting = false; }
     this.mesh.visible = this.active;
     if (!this.active) { this.vel.set(0, 0, 0); this.speed = 0; return; }
     if (dt > 0) {
@@ -221,7 +232,7 @@ export class SimInput {
       const sx = side === 'left' ? -1 : 1;
       let w = new THREE.Vector3(head.x + sx * 0.17 + this.mouse.x * 0.12, head.y - 0.25 + this.mouse.y * 0.15, head.z - 0.30);
       let fwd = new THREE.Vector3(-sx * 0.15, 0.55, -1).normalize();
-      if (this.guard) { w.set(head.x + sx * 0.08, head.y - 0.12, head.z - 0.22); fwd.set(-sx * 0.1, 1.2, -0.6).normalize(); }
+      if (this.guard) { w.set(head.x + sx * 0.075, head.y - 0.17, head.z - 0.17); fwd.set(-sx * 0.1, 1.2, -0.6).normalize(); }
       let t = this.punch[side];
       if (t > 0) {
         t += dt; this.punch[side] = t > 0.34 ? 0 : t;

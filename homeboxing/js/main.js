@@ -8,6 +8,7 @@ import { Sweat, Bruises } from './fx.js';
 import { Player, SimInput } from './player.js';
 import { Scoreboard, HitFlash } from './hud.js';
 import { Room } from './room.js';
+import { Arena } from './arena.js';
 import * as sfx from './sfx.js';
 
 const $ = id => document.getElementById(id);
@@ -34,7 +35,8 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.7;
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x404048, 1.1));
+const hemi = new THREE.HemisphereLight(0xffffff, 0x404048, 1.1);
+scene.add(hemi);
 const key = new THREE.DirectionalLight(0xfff1e0, 2.2);
 key.position.set(1.2, 3.5, 1.5);
 key.castShadow = true;
@@ -73,6 +75,22 @@ let bruises = null;
 let level = 'normale';
 try { level = localStorage.getItem('hb-level') || 'normale'; } catch (e) {}
 if (!LEVELS[level]) level = 'normale';
+// dove si gioca: 'stanza' = realta' mista nella tua stanza, 'arena' = palazzetto virtuale con il pubblico
+let mode = 'stanza';
+try { mode = localStorage.getItem('hb-mode') || 'stanza'; } catch (e) {}
+let arenaEnv = null;
+function applyMode() {
+  const inArena = mode === 'arena';
+  if (inArena && !arenaEnv) { arenaEnv = new Arena(RING_SIZE); arena.add(arenaEnv.group); }
+  if (arenaEnv) arenaEnv.group.visible = inArena;
+  room.group.visible = !inArena;
+  hemi.intensity = inArena ? 0.2 : 1.1;
+  scene.environmentIntensity = inArena ? 0.3 : 0.7;     // nel palazzetto il pubblico resta in penombra
+  key.intensity = inArena ? 0.9 : 2.2;
+  scene.background = inArena ? new THREE.Color(0x05060a) : (sim ? new THREE.Color(0x2a2c31) : null);
+  scene.fog = inArena ? new THREE.Fog(0x05060a, 9, 26) : null;
+  sfx.crowdAmbient(inArena);
+}
 const READY_S = 6;                    // secondi prima del gong
 
 const player = new Player(renderer, scene, camera);
@@ -113,7 +131,7 @@ let lastPlace = null, fitted = false;
 function placeArena(headPos, yaw) {
   lastPlace = { head: headPos.clone(), yaw };
   // ring piu' grande possibile dentro la stanza scansionata; senza scansione: 3,2 m davanti a te
-  const fit = room.fitRing(headPos, yaw, RING_SIZE, PLAYER_Z);
+  const fit = mode === 'arena' ? null : room.fitRing(headPos, yaw, RING_SIZE, PLAYER_Z);
   fitted = !!fit;
   arena.rotation.y = yaw;
   if (fit) {
@@ -156,7 +174,8 @@ function handleEvents() {
         const pts = e.zone === 'head' ? 2 : 1;
         game.player.points += pts; game.player.hits++;
         game.message = e.zone === 'head' ? 'Colpo alla testa! +2' : 'Colpo al corpo +1';
-        sfx.punchHit(Math.min(1.3, 0.6 + e.speed / 6)); sfx.crowd(0.08);
+        sfx.punchHit(Math.min(1.3, 0.6 + e.speed / 6)); sfx.crowd(mode === 'arena' ? 0.25 : 0.08);
+        if (arenaEnv) arenaEnv.cheer(Math.min(1.5, e.speed / 4) * (e.zone === 'head' ? 1 : 0.6));
         bruises.hit(e.zone, e.lx, e.ly, Math.min(1.6, e.speed / 4));
         {
           // qualche gocciolina rossa: solo nei colpi al viso molto forti o quando Mike e' gia' molto segnato
@@ -180,9 +199,10 @@ function handleEvents() {
         sfx.whoosh();
         break;
       case 'mikeHit':
-        game.mike.points += 2; game.mike.hits++;
-        game.message = 'Mike ti colpisce!';
-        sfx.punchHit(1.2); flash.hit(1);
+        game.mike.points += e.zone === 'body' ? 1 : 2; game.mike.hits++;
+        game.message = e.zone === 'body' ? 'Mike ti colpisce al corpo!' : 'Mike ti colpisce!';
+        sfx.punchHit(e.zone === 'body' ? 0.9 : 1.2); flash.hit(e.zone === 'body' ? 0.5 : 1);
+        if (arenaEnv) arenaEnv.cheer(0.6);
         player.pulse('left', 0.7, 90); player.pulse('right', 0.7, 90);
         break;
       case 'playerBlocked':
@@ -240,7 +260,7 @@ function tick(dt, frame) {
       placeArena(p, e.y); placed = true;
     }
   }
-  if (renderer.xr.isPresenting && frame && xrFrames % 30 === 0) {
+  if (renderer.xr.isPresenting && frame && xrFrames % 30 === 0 && mode !== 'arena') {
     const y = detectFloor(frame);
     const userSet = floorSource === 'mano' || floorSource === 'manuale';
     if (y !== null && !userSet && (floorSource !== 'stanza' || Math.abs(y - floorY) > 0.02)) setFloor(y, 'stanza');
@@ -275,6 +295,7 @@ function tick(dt, frame) {
   }
   flash.update(dt);
   sweat.update(dt);
+  if (arenaEnv && arenaEnv.group.visible) { arenaEnv.update(dt); sfx.crowdLevel(arenaEnv.excite); }
   player.endFrame();
   renderer.render(scene, camera);
 }
@@ -307,7 +328,7 @@ loadMikeGLTF('assets/mike.glb', f => status(`Caricamento di Mike… ${Math.round
   status('');
   $('enter').disabled = !navigator.xr;
   if (navigator.xr) navigator.xr.isSessionSupported('immersive-ar').then(ok => {
-    if (!ok) { $('enter').disabled = true; status('Questo browser non supporta la realtà mista: usa il browser del Quest 3.'); }
+    if (!ok) { $('enter').disabled = true; status('Questo browser non supporta la realtà mista: usa il browser del Quest 3 (oppure prova l\'anteprima su PC).'); }
   });
   if (new URLSearchParams(location.search).has('sim')) startSim();
 }).catch(e => { console.error(e); status('Errore nel caricamento di Mike: ' + e.message); });
@@ -315,9 +336,13 @@ loadMikeGLTF('assets/mike.glb', f => status(`Caricamento di Mike… ${Math.round
 $('enter').onclick = async () => {
   sfx.initAudio();
   try {
-    const session = await navigator.xr.requestSession('immersive-ar', {
-      requiredFeatures: ['local-floor'], optionalFeatures: ['hand-tracking', 'plane-detection', 'mesh-detection', 'anchors'],
-    });
+    // nella stanza: realta' mista; nell'arena: realta' virtuale (il palazzetto copre tutto)
+    const session = mode === 'arena'
+      ? await navigator.xr.requestSession('immersive-vr', { requiredFeatures: ['local-floor'], optionalFeatures: ['hand-tracking'] })
+      : await navigator.xr.requestSession('immersive-ar', {
+        requiredFeatures: ['local-floor'], optionalFeatures: ['hand-tracking', 'plane-detection', 'mesh-detection', 'anchors'],
+      });
+    applyMode();
     renderer.xr.setFoveation(1);
     await renderer.xr.setSession(session);
     if (bruises) bruises.reset();
@@ -325,7 +350,7 @@ $('enter').onclick = async () => {
     resetRound();
     $('overlay').hidden = true;
     session.addEventListener('end', () => { $('overlay').hidden = false; placed = false; });
-  } catch (e) { status('Impossibile entrare in realtà mista: ' + e.message); }
+  } catch (e) { status((mode === 'arena' ? 'Impossibile entrare nell\'arena: ' : 'Impossibile entrare in realtà mista: ') + e.message); }
 };
 
 function startSim() {
@@ -334,7 +359,7 @@ function startSim() {
   sim = new SimInput(camera, renderer.domElement);
   sim.base.set(0, 1.65, 0);
   player.sim = sim; window.sim = sim;
-  scene.background = new THREE.Color(0x2a2c31);
+  applyMode();
   resetRound();
   addEventListener('keydown', e => {
     if (e.code !== 'KeyV') return;
@@ -358,3 +383,15 @@ for (const b of document.querySelectorAll('#levels button')) b.onclick = () => {
   showLevel();
 };
 showLevel();
+
+function showMode() {
+  for (const b of document.querySelectorAll('#modes button')) b.classList.toggle('on', b.dataset.mode === mode);
+  $('enter').textContent = mode === 'arena' ? 'Entra nell\'arena' : 'Entra nel ring';
+}
+for (const b of document.querySelectorAll('#modes button')) b.onclick = () => {
+  mode = b.dataset.mode;
+  try { localStorage.setItem('hb-mode', mode); } catch (e) {}
+  showMode();
+  if (sim) applyMode();
+};
+showMode();
