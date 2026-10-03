@@ -38,14 +38,18 @@ class FighterAsPlayer {
 
 export class CpuMatch {
   // A, B: istanze di Mike (pugili); secs: durata; onHit(zone, power) per pubblico e suoni
-  constructor(A, B, secs, hooks = {}) {
+  constructor(A, B, secs, hooks = {}, delay = 0) {
     this.f = [A, B]; this.view = [new FighterAsPlayer(B), new FighterAsPlayer(A)];   // A vede B e viceversa
-    this.dmg = [0, 0]; this.pts = [0, 0]; this.time = secs; this.done = false; this.winner = null; this.endT = 0;
+    this.dmg = [0, 0]; this.pts = [0, 0]; this.hits = [0, 0]; this.delay = delay; this.time = secs; this.done = false; this.winner = null; this.endT = 0;
     this.hooks = hooks;
-    for (const f of this.f) { f.resetPose(); f.enabled = true; f.events.length = 0; }
+    for (const f of this.f) { f.resetPose(); f.enabled = delay <= 0; f.events.length = 0; }
   }
   update(dt) {
     if (this.done) return;
+    if (this.delay > 0) {                             // presentazione: fermi in guardia, poi la campana
+      this.delay -= dt;
+      if (this.delay <= 0) { for (const f of this.f) f.enabled = true; if (this.hooks.onStart) this.hooks.onStart(); }
+    }
     for (const v of this.view) v.update(dt);
     for (let i = 0; i < 2; i++) this.f[i].update(dt, this.view[i]);
     // conta solo i pugni che vanno a segno di ciascuno (i "mikeHit": il suo colpo ha preso l'altro)
@@ -53,7 +57,7 @@ export class CpuMatch {
       for (const e of this.f[i].events) {
         if (e.type !== 'mikeHit' || this.endT) continue;
         const o = 1 - i, power = 0.8 + Math.random() * 0.5;
-        this.pts[i] += e.zone === 'head' ? 2 : 1;
+        this.pts[i] += e.zone === 'head' ? 2 : 1; this.hits[i]++;
         this.dmg[o] = Math.min(100, this.dmg[o] + (e.zone === 'head' ? 3.5 + 6 * power : 2 + 3.5 * power));
         if (this.hooks.onHit) this.hooks.onHit(e.zone, power);
         if (this.dmg[o] >= 100) { this.winner = i; this.f[o].knockdown(); this.f[i].enabled = false; this.endT = 4; if (this.hooks.onKO) this.hooks.onKO(); }
@@ -62,12 +66,14 @@ export class CpuMatch {
     }
     for (let i = 0; i < 2; i++) this.f[i].fatigue = this.dmg[i] / 100;
     if (this.endT) { this.endT -= dt; if (this.endT <= 0) this.finish(); return; }
+    if (this.delay > 0) return;
     this.time -= dt;
     if (this.time <= 0) this.finish();
   }
   // fine (o salto al risultato): KO gia' avvenuto, altrimenti ai punti; se si salta prima, si stima dall'andamento
   finish(skipped = false) {
     if (this.done) return;
+    if (this.delay > 0) skipped = true;
     if (this.winner === null) {
       const [a, b] = this.pts;
       if (a !== b && !skipped) this.winner = a > b ? 0 : 1;

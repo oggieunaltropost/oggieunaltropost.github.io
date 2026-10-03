@@ -2,21 +2,21 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003165254';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003165254';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003165254';
-import { Player, SimInput } from './player.js?v=20261003165254';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003165254';
-import { Room } from './room.js?v=20261003165254';
-import { Arena } from './arena.js?v=20261003165254';
-import { Beach } from './beach.js?v=20261003165254';
-import { RingGirl } from './ringgirl.js?v=20261003165254';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003165254';
-import * as sfx from './sfx.js?v=20261003165254';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003165254';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003165254';
-import { Tournament, BracketView } from './tournament.js?v=20261003165254';
-import { CpuMatch } from './cpu_match.js?v=20261003165254';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003172125';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003172125';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003172125';
+import { Player, SimInput } from './player.js?v=20261003172125';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003172125';
+import { Room } from './room.js?v=20261003172125';
+import { Arena } from './arena.js?v=20261003172125';
+import { Beach } from './beach.js?v=20261003172125';
+import { RingGirl } from './ringgirl.js?v=20261003172125';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003172125';
+import * as sfx from './sfx.js?v=20261003172125';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003172125';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003172125';
+import { Tournament, BracketView } from './tournament.js?v=20261003172125';
+import { CpuMatch } from './cpu_match.js?v=20261003172125';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -183,7 +183,7 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003165254`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003172125`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -217,7 +217,8 @@ const rootMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.0, 
 // Arcade: stage, avversario e opzioni dell'incontro
 const arcadeMenu = new MenuPanel({ title: t('arcade'), titleTk: 'arcade', titleH: 0.1, width: 1.0, height: 1.52, rows: withText([
   stageRow(0.48),
-  { label: t('opponent'), tk: 'opponent', y: 0.22, h: 0.2, buttons: FIGHTER_IDS.map(id => ({ id: 'f:' + id, text: FIGHTERS[id].name, w: 0.26, img: fighterImg(id) })) },
+  { label: t('opponent'), tk: 'opponent', y: 0.22, h: 0.2, buttons: [...FIGHTER_IDS.map(id => ({ id: 'f:' + id, text: FIGHTERS[id].name, w: 0.26, img: fighterImg(id) })),
+    { id: 'f:random', tk: 'f_random', w: 0.26, img: randomPreview() }] },
   ...optionRows(0.01),
   { y: -0.65, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'start', tk: 'start', w: 0.5, color: 0x1f8a4c }] },
 ]) });
@@ -239,12 +240,14 @@ scene.add(tourBtns.group);
 const skipBtn = new MenuPanel({ title: '', titleH: 0.02, width: 0.3, height: 0.1, rows: withText([
   { y: -0.005, h: 0.06, buttons: [{ id: 'skip', tk: 'tr_skip', w: 0.25, color: 0x3a4254 }] }]) });
 scene.add(skipBtn.group);
-let armsUpT = 0, prevButtons = false;
+let prevButtons = false;
 
 let mike = null;
 // avversario scelto (nel codice resta "mike" = l'avversario)
 let fighterId = 'bruce';
 try { fighterId = localStorage.getItem('hb-fighter') || 'bruce'; } catch (e) {}
+let oppChoice = fighterId;                  // avversario scelto in arcade: un pugile o 'random'
+try { oppChoice = localStorage.getItem('hb-opp') || fighterId; } catch (e) {}
 if (!FIGHTERS[fighterId]) fighterId = 'bruce';
 setOpponentName(FIGHTERS[fighterId].name);
 let sim = null, orbit = null;
@@ -781,6 +784,9 @@ function tick(dt, frame) {
   if (cpu) {
     for (const g of Object.values(player.gloves)) g.mesh.visible = false;      // guardi soltanto
     cpu.update(dt);
+    const st = i => ({ points: cpu.pts[i], dmg: cpu.dmg[i], hits: cpu.hits[i], blocks: 0, dodges: 0 });
+    board.draw({ round: 1, rounds: 1, level: t('l_' + level), time: Math.max(0, cpu.time), running: cpu.delay <= 0, player: st(0), mike: st(1),
+      names: [tour.p[pending.cm.a].name.toUpperCase(), tour.p[pending.cm.b].name.toUpperCase()], message: t('cpu_vs', { a: tour.p[pending.cm.a].name, b: tour.p[pending.cm.b].name }), diag: '' });
     if (skipBtn.update(dt, []) === 'skip') { sfx.punchBlock(); cpu.finish(true); }
     if (cpu.done) endCpuWatch();
   } else if (mike && game.phase !== 'watch') {
@@ -797,7 +803,7 @@ function tick(dt, frame) {
   }
   if (party.update(dt)) sfx.firework();
   if (arenaEnv && arenaEnv.group.visible) { arenaEnv.update(dt); sfx.crowdLevel(arenaEnv.excite); }
-  if (beachEnv && beachEnv.group.visible) beachEnv.update(dt, h => sfx.wave(0.2 + 0.25 * h));
+  if (beachEnv && beachEnv.group.visible) beachEnv.update(dt, h => sfx.wave(0.2 + 0.25 * h), p => sfx.gull(p, renderer.xr.isPresenting ? renderer.xr.getCamera() : camera));
   rayPointers.update(rays, menuOpen);
   player.endFrame();
   renderer.render(scene, camera);
@@ -816,7 +822,7 @@ function closePause() {
   game.paused = false; pause.close();
   mike.enabled = game.phase === 'fight' && !game.kd;
 }
-const menuChoices = () => ['gm:' + gameMode, 's:' + stageChoice, 'f:' + fighterId, 'l:' + level, 'r:' + rounds, 'd:' + roundSecs,
+const menuChoices = () => ['s:' + stageChoice, 'f:' + oppChoice, 'l:' + level, 'r:' + rounds, 'd:' + roundSecs,
   threeKO ? 'k:si' : 'k:no', 'g:' + lang];
 function menuYaw() {
   const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
@@ -909,14 +915,18 @@ async function startCpuWatch() {
     if (d < 1.5) { pos.x = player.head.x + dx / Math.max(d, 1e-3) * 1.5; pos.z = player.head.z + dz / Math.max(d, 1e-3) * 1.5; }
   };
   mike.bounds = away; cpuB.bounds = away;
-  const place = (f, x) => { f.root.position.set(x, 0, -Math.min(0.6, ringSize / 2 - 0.9)).applyMatrix4(arena.matrixWorld); f.root.visible = true; };
-  place(mike, -0.6); place(cpuB, 0.6);
-  setPeople(true); board.mesh.visible = false;
+  const zc = -Math.min(0.6, ringSize / 2 - 0.9), half = Math.min(0.95, ringSize / 2 - 0.6);
+  const place = (f, x) => { f.root.position.set(x, 0, zc).applyMatrix4(arena.matrixWorld); f.root.visible = true; };
+  place(mike, -half); place(cpuB, half);           // ognuno dal suo lato: l'incontro comincia dall'inizio
+  setPeople(true);
+  const nA = tour.p[cm.a], nB = tour.p[cm.b];
+  const intro = [`name_${nA.id}`, 'intro_blue_g', `name_${nB.id}`, 'round_1'];   // "Bruce… e nell'angolo blu… Mike! Round uno"
+  sfx.announce(intro);
   cpu = new CpuMatch(mike, cpuB, roundSecs, {
     onHit: (zone, p) => { sfx.punchHit(Math.min(1.3, 0.6 + p * 0.4)); if (arenaEnv) arenaEnv.cheer(zone === 'head' ? 0.8 : 0.5); if (mode === 'arena' && zone === 'head') sfx.cheer('boato', 0.5); },
     onKO: () => { sfx.voiceNow('knockdown'); if (arenaEnv) arenaEnv.cheer(2); if (mode === 'arena') sfx.cheer('boato', 1); },
-  });
-  sfx.bell(1);
+    onStart: () => { sfx.bell(1); sfx.announce(['box']); if (mode === 'arena') sfx.cheer('boato', 0.8); },
+  }, Math.max(3.5, intro.reduce((s, n) => s + sfx.voiceDur(n), 0) + 0.8));
   // pulsante discreto, in basso di lato, per andare subito al risultato
   skipBtn.open(player.head, menuYaw() + 0.75, 0.55, 0.45);
 }
@@ -925,7 +935,7 @@ function endCpuWatch() {
   sfx.bell(3);
   cpu = null; skipBtn.close();
   if (cpuB) { scene.remove(cpuB.root); cpuB = null; }
-  mike.bounds = keepInRing; mike.resetPose(); board.mesh.visible = true;
+  mike.bounds = keepInRing; mike.resetPose();
   pending = null;
   advanceRound(youWon, { [cm.j]: w });
 }
@@ -979,8 +989,11 @@ function updateMainMenu(dt, gloves) {
   else if (id.startsWith('k:')) { threeKO = id === 'k:si'; try { localStorage.setItem('hb-3ko', threeKO ? 'si' : 'no'); } catch (e) {} }
   else if (id.startsWith('r:')) { rounds = parseInt(id.slice(2)); try { localStorage.setItem('hb-rounds', rounds); } catch (e) {} }
   else if (id.startsWith('g:')) setLang(id.slice(2));
-  else if (id.startsWith('f:')) setFighter(id.slice(2));
-  else if (id === 'start') { tour = null; startFight(fighterId); return; }
+  else if (id.startsWith('f:')) {
+    oppChoice = id.slice(2); try { localStorage.setItem('hb-opp', oppChoice); } catch (e) {}
+    if (oppChoice !== 'random') setFighter(oppChoice);
+  }
+  else if (id === 'start') { tour = null; startFight(oppChoice === 'random' ? FIGHTER_IDS[Math.floor(Math.random() * FIGHTER_IDS.length)] : oppChoice); return; }
   else if (id === 'start_tour') { tour = new Tournament(FIGHTERS); showBracketNext(); return; }
   else if (id === 'quit') { closeMenus(); const s = renderer.xr.getSession(); if (s) s.end(); return; }
   menu.select(menuChoices());
@@ -988,8 +1001,6 @@ function updateMainMenu(dt, gloves) {
 
 function updatePause(dt) {
   const g = Object.values(player.gloves);
-  const up = g.every(x => x.mesh.visible && x.center.y > player.head.y + 0.11);   // mani alla fronte (piu' su il visore non le vede)
-  armsUpT = up ? armsUpT + dt : 0;
   let pressed = false;
   for (const s of player.sources) {
     const b = s.gamepad && s.gamepad.buttons;
@@ -998,7 +1009,7 @@ function updatePause(dt) {
   const click = pressed && !prevButtons; prevButtons = pressed;
   if (game.phase === 'menu') { updateMainMenu(dt, g); return; }
   if (game.phase === 'watch') return;                 // incontro CPU: niente pausa, c'e' il pulsante per saltare
-  if (!game.paused && !pause.group.visible && game.phase !== 'end' && (armsUpT > 1.5 || click)) { armsUpT = -2; openPause(); return; }
+  if (!game.paused && !pause.group.visible && game.phase !== 'end' && click) { openPause(); return; }
   if (game.paused && click) { closePause(); return; }
   const id = pause.update(dt, g);
   if (id === 'resume') closePause();

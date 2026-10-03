@@ -1,6 +1,6 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261003165254';
+import { t as tr } from './i18n.js?v=20261003172125';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
 let RAYS = [];
@@ -103,8 +103,8 @@ export class Scoreboard {
       const extra = [p.kd ? tr('down_times', { n: p.kd, v: tr(p.kd === 1 ? 'once' : 'times') }) : '', p.penalties ? tr('penalties', { n: p.penalties }) : ''].filter(Boolean).join(' · ');
       if (extra) { g.fillStyle = p.penalties ? '#ffd34d' : '#ff8a8a'; g.fillText(extra, x, 428); }
     };
-    col(W * 0.27, tr('you'), '#c4161f', s.player);
-    col(W * 0.73, tr('opp'), '#1a49b8', s.mike);
+    col(W * 0.27, s.names ? s.names[0] : tr('you'), '#c4161f', s.player);
+    col(W * 0.73, s.names ? s.names[1] : tr('opp'), '#1a49b8', s.mike);
     g.fillStyle = '#2a2f3a'; g.fillRect(W / 2 - 2, 110, 4, 300);
     g.fillStyle = '#ffffff'; g.font = '700 34px system-ui, sans-serif';
     g.fillText(s.message || '', W / 2, 482);

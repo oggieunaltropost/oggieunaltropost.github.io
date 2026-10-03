@@ -3,7 +3,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
-import { fixHumanMaterial } from './ringgirl.js?v=20261003165254';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { fixHumanMaterial } from './ringgirl.js?v=20261003172125';
 
 const SKIN = [0x3b2417, 0x5a3825, 0x7a4e33, 0x9a6a48, 0xc08d6a, 0xe0b594, 0xf1cfb4];
 const SHIRT = [0xd81e2c, 0x1d4fc4, 0xf2f2f2, 0x1b1b1f, 0xffc93a, 0x2e8b57, 0x8a2be2, 0xff7f27, 0x4cc3e6, 0x9e9e9e, 0x6b3e26];
@@ -134,29 +135,26 @@ export class Arena {
   // Bordo ring: persone vere in 3D (blender/create_crowd.py ... glb), sedute su sedie, animate.
   async loadRingside() {
     const loader = new GLTFLoader();
-    const models = (await Promise.all([0, 1, 2, 3, 4, 5, 6, 7].map(i => loader.loadAsync(`assets/spettatori/s${i}.glb?v=20261003165254`).catch(() => null)))).filter(Boolean);
+    const models = (await Promise.all([0, 1, 2, 3, 4, 5, 6, 7].map(i => loader.loadAsync(`assets/spettatori/s${i}.glb?v=20261003172125`).catch(() => null)))).filter(Boolean);
     if (!models.length) return;
     const chairMat = new THREE.MeshStandardMaterial({ color: 0x1b1d22, roughness: 0.6, metalness: 0.3 });
-    const seatG = new THREE.BoxGeometry(0.46, 0.05, 0.44), backG = new THREE.BoxGeometry(0.46, 0.45, 0.04);
+    // una sedia = una sola geometria (seduta, schienale, gambe), e tutte le sedie in un'unica mesh: poche chiamate di disegno
+    const parts = [new THREE.BoxGeometry(0.46, 0.05, 0.44).translate(0, 0.44, 0), new THREE.BoxGeometry(0.46, 0.45, 0.04).translate(0, 0.68, -0.22)];
+    for (const lx of [-0.2, 0.2]) for (const lz of [-0.19, 0.19]) parts.push(new THREE.CylinderGeometry(0.015, 0.015, 0.44, 6).toNonIndexed().translate(lx, 0.22, lz));
+    const chairG = mergeGeometries(parts.map(g => g.index ? g.toNonIndexed() : g)), chairs = [];
     const d = this.R + 1.25; let k = 0;
     for (let side = 0; side < 4; side++) {
       if (side === 0) continue;                       // dietro di te non serve (non lo vedi)
       const rot = side * Math.PI / 2;
-      for (let j = -3; j <= 3; j++) {
-        const along = j * 0.78 + (Math.random() - 0.5) * 0.08;
+      for (let j = -2; j <= 2; j++) {                 // 5 per lato (prima 7: troppo pesante sul visore)
+        const along = j * 0.95 + (Math.random() - 0.5) * 0.08;
         const x = Math.sin(rot) * d + Math.cos(rot) * along, z = Math.cos(rot) * d - Math.sin(rot) * along;
         const face = Math.atan2(-x, -z);
-        const chair = new THREE.Group();
-        const seat = new THREE.Mesh(seatG, chairMat); seat.position.y = 0.44; chair.add(seat);
-        const back = new THREE.Mesh(backG, chairMat); back.position.set(0, 0.68, -0.22); chair.add(back);   // schienale dietro la persona
-        for (const lx of [-0.2, 0.2]) for (const lz of [-0.19, 0.19]) {
-          const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.44, 6), chairMat); leg.position.set(lx, 0.22, lz); chair.add(leg);
-        }
-        chair.position.set(x, 0, z); chair.rotation.y = face; this.group.add(chair);
+        chairs.push(chairG.clone().rotateY(face).translate(x, 0, z));
         if (Math.random() < 0.12) continue;          // qualche sedia vuota
         const g = models[(k++) % models.length];
         const p = SkeletonUtils.clone(g.scene);
-        p.traverse(o => { if (o.isMesh) { o.frustumCulled = false; fixHumanMaterial(o); } });
+        p.traverse(o => { if (o.isMesh) { fixHumanMaterial(o); o.castShadow = false; if (o.isSkinnedMesh) { o.computeBoundingSphere(); o.boundingSphere.radius += 0.6; } } });   // fuori vista = non disegnato
         p.position.set(x - Math.sin(face) * 0.02, 0, z - Math.cos(face) * 0.02); p.rotation.y = face;
         this.group.add(p);
         if (this.peopleOn === false) p.visible = false;
@@ -167,6 +165,7 @@ export class Arena {
         this.ringside.push({ obj: p, mixer, acts, cur: 'seduto', w: { seduto: 1, applaude: 0, esulta: 0 }, fan: Math.random(), next: Math.random() * 6 });
       }
     }
+    if (chairs.length) this.group.add(new THREE.Mesh(mergeGeometries(chairs), chairMat));
   }
 
   setPeople(v) {
@@ -175,8 +174,12 @@ export class Arena {
     for (const r of this.ringside) r.obj.visible = v;
   }
 
-  _updateRingside(dt) {
-    for (const r of this.ringside) {
+  _updateRingside(dt0) {
+    this._half = !this._half; const h = this._half ? 0 : 1;       // meta' delle persone per fotogramma (animazione a passi doppi)
+    this.ringside.forEach((r, i) => {
+      r.acc = (r.acc || 0) + dt0;
+      if (i % 2 !== h) return;
+      const dt = r.acc; r.acc = 0;
       const hype = Math.min(1, this.excite * (0.6 + r.fan));
       r.next -= dt;
       let want = r.cur;
@@ -190,7 +193,7 @@ export class Arena {
         if (r.acts[n]) r.acts[n].setEffectiveWeight(r.w[n]);
       }
       r.mixer.update(dt);
-    }
+    });
   }
 
   // Pubblico: persone vere create in Blender (blender/create_crowd.py) e fotografate in 3 pose
@@ -198,7 +201,7 @@ export class Arena {
   // Atlante: 6 colonne x 8 righe, celle 256x512; persona p -> riga p/2, colonna (p%2)*3 + posa.
   _buildCrowd(seats) {
     const n = seats.length, PEOPLE = 16, COLS = 6, ROWS = 8;
-    const tex = new THREE.TextureLoader().load('assets/pubblico.webp?v=20261003165254');
+    const tex = new THREE.TextureLoader().load('assets/pubblico.webp?v=20261003172125');
     tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
     const geo = new THREE.PlaneGeometry(1.15, 2.3); geo.translate(0, 1.15, 0);   // piedi a terra
     const aCell = new Float32Array(n * 2), aPose = new Float32Array(n), aTint = new Float32Array(n);

@@ -71,7 +71,7 @@ export class Beach {
 
   // cielo e sfondo: il panorama a 360 gradi della spiaggia vera (proiezione equirettangolare)
   _sky() {
-    const tex = new THREE.TextureLoader().load('assets/spiaggia_cielo.jpg?v=20261003165254', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load('assets/spiaggia_cielo.jpg?v=20261003172125', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -112,7 +112,7 @@ export class Beach {
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     g.setIndex(idx); g.computeVertexNormals();
     const L = new THREE.TextureLoader();
-    const tex = L.load('assets/sabbia_colore.jpg?v=20261003165254'), nrm = L.load('assets/sabbia_rilievo.jpg?v=20261003165254');
+    const tex = L.load('assets/sabbia_colore.jpg?v=20261003172125'), nrm = L.load('assets/sabbia_rilievo.jpg?v=20261003172125');
     tex.colorSpace = THREE.SRGBColorSpace;
     for (const t of [tex, nrm]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; }
     const m = new THREE.MeshStandardMaterial({ map: tex, normalMap: nrm, normalScale: new THREE.Vector2(1.4, 1.4), vertexColors: true, roughness: 1 });
@@ -322,12 +322,18 @@ export class Beach {
     }
   }
 
-  update(dt, onBreak) {
+  update(dt, onBreak, onGull) {
     this.t += dt;
     const t = this.t;
     // il mare e' lontano: ogni tanto il rumore di un'onda che si infrange
     this.nextWave = (this.nextWave ?? 3) - dt;
     if (this.nextWave <= 0) { this.nextWave = 5 + Math.random() * 7; if (onBreak) onBreak(0.5 + Math.random() * 0.6); }
+    // ogni tanto un gabbiano lontano grida (il suono parte da dove vola davvero)
+    this.nextGull = (this.nextGull ?? 6) - dt;
+    if (this.nextGull <= 0 && this.birds.length) {
+      this.nextGull = 9 + Math.random() * 16;
+      if (onGull) onGull(this.birds[Math.floor(Math.random() * this.birds.length)].getWorldPosition(new THREE.Vector3()));
+    }
     // gabbiani, bandiera
     for (const b of this.birds) {
       const p = b.userData.p; p.a += p.w * dt;
