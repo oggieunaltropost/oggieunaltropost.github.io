@@ -357,7 +357,17 @@ export class Mike {
 
   setLevel(name) {
     this.levelName = LEVELS[name] ? name : 'normale';
-    this.cfg = { ...MIKE, ...LEVELS[this.levelName] };
+    this.applyRound(this.round || 1);
+  }
+  // stanchezza dei round (non la salute): un po' piu' lento e meno pronto a ogni round, +2,5% fino al 25% al massimo
+  applyRound(round) {
+    this.round = round;
+    const t = Math.min(0.25, 0.025 * (round - 1)), b = { ...MIKE, ...LEVELS[this.levelName] };
+    this.cfg = { ...b,
+      punchSpeed: b.punchSpeed * (1 - 0.6 * t), moveSpeed: b.moveSpeed * (1 - 0.6 * t), defenseSpeed: b.defenseSpeed * (1 - 0.8 * t),
+      reactChance: b.reactChance * (1 - 0.6 * t), reactDelay: b.reactDelay.map(v => v + 0.12 * t),
+      evade: (b.evade ?? 0) * (1 - 0.8 * t), reflex: (b.reflex ?? 0) * (1 - 0.8 * t),
+      attackEvery: b.attackEvery.map(v => v * (1 + t)) };
   }
 
   // --------------------------------------------------------------- animazioni

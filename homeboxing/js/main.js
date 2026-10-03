@@ -2,19 +2,19 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003154145';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003154145';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003154145';
-import { Player, SimInput } from './player.js?v=20261003154145';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003154145';
-import { Room } from './room.js?v=20261003154145';
-import { Arena } from './arena.js?v=20261003154145';
-import { Beach } from './beach.js?v=20261003154145';
-import { RingGirl } from './ringgirl.js?v=20261003154145';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003154145';
-import * as sfx from './sfx.js?v=20261003154145';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003154145';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003154145';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003154325';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003154325';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003154325';
+import { Player, SimInput } from './player.js?v=20261003154325';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003154325';
+import { Room } from './room.js?v=20261003154325';
+import { Arena } from './arena.js?v=20261003154325';
+import { Beach } from './beach.js?v=20261003154325';
+import { RingGirl } from './ringgirl.js?v=20261003154325';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003154325';
+import * as sfx from './sfx.js?v=20261003154325';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003154325';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003154325';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -174,7 +174,7 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003154145`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003154325`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 const mainMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.0, height: 1.72, rows: [
   { label: t('where'), tk: 'where', y: 0.565, h: 0.22, buttons: [{ id: 'm:stanza', tk: 'm_stanza', w: 0.29, img: roomPreview() },
@@ -291,7 +291,7 @@ function newMatch() {
 }
 function startRound() {
   girl.stop(); stool.visible = false; nextMenu.close(); introMenu.close(); countdown.hide();
-  if (mike) mike.leaveCorner();
+  if (mike) { mike.leaveCorner(); mike.applyRound(game.round); }    // l'avversario si stanca round dopo round
   game.time = roundSecs; game.phase = 'ready'; game.phaseT = 0; game.paused = false; game.kd = null; game.foul = null;
   game.announced = false; game.lastCount = 0; game.girlStarted = false;
   game.player.kdRound = 0; game.mike.kdRound = 0;
