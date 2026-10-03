@@ -1,6 +1,6 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261003154325';
+import { t as tr } from './i18n.js?v=20261003161454';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
 let RAYS = [];
@@ -319,8 +319,9 @@ export class MenuPanel {
   // cambio lingua: tr(chiave) per sottotitolo, etichette delle righe e pulsanti che hanno una chiave (tk)
   relabel() {
     if (this.sub && this.spec.subtitleTk) this._paint(this.sub, tr(this.spec.subtitleTk), this.sub.userData.color);
+    if (this.spec.titleTk) this.setTitle(tr(this.spec.titleTk));
     for (const r of this.rowLabels) if (r.tk) this._paint(r.m, tr(r.tk), r.m.userData.color);
-    for (const b of this.buttons) if (b.tk) { b.text = tr(b.tk); this._paint(b.label, b.text, b.on ? '#111111' : '#ffffff'); }
+    for (const b of this.buttons) if (b.tk) { b.text = tr(b.tk) + (b.disabled ? ' (' + tr('soon') + ')' : ''); this._paint(b.label, b.text, b.disabled ? '#8a909c' : b.on ? '#111111' : '#ffffff'); }
     this.titleText = null;
   }
   setTitle(text) { if (text !== this.titleText) { this.titleText = text; this._paint(this.title, text, this.title.userData.color); } }
@@ -338,6 +339,7 @@ export class MenuPanel {
     this.group.updateMatrixWorld(true);
     const aimed = pointed(this.group, this.buttons, 0.035, b => [b.g.position.x, b.g.position.y, b.w / 2, b.bh / 2], [this.W / 2 + 0.05, this.H / 2 + 0.05]);
     for (const b of this.buttons) {
+      if (b.disabled || !b.g.visible) continue;       // (non ancora disponibile o nascosto)
       const p = b.g.getWorldPosition(new THREE.Vector3());
       const on = aimed.has(b) || gloves.some(g => g.mesh.visible && g.center.distanceTo(p) < Math.max(0.09, b.w / 2));
       b.t = on ? b.t + dt : Math.max(0, b.t - dt * 3);

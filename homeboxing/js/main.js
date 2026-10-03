@@ -2,19 +2,20 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003154325';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003154325';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003154325';
-import { Player, SimInput } from './player.js?v=20261003154325';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003154325';
-import { Room } from './room.js?v=20261003154325';
-import { Arena } from './arena.js?v=20261003154325';
-import { Beach } from './beach.js?v=20261003154325';
-import { RingGirl } from './ringgirl.js?v=20261003154325';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003154325';
-import * as sfx from './sfx.js?v=20261003154325';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003154325';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003154325';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003161454';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003161454';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003161454';
+import { Player, SimInput } from './player.js?v=20261003161454';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003161454';
+import { Room } from './room.js?v=20261003161454';
+import { Arena } from './arena.js?v=20261003161454';
+import { Beach } from './beach.js?v=20261003161454';
+import { RingGirl } from './ringgirl.js?v=20261003161454';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003161454';
+import * as sfx from './sfx.js?v=20261003161454';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003161454';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003161454';
+import { Tournament, BracketView } from './tournament.js?v=20261003161454';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -107,6 +108,13 @@ if (!LEVELS[level]) level = 'normale';
 const MODES = ['stanza', 'arena', 'spiaggia'];
 let mode = 'stanza';
 try { mode = localStorage.getItem('hb-mode') || 'stanza'; } catch (e) {}
+// stage scelto nel menu: uno dei tre oppure 'random' (estratto a ogni incontro tra gli stage virtuali)
+let stageChoice = mode;
+try { stageChoice = localStorage.getItem('hb-stage') || mode; } catch (e) {}
+let gameMode = 'arcade';
+try { gameMode = localStorage.getItem('hb-gamemode') || 'arcade'; } catch (e) {}
+let tour = null;                      // torneo in corso
+
 if (!MODES.includes(mode)) mode = 'stanza';
 let arenaEnv = null, beachEnv = null;
 function applyMode() {
@@ -174,22 +182,58 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003154325`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003161454`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
-const mainMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.0, height: 1.72, rows: [
-  { label: t('where'), tk: 'where', y: 0.565, h: 0.22, buttons: [{ id: 'm:stanza', tk: 'm_stanza', w: 0.29, img: roomPreview() },
-    { id: 'm:arena', tk: 'm_arena', w: 0.29, img: stageImg('arena') }, { id: 'm:spiaggia', tk: 'm_spiaggia', w: 0.29, img: stageImg('spiaggia') }] },
-  { label: t('opponent'), tk: 'opponent', y: 0.27, h: 0.22, buttons: FIGHTER_IDS.map(id => ({ id: 'f:' + id, text: FIGHTERS[id].name, w: 0.29, img: fighterImg(id) })) },
-  { label: t('level'), tk: 'level', y: 0.035, buttons: [{ id: 'l:facile', tk: 'l_facile', w: 0.205 }, { id: 'l:normale', tk: 'l_normale', w: 0.205 },
+// anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
+function randomPreview() {
+  const c = document.createElement('canvas'); c.width = 320; c.height = 200;
+  const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0, 0, 320, 200); gr.addColorStop(0, '#1b2a4a'); gr.addColorStop(0.5, '#2a7fb5'); gr.addColorStop(1, '#d9b46a');
+  g.fillStyle = gr; g.fillRect(0, 0, 320, 200);
+  g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(0, 0, 320, 200);
+  g.fillStyle = '#ffd34d'; g.font = '900 150px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 12; g.fillText('?', 160, 108);
+  const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; return tx;
+}
+const withText = rows => rows.map(r => ({ ...r, buttons: r.buttons.map(b => ({ ...b, text: b.tk ? t(b.tk) + (b.disabled ? ' (' + t('soon') + ')' : '') : b.text })) }));
+const stageRow = y => ({ label: t('stage'), tk: 'stage', y, h: 0.2, buttons: [
+  { id: 's:stanza', tk: 'm_stanza', w: 0.22, img: roomPreview() }, { id: 's:arena', tk: 'm_arena', w: 0.22, img: stageImg('arena') },
+  { id: 's:spiaggia', tk: 'm_spiaggia', w: 0.22, img: stageImg('spiaggia') }, { id: 's:random', tk: 'm_random', w: 0.22, img: randomPreview() }] });
+const optionRows = y0 => [
+  { label: t('level'), tk: 'level', y: y0, buttons: [{ id: 'l:facile', tk: 'l_facile', w: 0.205 }, { id: 'l:normale', tk: 'l_normale', w: 0.205 },
     { id: 'l:difficile', tk: 'l_difficile', w: 0.205 }, { id: 'l:impossibile', tk: 'l_impossibile', w: 0.205 }] },
-  { label: t('rounds'), tk: 'rounds', y: -0.10, buttons: [{ id: 'r:1', text: '1', w: 0.15 }, { id: 'r:3', text: '3', w: 0.15 }, { id: 'r:6', text: '6', w: 0.15 }, { id: 'r:12', text: '12', w: 0.15 }] },
-  { label: t('duration'), tk: 'duration', y: -0.26, buttons: [{ id: 'd:60', text: '1 min', w: 0.2 }, { id: 'd:120', text: '2 min', w: 0.2 }, { id: 'd:180', text: '3 min', w: 0.2 }] },
-  { label: t('rule3'), tk: 'rule3', y: -0.42, buttons: [{ id: 'k:si', tk: 'yes', w: 0.2 }, { id: 'k:no', tk: 'no', w: 0.2 }] },
-  { label: t('language'), tk: 'language', y: -0.58, buttons: [{ id: 'g:it', text: 'Italiano', w: 0.26 }, { id: 'g:en', text: 'English', w: 0.26 }] },
-  { y: -0.76, h: 0.12, buttons: [{ id: 'start', tk: 'start', w: 0.52, color: 0x1f8a4c }, { id: 'quit', tk: 'quit', w: 0.34, color: 0xc4161f }] },
-].map(r => ({ ...r, buttons: r.buttons.map(b => ({ ...b, text: b.tk ? t(b.tk) : b.text })) })) });
-mainMenu.group.scale.setScalar(0.88);           // piu' righe: stesso ingombro di prima
-scene.add(mainMenu.group);
+  { label: t('rounds'), tk: 'rounds', y: y0 - 0.16, buttons: [{ id: 'r:1', text: '1', w: 0.15 }, { id: 'r:3', text: '3', w: 0.15 }, { id: 'r:6', text: '6', w: 0.15 }, { id: 'r:12', text: '12', w: 0.15 }] },
+  { label: t('duration'), tk: 'duration', y: y0 - 0.32, buttons: [{ id: 'd:60', text: '1 min', w: 0.2 }, { id: 'd:120', text: '2 min', w: 0.2 }, { id: 'd:180', text: '3 min', w: 0.2 }] },
+];
+// menu iniziale: modalita' di gioco, regole generali, lingua
+const rootMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.0, height: 0.98, rows: withText([
+  { label: t('mode_title'), tk: 'mode_title', y: 0.21, h: 0.12, buttons: [{ id: 'gm:arcade', tk: 'm_arcade', w: 0.29, color: 0x1f6f8a },
+    { id: 'gm:training', tk: 'm_training', w: 0.29, color: 0x2a2e36, disabled: true }, { id: 'gm:tour', tk: 'm_tour', w: 0.29, color: 0x7a5a10 }] },
+  { label: t('rule3'), tk: 'rule3', y: 0.0, buttons: [{ id: 'k:si', tk: 'yes', w: 0.2 }, { id: 'k:no', tk: 'no', w: 0.2 }] },
+  { label: t('language'), tk: 'language', y: -0.16, buttons: [{ id: 'g:it', text: 'Italiano', w: 0.26 }, { id: 'g:en', text: 'English', w: 0.26 }] },
+  { y: -0.36, h: 0.1, buttons: [{ id: 'quit', tk: 'quit', w: 0.4, color: 0xc4161f }] },
+]) });
+// Arcade: stage, avversario e opzioni dell'incontro
+const arcadeMenu = new MenuPanel({ title: t('arcade'), titleTk: 'arcade', titleH: 0.1, width: 1.0, height: 1.36, rows: withText([
+  stageRow(0.40),
+  { label: t('opponent'), tk: 'opponent', y: 0.14, h: 0.2, buttons: FIGHTER_IDS.map(id => ({ id: 'f:' + id, text: FIGHTERS[id].name, w: 0.26, img: fighterImg(id) })) },
+  ...optionRows(-0.07),
+  { y: -0.57, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'start', tk: 'start', w: 0.5, color: 0x1f8a4c }] },
+]) });
+// Torneo: come l'arcade ma gli avversari li assegna il tabellone
+const tourMenu = new MenuPanel({ title: t('tour'), titleTk: 'tour', titleH: 0.1, width: 1.0, height: 1.16, rows: withText([
+  stageRow(0.29),
+  ...optionRows(0.04),
+  { y: -0.46, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'start_tour', tk: 'start_tour', w: 0.5, color: 0x1f8a4c }] },
+]) });
+const MENUS = [rootMenu, arcadeMenu, tourMenu];
+for (const m of MENUS) { m.group.scale.setScalar(0.88); scene.add(m.group); }
+const menuVisible = () => MENUS.some(m => m.group.visible) || bracket.group.visible || tourBtns.group.visible;
+// tabellone del torneo e i suoi pulsanti (sotto il tabellone)
+const bracket = new BracketView(scene, FIGHTERS);
+const tourBtns = new MenuPanel({ title: '', titleH: 0.03, width: 0.9, height: 0.16, rows: withText([
+  { y: -0.01, h: 0.09, buttons: [{ id: 'tgo', tk: 'tr_fight', w: 0.45, color: 0x1f8a4c }, { id: 'tquit', tk: 'tr_quit', w: 0.36, color: 0x7a2a2a }] }]) });
+scene.add(tourBtns.group);
 let armsUpT = 0, prevButtons = false;
 
 let mike = null;
@@ -556,6 +600,7 @@ function updateGame(dt) {
     if (game.phaseT >= REST_S) { game.round++; startRound(); }
   } else if (game.phase === 'end') {
     flash.setBase(0);
+    if (tour && game.phaseT > 6 && game.phase === 'end') { showBracketAfter(); return; }
     if (game.phaseT > 6 && !pause.group.visible) openPause(true);
   }
   const xr = renderer.xr.getSession && renderer.xr.getSession();
@@ -591,8 +636,10 @@ function startPresentation() {
 // cambio lingua dal menu: scritte e voci
 onLang(l => {
   sfx.setVoiceLang(l);
-  mainMenu.relabel(); nextMenu.relabel(); introMenu.relabel(); pause.relabel();
-  mainMenu.select(menuChoices());
+  for (const m of MENUS) m.relabel();
+  nextMenu.relabel(); introMenu.relabel(); pause.relabel(); tourBtns.relabel();
+  for (const m of MENUS) m.select(menuChoices());
+  if (bracket.group.visible && bracket.T) bracket.draw();
   if (game.phase === 'menu') game.message = t('menu');
   showMode();
   if (statusK) statusT(statusK, statusV);
@@ -662,7 +709,7 @@ function tick(dt, frame) {
     {
       const e = new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ');
       placeArena(p, e.y); placed = true;
-      if (game.phase === 'menu' && !mainMenu.group.visible) showMainMenu();
+      if (game.phase === 'menu' && !menuVisible()) showMainMenu();
     }
   }
   if (renderer.xr.isPresenting && frame && xrFrames % 30 === 0) {
@@ -708,7 +755,7 @@ function tick(dt, frame) {
   if (orbit) orbit.update();
   player.update(dt);
   // puntatori: raggi da mani e controller quando c'e' il menu aperto (puntare = toccare col guantone)
-  const menuOpen = mainMenu.group.visible || pause.group.visible;   // (solo menu principale e pausa, non i pannellini dell'incontro)
+  const menuOpen = menuVisible() || pause.group.visible;   // (solo menu principale e pausa, non i pannellini dell'incontro)
   const rays = [];
   if (menuOpen && renderer.xr.isPresenting && frame) {
     const ref = renderer.xr.getReferenceSpace();
@@ -758,31 +805,119 @@ function closePause() {
   game.paused = false; pause.close();
   mike.enabled = game.phase === 'fight' && !game.kd;
 }
-const menuChoices = () => ['m:' + mode, 'f:' + fighterId, 'l:' + level, 'r:' + rounds, 'd:' + roundSecs, threeKO ? 'k:si' : 'k:no', 'g:' + lang];
+const menuChoices = () => ['gm:' + gameMode, 's:' + stageChoice, 'f:' + fighterId, 'l:' + level, 'r:' + rounds, 'd:' + roundSecs,
+  threeKO ? 'k:si' : 'k:no', 'g:' + lang];
+function menuYaw() {
+  const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
+  return new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ').y;
+}
+function closeMenus() { for (const m of MENUS) m.close(); bracket.close(); tourBtns.close(); }
+function openMenu(m) { closeMenus(); m.select(menuChoices()); m.open(player.head, menuYaw()); }
 function showMainMenu() {
   if (greetPending) { greetPending = false; setTimeout(() => sfx.voiceNow('title'), 500); }   // "Home Boxing!" all'ingresso
   newMatch(); game.phase = 'menu'; game.message = t('menu');
-  setPeople(false);
+  setPeople(false); tour = null;
   mike.enabled = false; pause.close();
-  const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
-  const e = new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ');
-  mainMenu.select(menuChoices());
-  mainMenu.open(player.head, e.y);
+  openMenu(rootMenu);
+}
+// stage dell'incontro: quello scelto, oppure a caso tra gli stage virtuali (nel torneo senza ripetere finche' si puo')
+const VIRTUAL = ['arena', 'spiaggia'];
+function pickStage() {
+  if (stageChoice !== 'random') return stageChoice;
+  let pool = VIRTUAL;
+  if (tour) {
+    tour.stages = tour.stages || [];
+    const fresh = VIRTUAL.filter(v => !tour.stages.includes(v));
+    pool = fresh.length ? fresh : VIRTUAL.filter(v => v !== tour.stages[tour.stages.length - 1]);
+  } else pool = VIRTUAL.filter(v => v !== mode).concat(VIRTUAL.length > 1 ? [] : VIRTUAL);
+  const st = pool[Math.floor(Math.random() * pool.length)] || VIRTUAL[0];
+  if (tour) tour.stages.push(st);
+  return st;
+}
+function setStage(st) {
+  if (st === mode) return;
+  mode = st; applyMode(); placed = false; xrFrames = 16;
+}
+async function startFight(opponentId) {
+  closeMenus();
+  setStage(pickStage());
+  await setFighter(opponentId);
+  newMatch(); startPresentation();
+}
+// ---- torneo: tabellone prima di ogni incontro e dopo (chi passa il turno), coppa alla fine
+function showBracketNext() {
+  closeMenus(); game.phase = 'menu'; setPeople(false); mike.enabled = false;
+  const yaw = menuYaw();
+  bracket.open(player.head, yaw);
+  const opp = tour.opponent();
+  bracket.showNext(tour, t('tr_next', { round: bracket.roundName(tour.round), b: FIGHTERS[opp].name.toUpperCase() }));
+  setTourButtons('tr_fight', true, yaw);
+}
+function setTourButtons(goKey, showQuit, yaw = menuYaw()) {
+  const go = tourBtns.buttons.find(b => b.id === 'tgo'), q = tourBtns.buttons.find(b => b.id === 'tquit');
+  go.tk = goKey; q.g.visible = showQuit;
+  go.x0 = go.x0 ?? go.g.position.x; go.g.position.x = showQuit ? go.x0 : 0;     // da solo, al centro
+  tourBtns.relabel();
+  // sotto il tabellone
+  const p = bracket.group.position;
+  tourBtns.open(new THREE.Vector3(p.x + Math.sin(yaw) * 1.05, p.y - 0.47, p.z + Math.cos(yaw) * 1.05), yaw, 0.95, 0.0);
+  tourBtns.group.rotation.set(0, yaw, 0);
+}
+function showBracketAfter() {
+  const res = game.result || {};
+  let youWon = res.winner === 'player';
+  if (res.winner === 'pari') youWon = game.player.hits >= game.mike.hits;     // pari: passa chi ha colpito di piu'
+  const opp = tour.opponent(), r = tour.result(youWon);
+  closeMenus(); game.phase = 'menu'; setPeople(false); mike.enabled = false;
+  const yaw = menuYaw();
+  bracket.open(player.head, yaw);
+  const sub = youWon ? (tour.state === 'champion' ? t('tr_champ') : t('tr_adv', { round: bracket.roundName(r) }))
+    : t('tr_lost', { b: FIGHTERS[opp].name.toUpperCase(), round: bracket.roundName(r) });
+  bracket.showAdvance(tour, r, sub, () => {
+    if (tour.state === 'next') { showBracketNext(); return; }
+    if (tour.state === 'champion') {                  // festa: coriandoli e fuochi sopra la coppa
+      party.start(bracket.group.position.clone().add(new THREE.Vector3(0, 0.2, 0)), [0xffc928, 0xffffff, 0xd81e2c]);
+      sfx.cheer('applauso', 1); sfx.cheer('boato', 0.9);
+    }
+    setTourButtons('tr_menu', false, yaw);
+  });
 }
 function updateMainMenu(dt, gloves) {
-  const id = mainMenu.update(dt, gloves);
+  bracket.update(dt);
+  if (tourBtns.group.visible) {
+    const id = tourBtns.update(dt, gloves);
+    if (!id) return;
+    sfx.punchBlock();
+    if (id === 'tgo') { if (tour && tour.state === 'next') startFight(tour.opponent()); else showMainMenu(); }
+    else if (id === 'tquit') showMainMenu();
+    return;
+  }
+  const menu = MENUS.find(m => m.group.visible);
+  if (!menu) return;
+  const id = menu.update(dt, gloves);
   if (!id) return;
   sfx.punchBlock();
-  if (id.startsWith('m:')) { mode = id.slice(2); try { localStorage.setItem('hb-mode', mode); } catch (e) {} applyMode(); placed = false; xrFrames = 16; }
+  if (id === 'gm:arcade' || id === 'gm:tour') {
+    gameMode = id === 'gm:arcade' ? 'arcade' : 'tour';
+    try { localStorage.setItem('hb-gamemode', gameMode); } catch (e) {}
+    openMenu(gameMode === 'arcade' ? arcadeMenu : tourMenu); return;
+  }
+  if (id === 'back') { openMenu(rootMenu); return; }
+  if (id.startsWith('s:')) {
+    stageChoice = id.slice(2);
+    try { localStorage.setItem('hb-stage', stageChoice); } catch (e) {}
+    if (stageChoice !== 'random') { setStage(stageChoice); try { localStorage.setItem('hb-mode', mode); } catch (e) {} }
+  }
   else if (id.startsWith('l:')) { level = id.slice(2); try { localStorage.setItem('hb-level', level); } catch (e) {} mike.setLevel(level); }
   else if (id.startsWith('d:')) { roundSecs = parseInt(id.slice(2)); try { localStorage.setItem('hb-roundsec', roundSecs); } catch (e) {} }
   else if (id.startsWith('k:')) { threeKO = id === 'k:si'; try { localStorage.setItem('hb-3ko', threeKO ? 'si' : 'no'); } catch (e) {} }
   else if (id.startsWith('r:')) { rounds = parseInt(id.slice(2)); try { localStorage.setItem('hb-rounds', rounds); } catch (e) {} }
   else if (id.startsWith('g:')) setLang(id.slice(2));
   else if (id.startsWith('f:')) setFighter(id.slice(2));
-  else if (id === 'start') { mainMenu.close(); newMatch(); startPresentation(); return; }   // (startIntro: volo iniziale, sospeso: fa girare la testa)
-  else if (id === 'quit') { mainMenu.close(); const s = renderer.xr.getSession(); if (s) s.end(); return; }
-  mainMenu.select(menuChoices());
+  else if (id === 'start') { tour = null; startFight(fighterId); return; }
+  else if (id === 'start_tour') { tour = new Tournament(FIGHTERS); showBracketNext(); return; }
+  else if (id === 'quit') { closeMenus(); const s = renderer.xr.getSession(); if (s) s.end(); return; }
+  menu.select(menuChoices());
 }
 
 function updatePause(dt) {
@@ -801,7 +936,7 @@ function updatePause(dt) {
   const id = pause.update(dt, g);
   if (id === 'resume') closePause();
   else if (id === 'restart') { closePause(); newMatch(); }
-  else if (id === 'exit') { closePause(); showMainMenu(); }
+  else if (id === 'exit') { closePause(); tour = null; showMainMenu(); }
 }
 
 // Pavimento "a mano": accovacciati e appoggia una mano (o il controller) a terra per 2 secondi.
@@ -826,7 +961,8 @@ function calibrateByHand(dt) {
 // cambio avversario dal menu: si carica il suo modello e prende il posto del precedente
 let fighterLoading = false;
 function setFighter(id) {
-  if (!FIGHTERS[id] || id === fighterId || fighterLoading) return;
+  return new Promise(resolve => {
+  if (!FIGHTERS[id] || id === fighterId || fighterLoading) return resolve();
   fighterLoading = true;
   loadMikeGLTF(FIGHTERS[id].glb, () => {}).then(gltf => {
     fighterLoading = false;
@@ -841,8 +977,10 @@ function setFighter(id) {
     window.mike = mike;
     if (lastPlace) placeArena(lastPlace.head, lastPlace.yaw); else placeArena(new THREE.Vector3(0, 1.65, 0), 0);
     if (game.phase === 'menu') { newMatch(); game.phase = 'menu'; game.message = t('menu'); }
-    mainMenu.select(menuChoices());
-  }).catch(e => { fighterLoading = false; console.warn('avversario', e); });
+    for (const m of MENUS) m.select(menuChoices());
+    resolve();
+  }).catch(e => { fighterLoading = false; console.warn('avversario', e); resolve(); });
+  });
 }
 
 loadMikeGLTF(FIGHTERS[fighterId].glb, f => statusT('loading', { p: Math.min(100, Math.round(f * 100)) })).then(gltf => {
@@ -852,6 +990,8 @@ loadMikeGLTF(FIGHTERS[fighterId].glb, f => statusT('loading', { p: Math.min(100,
   mike.bounds = keepInRing;
   placeArena(new THREE.Vector3(0, 1.65, 0), 0);
   window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.getUpFx = getUp; window.gameApi = { newMatch, showMainMenu, startIntro, startPresentation, girl: () => girl, arena: () => arena, ringSize: () => ringSize }; window.sweatFx = sweat;   // per le prove
+  window.tourApi = { MENUS, bracket, tourBtns, show: () => showMainMenu(), open: m => openMenu(MENUS[m]), start: () => { tour = new Tournament(FIGHTERS); showBracketNext(); },
+    after: win => { game.result = { winner: win ? 'player' : 'mike' }; showBracketAfter(); }, fight: () => startFight(tour.opponent()), setStageChoice: c => { stageChoice = c; }, get mode() { return mode; }, get tour() { return tour; } };   // (prove)
   status('');
   $('enter').disabled = !navigator.xr;
   if (navigator.xr) navigator.xr.isSessionSupported('immersive-ar').then(ok => {
@@ -879,7 +1019,7 @@ $('enter').onclick = async () => {
       intro = null; baseRef = null;
       $('overlay').hidden = false; placed = false;
       if (game.paused) closePause();
-      mainMenu.close();
+      closeMenus(); tour = null;
       if (mike) mike.enabled = false;
       newMatch(); game.phase = 'menu';              // fuori dal gioco l'incontro non va avanti da solo
       sfx.stopAll();                                // niente suoni dopo l'uscita
