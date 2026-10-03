@@ -2,24 +2,24 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003211950';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003211950';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003211950';
-import { Player, SimInput } from './player.js?v=20261003211950';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003211950';
-import { Room } from './room.js?v=20261003211950';
-import { Arena } from './arena.js?v=20261003211950';
-import { Beach } from './beach.js?v=20261003211950';
-import { Rooftop } from './rooftop.js?v=20261003211950';
-import { Desert } from './desert.js?v=20261003211950';
-import { RingGirl } from './ringgirl.js?v=20261003211950';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003211950';
-import * as sfx from './sfx.js?v=20261003211950';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003211950';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003211950';
-import { Tournament, BracketView } from './tournament.js?v=20261003211950';
-import { CpuMatch } from './cpu_match.js?v=20261003211950';
-import { TowerView } from './tower.js?v=20261003211950';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003213105';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003213105';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003213105';
+import { Player, SimInput } from './player.js?v=20261003213105';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003213105';
+import { Room } from './room.js?v=20261003213105';
+import { Arena } from './arena.js?v=20261003213105';
+import { Beach } from './beach.js?v=20261003213105';
+import { Rooftop } from './rooftop.js?v=20261003213105';
+import { Desert } from './desert.js?v=20261003213105';
+import { RingGirl } from './ringgirl.js?v=20261003213105';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003213105';
+import * as sfx from './sfx.js?v=20261003213105';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003213105';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003213105';
+import { Tournament, BracketView } from './tournament.js?v=20261003213105';
+import { CpuMatch } from './cpu_match.js?v=20261003213105';
+import { TowerView } from './tower.js?v=20261003213105';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -189,11 +189,11 @@ function applyMode() {
     };
     if (desertEnv.skyLoaded) useSky(); else desertEnv.onSkyLoad = useSky;
     camera.far = 1200;
-  } else if (onRoof) {                                 // tramonto in cima al grattacielo: sole basso e caldo, cielo dalla foto
-    hemi.color.set(0xb8c4e0); hemi.groundColor.set(0x8a5a40); hemi.intensity = 0.75;
-    scene.environmentIntensity = 0.7; key.intensity = 2.6; fill.intensity = 0.5;
-    key.color.set(0xffc08a); key.position.copy(roofEnv.sunDir).multiplyScalar(6).setY(2.2);
-    scene.background = new THREE.Color(0x8fa0bf); scene.fog = null;
+  } else if (onRoof) {                                 // in cima al grattacielo, bella giornata: sole alto, cielo blu
+    hemi.color.set(0xbcd4f2); hemi.groundColor.set(0x7d7a74); hemi.intensity = 0.85;
+    scene.environmentIntensity = 0.75; key.intensity = 2.7; fill.intensity = 0.45;
+    key.color.set(0xfff4e4); key.position.copy(roofEnv.sunDir).multiplyScalar(6);
+    scene.background = new THREE.Color(0x8fb0dc); scene.fog = null;
     const useSky = () => {
       if (!roofEnv.envMap) roofEnv.envMap = pmrem.fromEquirectangular(roofEnv.skyTex).texture;
       if (mode === 'grattacielo') { scene.environment = roofEnv.envMap; scene.environmentRotation.set(0, -Math.PI / 2, 0); }
@@ -259,7 +259,7 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003211950`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003213105`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -299,20 +299,20 @@ const rootMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.0, 
 const OPP_BTNS = [{ id: 'f:random', tk: 'f_random', w: 0.22, img: randomPreview() },
   ...FIGHTER_IDS.map(id => ({ id: 'f:' + id, text: FIGHTERS[id].name, w: 0.22, img: fighterImg(id) }))];
 const OPP_ROWS = 1, OPP_EXTRA = 0;      // (una riga a scorrimento)
-const arcadeMenu = new MenuPanel({ title: t('arcade'), titleTk: 'arcade', titleH: 0.1, width: 1.0, height: 1.52 + OPP_EXTRA, rows: withText([
+const arcadeMenu = new MenuPanel({ title: t('arcade'), titleTk: 'arcade', titleH: 0.1, width: 1.0, height: 1.52 + OPP_EXTRA, draggable: true, rows: withText([
   stageRow(0.48 + OPP_EXTRA / 2),
   { label: t('opponent'), tk: 'opponent', y: 0.22, h: 0.2, carousel: true, buttons: OPP_BTNS },
   ...optionRows(0.01 - OPP_EXTRA / 2),
   { y: -0.65 - OPP_EXTRA / 2, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'start', tk: 'start', w: 0.5, color: 0x1f8a4c }] },
 ]) });
 // Torneo: come l'arcade ma gli avversari li assegna il tabellone
-const tourMenu = new MenuPanel({ title: t('tour'), titleTk: 'tour', titleH: 0.1, width: 1.0, height: 1.32, rows: withText([
+const tourMenu = new MenuPanel({ title: t('tour'), titleTk: 'tour', titleH: 0.1, width: 1.0, height: 1.32, draggable: true, rows: withText([
   stageRow(0.37),
   ...optionRows(0.12),
   { y: -0.54, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'start_tour', tk: 'start_tour', w: 0.5, color: 0x1f8a4c }] },
 ]) });
 // Sopravvivenza: come il torneo (stage e opzioni), poi la torre con tutti gli avversari in ordine casuale
-const survMenu = new MenuPanel({ title: t('surv'), titleTk: 'surv', titleH: 0.1, width: 1.0, height: 1.32, rows: withText([
+const survMenu = new MenuPanel({ title: t('surv'), titleTk: 'surv', titleH: 0.1, width: 1.0, height: 1.32, draggable: true, rows: withText([
   stageRow(0.37),
   ...optionRows(0.12),
   { y: -0.54, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'start_surv', tk: 'start_surv', w: 0.5, color: 0x6a1f8a }] },
@@ -700,7 +700,7 @@ function updateGame(dt) {
   } else if (game.phase === 'end') {
     flash.setBase(0);
     if (tour || surv) { if (game.phaseT > 6 && !sfx.voiceBusy()) { if (surv) showTowerAfter(); else showBracketAfter(); } return; }   // torneo/sopravvivenza: niente popup
-    if (game.phaseT > 6 && !pause.group.visible) openPause(true);
+    if (game.phaseT > 6 && !pause.group.visible && !sfx.voiceBusy()) openPause(true);   // dopo che lo speaker ha finito
   }
   const xr = renderer.xr.getSession && renderer.xr.getSession();
   const feats = xr && xr.enabledFeatures ? (xr.enabledFeatures.includes('plane-detection') ? 'piani sì' : 'piani no') : '';

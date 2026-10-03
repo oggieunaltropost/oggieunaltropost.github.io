@@ -1,6 +1,6 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261003211950';
+import { t as tr } from './i18n.js?v=20261003213105';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
 let RAYS = [];
@@ -15,6 +15,50 @@ function rayLocal(group, o, d, zf) {
   const t = (zf - _ro.z) / _rd.z;
   if (t <= 0) return null;
   return _ro.clone().addScaledVector(_rd, t);
+}
+// ---- barra di presa sotto un pannello: mano (o raggio) ferma sulla barra 0,4 s = presa, il pannello segue
+// la mano; mano ferma 0,6 s = lasciato li'
+function makeDragBar(group, y) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 40; const g = c.getContext('2d');
+  g.fillStyle = '#ffffff'; g.beginPath(); g.roundRect(4, 6, 248, 28, 14); g.fill();
+  const bar = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.047), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), color: 0x9aa3b6, transparent: true, opacity: 0.85, depthTest: false }));
+  bar.position.set(0, y, 0.01); bar.renderOrder = 1103; group.add(bar);
+  return { bar, t: 0, grab: null };
+}
+function updateDragBar(D, group, dt, gloves) {
+  const bw = D.bar.getWorldPosition(new THREE.Vector3());
+  const rayPoint = (r, dist) => r.o.clone().addScaledVector(r.d.clone().normalize(), dist);
+  if (D.grab) {
+    const G = D.grab;
+    let p = null;
+    if (G.glove) p = G.glove.mesh.visible ? G.glove.center.clone() : null;
+    else { const r = RAYS[G.ray]; if (r) p = rayPoint(r, G.dist); }
+    if (!p) { D.grab = null; D.bar.material.color.setHex(0x9aa3b6); return false; }
+    G.still = p.distanceTo(G.last) < 0.004 ? G.still + dt : 0;
+    G.last.copy(p);
+    group.position.copy(p).add(G.offset);
+    if (G.still > 0.6) { D.grab = null; D.t = -0.8; D.bar.material.color.setHex(0x9aa3b6); }
+    return true;
+  }
+  let src = null;
+  for (const g of gloves) if (g.mesh.visible && g.center.distanceTo(bw) < 0.075) src = { glove: g, p: g.center.clone() };
+  const sc = group.scale.x || 1;
+  if (!src) RAYS.forEach((r, i) => {
+    const l = rayLocal(group, r.o, r.d, 0.01);
+    if (l && Math.abs(l.x - D.bar.position.x) < 0.17 && Math.abs(l.y - D.bar.position.y) < 0.04) {
+      const w = l.clone().applyMatrix4(group.matrixWorld);
+      if (!r.hit || r.o.distanceTo(w) < r.o.distanceTo(r.hit)) r.hit = w;
+      src = { ray: i, p: w, dist: r.o.distanceTo(w) };
+    }
+  });
+  D.t = src ? D.t + dt : Math.max(Math.min(D.t, 0), D.t - dt);
+  D.bar.material.color.setHex(src ? 0xffd34d : 0x9aa3b6);
+  if (src && D.t > 0.4) {
+    D.grab = { ...src, offset: group.position.clone().sub(src.p), last: src.p.clone(), still: 0 };
+    D.t = 0;
+    return true;
+  }
+  return false;
 }
 // quali pulsanti sono puntati (e dove: il punto colpito per disegnare il puntino)
 function pointed(group, buttons, zf, size, bounds) {
@@ -139,7 +183,8 @@ export class PauseMenu {
     this.group = new THREE.Group(); this.group.name = 'pausa'; this.group.visible = false;
     const panel = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.62),
       new THREE.MeshBasicMaterial({ color: 0x0b0d12, transparent: true, opacity: 0.88, depthTest: false }));
-    panel.renderOrder = 1100; this.group.add(panel);
+    panel.renderOrder = 1100; this.group.add(panel); this.panel = panel;
+    this.drag = makeDragBar(this.group, -0.31 - 0.06);
     this.title = this._label(tr('pause'), 0, 0.23, 0.6, 0.1, '#ffd34d', 72);
     this.group.add(this.title);
 
@@ -196,6 +241,10 @@ export class PauseMenu {
     // fine incontro: solo due pulsanti, centrati
     const xs = end ? { restart: -0.145, exit: 0.145 } : { resume: -0.29, restart: 0, exit: 0.29 };
     for (const b of this.buttons) if (xs[b.id] !== undefined) { b.x = xs[b.id]; b.group.position.x = b.x; }
+    // fine incontro: due soli pulsanti -> pannello stretto e tutto un po' piu' piccolo; "RIGIOCA" invece di "RICOMINCIA"
+    this.panel.scale.x = end ? 0.68 : 1; this.group.scale.setScalar(end ? 0.78 : 1);
+    const rb = this.buttons.find(b => b.id === 'restart'); rb.tk = end ? 'replay' : 'restart';
+    MenuPanel.prototype._paint(rb.label, tr(rb.tk), rb.label.userData.color);
     this.buttons[1].group.children[2].visible = true;
     this.group.position.set(head.x - Math.sin(yaw) * 0.55, head.y - 0.1, head.z - Math.cos(yaw) * 0.55);
     this.group.rotation.set(0, yaw, 0);
@@ -208,6 +257,7 @@ export class PauseMenu {
   update(dt, gloves) {
     if (!this.group.visible) return null;
     this.group.updateMatrixWorld(true);
+    if (updateDragBar(this.drag, this.group, dt, gloves)) return null;      // lo stai spostando
     const aimed = pointed(this.group, this.buttons.filter(b => b.group.visible), 0.04, b => [b.x, -0.06, 0.125, 0.11], [0.45, 0.31]);
     for (const b of this.buttons) {
       if (!b.group.visible) continue;
@@ -266,14 +316,7 @@ export class MenuPanel {
     this.spec = spec; this.rowLabels = [];
     if (spec.subtitle) { this.sub = lab(spec.subtitle, 0, H / 2 - 0.155, W - 0.1, 0.045, '#c9ced8', 30); this.group.add(this.sub); }
     this.buttons = []; this.carousels = [];
-    if (spec.draggable) {                                  // barra sotto il pannello: lo si prende e lo si sposta
-      const c = document.createElement('canvas'); c.width = 256; c.height = 40; const g = c.getContext('2d');
-      g.fillStyle = '#ffffff'; g.beginPath(); g.roundRect(4, 6, 248, 28, 14); g.fill();
-      const tx = new THREE.CanvasTexture(c);
-      const bar = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.047), new THREE.MeshBasicMaterial({ map: tx, color: 0x9aa3b6, transparent: true, opacity: 0.85, depthTest: false }));
-      bar.position.set(0, -H / 2 - 0.085, 0.01); bar.renderOrder = 1103; this.group.add(bar);
-      this.drag = { bar, t: 0, grab: null };
-    }
+    if (spec.draggable) this.drag = makeDragBar(this.group, -H / 2 - 0.085);   // barra sotto il pannello: lo si prende e lo si sposta
     for (const row of spec.rows) {
       if (row.carousel) {                                  // riga a scorrimento: frecce ai lati (fuori dalla cornice)
         const k = this.carousels.length;
@@ -385,40 +428,7 @@ export class MenuPanel {
   }
   // barra di presa: mano (o raggio) ferma sulla barra per 0,4 s = presa; il pannello segue la mano;
   // mano ferma per 0,6 s = lasciato li'
-  _updateDrag(dt, gloves) {
-    const D = this.drag, bw = D.bar.getWorldPosition(new THREE.Vector3());
-    const rayPoint = (r, dist) => r.o.clone().addScaledVector(r.d.clone().normalize(), dist);
-    if (D.grab) {
-      const G = D.grab;
-      let p = null;
-      if (G.glove) p = G.glove.mesh.visible ? G.glove.center.clone() : null;
-      else { const r = RAYS[G.ray]; if (r) p = rayPoint(r, G.dist); }
-      if (!p) { D.grab = null; D.bar.material.color.setHex(0x9aa3b6); return false; }
-      G.still = p.distanceTo(G.last) < 0.004 ? G.still + dt : 0;
-      G.last.copy(p);
-      this.group.position.copy(p).add(G.offset);
-      if (G.still > 0.6) { D.grab = null; D.t = -0.8; D.bar.material.color.setHex(0x9aa3b6); }
-      return true;
-    }
-    let src = null;
-    for (const g of gloves) if (g.mesh.visible && g.center.distanceTo(bw) < 0.075) src = { glove: g, p: g.center.clone() };
-    if (!src) RAYS.forEach((r, i) => {
-      const l = rayLocal(this.group, r.o, r.d, 0.01);
-      if (l && Math.abs(l.x - D.bar.position.x) < 0.17 && Math.abs(l.y - D.bar.position.y) < 0.04) {
-        const w = l.clone().applyMatrix4(this.group.matrixWorld);
-        if (!r.hit || r.o.distanceTo(w) < r.o.distanceTo(r.hit)) r.hit = w;
-        src = { ray: i, p: w, dist: r.o.distanceTo(w) };
-      }
-    });
-    D.t = src ? D.t + dt : Math.max(Math.min(D.t, 0), D.t - dt);
-    D.bar.material.color.setHex(src ? 0xffd34d : 0x9aa3b6);
-    if (src && D.t > 0.4) {
-      D.grab = { ...src, offset: this.group.position.clone().sub(src.p), last: src.p.clone(), still: 0 };
-      D.t = 0;
-      return true;
-    }
-    return false;
-  }
+  _updateDrag(dt, gloves) { return updateDragBar(this.drag, this.group, dt, gloves); }
   // voci a scorrimento: quella al centro e' la scelta; le altre rimpiccioliscono e spariscono ai lati
   _layout(c) {
     for (let i = 0; i < c.items.length; i++) {

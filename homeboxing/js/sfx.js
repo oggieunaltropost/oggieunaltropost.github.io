@@ -33,7 +33,7 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
-import { FIGHTER_IDS } from './fighters.js?v=20261003211950';
+import { FIGHTER_IDS } from './fighters.js?v=20261003213105';
 // Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
@@ -48,7 +48,7 @@ let vbuf = {}, vLang = 'it';
 let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261003211950`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261003213105`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
@@ -152,14 +152,14 @@ export function bell(times = 1) {
 
 // Pubblico del palazzetto: suoni veri generati con AudioGen (tools/gen_crowd_audio.py, tools/make_audio.py)
 const SAMPLES = ['brusio', 'tifo', 'boato_0', 'boato_1', 'boato_2', 'boato_3', 'ooh_0', 'ooh_1', 'ooh_2', 'applauso_0', 'applauso_1',
-  'mare', 'onda_0', 'onda_1', 'onda_2', 'gabbiano_0', 'gabbiano_1'];
+  'mare', 'onda_0', 'onda_1', 'onda_2', 'gabbiano_0', 'gabbiano_1', 'elicottero', 'vento'];
 const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261003211950`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261003213105`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
-  loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (windWanted && !wind) windAmbient(true); });
+  loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (windWanted && (!wind || wind.synth)) { if (wind) { wind.s.stop(); wind = null; } windAmbient(true); } });   // vento vero appena caricato
   return loading;
 }
 function loopSrc(b, gain) {
@@ -231,7 +231,11 @@ export function windAmbient(on) {
   windWanted = on;
   if (!ctx) return;
   if (on && !wind) {
-    const buf = synthBuffer(8, (d, sr) => {                // rumore "rosa" morbido che sale e scende (raffiche)
+    if (buf.vento) {                                       // vento vero (AudioGen, tools/make_sky_audio.py)
+      const v = loopSrc(buf.vento, 0.0); v.g.gain.setTargetAtTime(0.42, ctx.currentTime, 1.0); wind = v; return;
+    }
+    if (!loading) loadSamples();
+    const buf2 = synthBuffer(8, (d, sr) => {                // rumore "rosa" morbido che sale e scende (raffiche)
       let b0 = 0, b1 = 0, b2 = 0;
       for (let i = 0; i < d.length; i++) {
         const w = Math.random() * 2 - 1;
@@ -241,11 +245,11 @@ export function windAmbient(on) {
       }
       const f = Math.floor(sr * 0.5); for (let i = 0; i < f; i++) { const k = i / f; d[i] = d[i] * k + d[d.length - f + i] * (1 - k); }   // giro chiuso
     });
-    const s = ctx.createBufferSource(); s.buffer = buf; s.loop = true;
+    const s = ctx.createBufferSource(); s.buffer = buf2; s.loop = true;
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
     const g = ctx.createGain(); g.gain.value = 0.32;
     s.connect(lp); lp.connect(g); g.connect(master); s.start();
-    wind = { s, g };
+    wind = { s, g, synth: true };
   } else if (!on && wind) { wind.s.stop(); wind = null; heliStop(); }
 }
 // elicottero: colpi delle pale (~5,5 al secondo) + turbina; suono spaziale, piu' forte quando e' vicino (mai troppo)
@@ -261,13 +265,17 @@ export function heli(pos, cam) {
         d[i] = slap + lp * 0.5 + Math.sin(2 * Math.PI * 1150 * t) * 0.025;   // + fischio della turbina
       }
     });
-    const s = ctx.createBufferSource(); s.buffer = heliBuf; s.loop = true;
+    const s = ctx.createBufferSource(); s.buffer = buf.elicottero || heliBuf; s.loop = true;   // vero (AudioGen) se caricato
+    s.playbackRate.value = 0.94 + Math.random() * 0.12;    // ogni elicottero un po' diverso
     const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 45; p.rolloffFactor = 1.3; p.maxDistance = 2000;
-    const g = ctx.createGain(); g.gain.value = 0.0; g.gain.setTargetAtTime(0.45, ctx.currentTime, 1.5);
-    s.connect(g); g.connect(p); p.connect(master); s.start();
-    heliSrc = { s, p, g };
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3000;   // lontano = piu' ovattato
+    const g = ctx.createGain(); g.gain.value = 0.0; g.gain.setTargetAtTime(buf.elicottero ? 0.9 : 0.45, ctx.currentTime, 1.5);
+    s.connect(lp); lp.connect(g); g.connect(p); p.connect(master); s.start(s.context.currentTime, Math.random() * 3);
+    heliSrc = { s, p, g, lp };
   }
   setListener(cam);
+  const cp = cam.getWorldPosition(new cam.position.constructor()), dist = cp.distanceTo(pos);
+  heliSrc.lp.frequency.setTargetAtTime(500 + 9000 * Math.exp(-dist / 140), ctx.currentTime, 0.2);
   const P = heliSrc.p;
   if (P.positionX) { P.positionX.value = pos.x; P.positionY.value = pos.y; P.positionZ.value = pos.z; } else P.setPosition(pos.x, pos.y, pos.z);
 }
