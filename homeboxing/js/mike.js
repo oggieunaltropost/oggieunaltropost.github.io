@@ -424,6 +424,7 @@ export class Mike {
     if (md) { b.moveSpeed *= md.moveSpeed || 1; b.defenseSpeed *= md.defenseSpeed || 1; b.evade = Math.min(0.95, (b.evade ?? 0) + (md.evade || 0));
       b.attackEvery = b.attackEvery.map(v => v * (md.attackEvery || 1));
       if (md.toughness) b.toughness = (b.toughness ?? 1) * md.toughness;
+      if (md.punchSpeed) b.punchSpeed *= md.punchSpeed;
       if (md.extraCombos) b.combos = [...b.combos, ...combos(...md.extraCombos.filter(n => C[n])), ...combos(...md.extraCombos.filter(n => C[n]))]; }   // (contano doppio: le preferisce)
     this.cfg = { ...b,
       punchSpeed: b.punchSpeed * (1 - 0.6 * t), moveSpeed: b.moveSpeed * (1 - 0.6 * t), defenseSpeed: b.defenseSpeed * (1 - 0.8 * t),

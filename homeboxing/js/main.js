@@ -2,21 +2,21 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003195253';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003195253';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003195253';
-import { Player, SimInput } from './player.js?v=20261003195253';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003195253';
-import { Room } from './room.js?v=20261003195253';
-import { Arena } from './arena.js?v=20261003195253';
-import { Beach } from './beach.js?v=20261003195253';
-import { RingGirl } from './ringgirl.js?v=20261003195253';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003195253';
-import * as sfx from './sfx.js?v=20261003195253';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003195253';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003195253';
-import { Tournament, BracketView } from './tournament.js?v=20261003195253';
-import { CpuMatch } from './cpu_match.js?v=20261003195253';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003204205';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003204205';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003204205';
+import { Player, SimInput } from './player.js?v=20261003204205';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003204205';
+import { Room } from './room.js?v=20261003204205';
+import { Arena } from './arena.js?v=20261003204205';
+import { Beach } from './beach.js?v=20261003204205';
+import { RingGirl } from './ringgirl.js?v=20261003204205';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003204205';
+import * as sfx from './sfx.js?v=20261003204205';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003204205';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003204205';
+import { Tournament, BracketView } from './tournament.js?v=20261003204205';
+import { CpuMatch } from './cpu_match.js?v=20261003204205';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -228,7 +228,7 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003195253`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003204205`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
