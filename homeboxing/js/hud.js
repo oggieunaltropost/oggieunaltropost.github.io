@@ -1,6 +1,6 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261003224340';
+import { t as tr } from './i18n.js?v=20261003232708';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
 let RAYS = [];
@@ -223,13 +223,13 @@ export class PauseMenu {
     return m;
   }
 
-  // medaglia d'oro col nastro tricolore e la stella
+  // medaglia d'oro col nastro blu e oro e la stella
   _medal() {
     const c = document.createElement('canvas'); c.width = 256; c.height = 340; const g = c.getContext('2d');
-    const stripes = ['#1f8a4c', '#f4f4f4', '#c4161f'];
-    for (const s of [-1, 1]) {                                      // nastro a V
+    for (const s of [-1, 1]) {                                      // nastro a V: blu notte con i bordi oro (nessuna bandiera)
       g.save(); g.translate(128 + s * 34, 0); g.rotate(-s * 0.32);
-      stripes.forEach((col, i) => { g.fillStyle = col; g.fillRect(-36 + i * 24, -10, 24, 190); });
+      g.fillStyle = '#16307a'; g.fillRect(-36, -10, 72, 190);
+      g.fillStyle = '#e8b830'; g.fillRect(-36, -10, 9, 190); g.fillRect(27, -10, 9, 190);
       g.restore();
     }
     const cx = 128, cy = 228, r = 96;

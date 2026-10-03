@@ -1,4 +1,25 @@
 // Mike: modello animato + intelligenza artificiale (si muove, para, schiva, attacca).
+// icone sui calzoncini (accanto al nome)
+function drawIcon(g, kind, cx, cy, w) {
+  g.save(); g.translate(cx, cy);
+  const r = (x, y, ww, hh, c, rad = 0) => { g.fillStyle = c; g.beginPath(); g.roundRect(x, y, ww, hh, rad); g.fill(); };
+  if (kind === 'panino') {                                           // panino: pane col sesamo, insalata, pomodoro, formaggio, carne
+    const W = w, H = w * 0.92;
+    g.fillStyle = '#d98a2b'; g.beginPath(); g.ellipse(0, -H * 0.16, W * 0.5, H * 0.34, 0, Math.PI, 0); g.fill();   // pane sopra
+    g.fillStyle = '#fff3c4'; for (const [sx, sy] of [[-0.25, -0.32], [-0.05, -0.38], [0.18, -0.33], [0.32, -0.24], [-0.36, -0.22], [0.06, -0.26]]) { g.beginPath(); g.ellipse(sx * W, sy * H, 4.5, 2.6, 0.3, 0, Math.PI * 2); g.fill(); }
+    g.fillStyle = '#3fa535'; g.beginPath(); g.moveTo(-W * 0.52, -H * 0.15);                                      // insalata ondulata
+    for (let k = 0; k <= 10; k++) g.lineTo(-W * 0.52 + k * W * 0.104, -H * 0.15 + (k % 2 ? 9 : 0));
+    g.lineTo(W * 0.52, -H * 0.04); g.lineTo(-W * 0.52, -H * 0.04); g.fill();
+    r(-W * 0.48, -H * 0.06, W * 0.96, H * 0.1, '#d8261c', 6);                                                    // pomodoro
+    g.fillStyle = '#ffcc1f'; g.beginPath(); g.moveTo(-W * 0.5, H * 0.04); g.lineTo(W * 0.5, H * 0.04); g.lineTo(W * 0.18, H * 0.16); g.lineTo(-W * 0.1, H * 0.1); g.fill();   // formaggio
+    r(-W * 0.5, H * 0.08, W, H * 0.16, '#5a2e14', 10);                                                            // carne
+    r(-W * 0.48, H * 0.25, W * 0.96, H * 0.16, '#e09a3c', 12);                                                    // pane sotto
+  } else if (kind === 'sole') {                                      // sol levante: disco bianco col cerchio rosso
+    g.fillStyle = '#f4f3ee'; g.beginPath(); g.roundRect(-w * 0.5, -w * 0.36, w, w * 0.72, 8); g.fill();
+    g.fillStyle = '#c4122a'; g.beginPath(); g.arc(0, 0, w * 0.22, 0, Math.PI * 2); g.fill();
+  }
+  g.restore();
+}
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const _lq = new THREE.Quaternion(), _lr = new THREE.Quaternion(), _qI = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ld = new THREE.Vector3();
@@ -336,7 +357,12 @@ export class Mike {
     g.fillStyle = B.line; g.fillRect(0, 14, 2048, 10); g.fillRect(0, 128, 2048, 10);
     if (B.box) { g.fillStyle = B.box; g.fillRect(1024 - 170, 26, 340, 108); g.strokeStyle = B.text; g.lineWidth = 6; g.strokeRect(1024 - 162, 34, 324, 92); }   // riquadro (stile thai)
     g.fillStyle = B.text; g.font = `900 ${B.box ? 92 : 78}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(B.label || 'HOME BOXING ★', 1024, 82);             // una sola scritta, centrata sul davanti (u = 0.5 = +Z)
+    const label = B.label || 'HOME BOXING ★';
+    if (B.icon) {                                                     // scritta + icona disegnata accanto
+      const tw = g.measureText(label).width, gap = 26, iw = 104, x0 = 1024 - (tw + gap + iw) / 2;
+      g.fillText(label, x0 + tw / 2, 82);
+      drawIcon(g, B.icon, x0 + tw + gap + iw / 2, 80, iw);
+    } else g.fillText(label, 1024, 82);                             // una sola scritta, centrata sul davanti (u = 0.5 = +Z)
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
     tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping; tex.anisotropy = 4;
     const geo = band.geometry; geo.computeBoundingBox();
