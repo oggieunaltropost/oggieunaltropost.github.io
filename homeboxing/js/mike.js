@@ -284,12 +284,15 @@ export class Mike {
     const B = this.cfg0.band || { bg: '#f4f4f0', line: '#c99a2e', text: '#1239a8' };
     g.fillStyle = B.bg; g.fillRect(0, 0, 2048, 160);
     g.fillStyle = B.line; g.fillRect(0, 14, 2048, 10); g.fillRect(0, 128, 2048, 10);
-    g.fillStyle = B.text; g.font = '900 78px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText('HOME BOXING ★', 1024, 80);             // una sola scritta, centrata sul davanti (u = 0.5 = +Z)
+    if (B.box) { g.fillStyle = B.box; g.fillRect(1024 - 170, 26, 340, 108); g.strokeStyle = B.text; g.lineWidth = 6; g.strokeRect(1024 - 162, 34, 324, 92); }   // riquadro (stile thai)
+    g.fillStyle = B.text; g.font = `900 ${B.box ? 92 : 78}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(B.label || 'HOME BOXING ★', 1024, 82);             // una sola scritta, centrata sul davanti (u = 0.5 = +Z)
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
     tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping; tex.anisotropy = 4;
     const geo = band.geometry; geo.computeBoundingBox();
-    const bb = geo.boundingBox, pos = geo.attributes.position, uv = new Float32Array(pos.count * 2);
+    const bb = geo.boundingBox.clone(), pos = geo.attributes.position, uv = new Float32Array(pos.count * 2);
+    // altezza della fascia = la parte alta dei calzoncini interi (non del solo pezzo bianco: senza righe e' basso)
+    this.model.traverse(o => { if (o.isMesh && o.material.name === 'Raso blu' && o.geometry !== geo) { o.geometry.computeBoundingBox(); bb.union(o.geometry.boundingBox); } });
     const h = (bb.max.y - bb.min.y) * 0.19;                 // altezza della fascia (la parte alta)
     const cx = (bb.max.x + bb.min.x) / 2, cz = (bb.max.z + bb.min.z) / 2;
     for (let i = 0; i < pos.count; i++) {
@@ -372,7 +375,8 @@ export class Mike {
     const t = Math.min(0.25, 0.025 * (round - 1)), b = { ...MIKE, ...LEVELS[this.levelName] };
     const md = this.cfg0.mods;                           // stile del pugile (es. Eddy agile)
     if (md) { b.moveSpeed *= md.moveSpeed || 1; b.defenseSpeed *= md.defenseSpeed || 1; b.evade = Math.min(0.95, (b.evade ?? 0) + (md.evade || 0));
-      b.attackEvery = b.attackEvery.map(v => v * (md.attackEvery || 1)); }
+      b.attackEvery = b.attackEvery.map(v => v * (md.attackEvery || 1));
+      if (md.extraCombos) b.combos = [...b.combos, ...combos(...md.extraCombos.filter(n => C[n])), ...combos(...md.extraCombos.filter(n => C[n]))]; }   // (contano doppio: le preferisce)
     this.cfg = { ...b,
       punchSpeed: b.punchSpeed * (1 - 0.6 * t), moveSpeed: b.moveSpeed * (1 - 0.6 * t), defenseSpeed: b.defenseSpeed * (1 - 0.8 * t),
       reactChance: b.reactChance * (1 - 0.6 * t), reactDelay: b.reactDelay.map(v => v + 0.12 * t),
