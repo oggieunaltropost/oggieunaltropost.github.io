@@ -4,7 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const _hp = new THREE.Vector3(), _hd = new THREE.Vector3(), _hq = new THREE.Quaternion(), _hr = new THREE.Quaternion(),
   _hw = new THREE.Quaternion(), _hp2 = new THREE.Quaternion(), _he2 = new THREE.Vector3(), _he3 = new THREE.Vector3();
-const SPEED = 0.62;          // m/s: un ciclo di camminata (1 s) = 62 cm (blender/create_ringgirl.py)
+const SPEED = 0.62;          // m/s: un ciclo di camminata (1.33 s) = 83 cm (blender/create_ringgirl.py)
 // Materiali dei personaggi MakeHuman: niente trasparenza sulla pelle e sui vestiti (altrimenti si vede
 // "dentro" la testa e il viso sembra tagliato); capelli, sopracciglia e occhi con ritaglio netto.
 export function fixHumanMaterial(o) {
@@ -24,7 +24,7 @@ export class RingGirl {
     this.ready = false;
   }
 
-  async load(url = 'assets/ringgirl.glb?v=20261003161454') {
+  async load(url = 'assets/ringgirl.glb?v=20261003165254') {
     const g = await new GLTFLoader().loadAsync(url);
     this.model = g.scene; this.root.add(this.model);
     this.model.traverse(o => {

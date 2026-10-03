@@ -4,7 +4,7 @@
 // a te; le animazioni (chi combatte, chi passa il turno, il campione che arriva alla coppa) sono oggetti 3D
 // che si muovono sopra la tela.
 import * as THREE from 'three';
-import { t } from './i18n.js?v=20261003161454';
+import { t } from './i18n.js?v=20261003165254';
 
 const W = 2048, H = 1024;                  // tela del tabellone
 const PW = 1.6, PH = PW * H / W;           // pannello in metri
@@ -35,24 +35,43 @@ export class Tournament {
     };
     const slots = Array.from({ length: 32 }, () => null);
     slots[0] = { kind: 'you' };
-    // l'avversario del turno r arriva dal blocco di 2^r posti accanto al tuo (posizione a caso dentro il blocco)
+    const real = id => ({ kind: 'real', id, name: fighters[id].name });
+    // l'avversario del turno r arriva dal blocco di 2^r posti accanto al tuo (posizione a caso dentro il blocco).
+    // Dal blocco dei quarti in su c'e' un secondo pugile vero nell'altra meta': i due si affrontano tra loro
+    // (incontro tra personaggi della CPU, che puoi guardare) e il vincitore arriva a te.
     for (let r = 0; r < 5; r++) {
       const start = 1 << r, size = 1 << r;
-      slots[start + Math.floor(Math.random() * size)] = { kind: 'real', id: opp[r], name: fighters[opp[r]].name };
+      if (r < 2) { slots[start + Math.floor(Math.random() * size)] = real(opp[r]); continue; }
+      const h = size / 2, other = ids.length > 1 ? shuffle(ids.filter(i => i !== opp[r]))[0] : opp[r];
+      const first = Math.random() < 0.5;
+      slots[start + Math.floor(Math.random() * h)] = real(first ? opp[r] : other);
+      slots[start + h + Math.floor(Math.random() * h)] = real(first ? other : opp[r]);
     }
     for (let i = 0; i < 32; i++) if (!slots[i]) slots[i] = fake();
     this.p = slots;                                   // partecipanti
     this.ent = [slots.map((_, i) => i)];             // ent[r][j] = indice del partecipante in posizione j al turno r
     this.round = 0; this.state = 'next';            // next | won | lost | champion
   }
-  opponent() { return this.opp[this.round]; }
+  // il tuo avversario di questo turno: chi ti sta accanto nel tabellone (puo' dipendere da un incontro CPU)
+  opponentIndex() { const row = this.ent[this.round], j = row.indexOf(0); return row[j ^ 1]; }
+  opponent() { return this.p[this.opponentIndex()].id; }
+  // incontri di questo turno tra due personaggi veri della CPU (senza di te): [{ j, a, b }] (indici dei partecipanti)
+  cpuMatches() {
+    const row = this.ent[this.round], out = [];
+    for (let j = 0; j < row.length; j += 2) {
+      const A = this.p[row[j]], B = this.p[row[j + 1]];
+      if (A.kind === 'real' && B.kind === 'real') out.push({ j, a: row[j], b: row[j + 1] });
+    }
+    return out;
+  }
   // risultato del tuo incontro: si giocano anche tutti gli altri del turno
-  result(youWon) {
+  result(youWon, forced = {}) {                       // forced: { j: vincitore } per gli incontri CPU gia' visti
     const r = this.round, cur = this.ent[r], nxt = [];
     for (let j = 0; j < cur.length; j += 2) {
       const a = cur[j], b = cur[j + 1], A = this.p[a], B = this.p[b];
       let w;
-      if (A.kind === 'you') w = youWon ? a : b;
+      if (forced[j] !== undefined) w = forced[j];
+      else if (A.kind === 'you') w = youWon ? a : b;
       else if (B.kind === 'you') w = youWon ? b : a;
       else if (A.kind === 'real' && B.kind !== 'real') w = a;      // un personaggio vero batte sempre uno inventato
       else if (B.kind === 'real' && A.kind !== 'real') w = b;
@@ -218,6 +237,14 @@ export class BracketView {
     });
     this.trophyGlow.material.opacity = 0;
   }
+  // evidenzia due caselle (un incontro) del turno r
+  highlight(r, j) {
+    [j, j ^ 1].forEach((jj, k) => {
+      const q = boxPos(r, jj), h = this.hl[k];
+      h.position.set(this._lx(q.x), this._ly(q.y), 0.003); h.scale.set((BW + 40) / W * PW * 1.1, (BH + 40) / H * PH * 1.2, 1); h.visible = true;
+    });
+  }
+  showCpu(T, j, subtitle) { this.T = T; this.subtitle = subtitle; this.anim = null; this._clearTokens(); this.draw(); this.highlight(T.round, j); this.trophyGlow.material.opacity = 0; }
   // dopo un incontro: i vincitori del turno avanzano (gettoni che corrono lungo le linee)
   showAdvance(T, r, subtitle, onDone) {
     this.T = T; this.subtitle = subtitle; this.hl.forEach(h => (h.visible = false)); this._clearTokens();

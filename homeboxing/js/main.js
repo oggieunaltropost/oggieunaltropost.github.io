@@ -2,20 +2,21 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003161454';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003161454';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003161454';
-import { Player, SimInput } from './player.js?v=20261003161454';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003161454';
-import { Room } from './room.js?v=20261003161454';
-import { Arena } from './arena.js?v=20261003161454';
-import { Beach } from './beach.js?v=20261003161454';
-import { RingGirl } from './ringgirl.js?v=20261003161454';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003161454';
-import * as sfx from './sfx.js?v=20261003161454';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003161454';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003161454';
-import { Tournament, BracketView } from './tournament.js?v=20261003161454';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003165254';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003165254';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003165254';
+import { Player, SimInput } from './player.js?v=20261003165254';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003165254';
+import { Room } from './room.js?v=20261003165254';
+import { Arena } from './arena.js?v=20261003165254';
+import { Beach } from './beach.js?v=20261003165254';
+import { RingGirl } from './ringgirl.js?v=20261003165254';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003165254';
+import * as sfx from './sfx.js?v=20261003165254';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003165254';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003165254';
+import { Tournament, BracketView } from './tournament.js?v=20261003165254';
+import { CpuMatch } from './cpu_match.js?v=20261003165254';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -182,7 +183,7 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003161454`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003165254`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -204,27 +205,27 @@ const optionRows = y0 => [
     { id: 'l:difficile', tk: 'l_difficile', w: 0.205 }, { id: 'l:impossibile', tk: 'l_impossibile', w: 0.205 }] },
   { label: t('rounds'), tk: 'rounds', y: y0 - 0.16, buttons: [{ id: 'r:1', text: '1', w: 0.15 }, { id: 'r:3', text: '3', w: 0.15 }, { id: 'r:6', text: '6', w: 0.15 }, { id: 'r:12', text: '12', w: 0.15 }] },
   { label: t('duration'), tk: 'duration', y: y0 - 0.32, buttons: [{ id: 'd:60', text: '1 min', w: 0.2 }, { id: 'd:120', text: '2 min', w: 0.2 }, { id: 'd:180', text: '3 min', w: 0.2 }] },
+  { label: t('rule3'), tk: 'rule3', y: y0 - 0.48, buttons: [{ id: 'k:si', tk: 'yes', w: 0.2 }, { id: 'k:no', tk: 'no', w: 0.2 }] },
 ];
 // menu iniziale: modalita' di gioco, regole generali, lingua
-const rootMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.0, height: 0.98, rows: withText([
-  { label: t('mode_title'), tk: 'mode_title', y: 0.21, h: 0.12, buttons: [{ id: 'gm:arcade', tk: 'm_arcade', w: 0.29, color: 0x1f6f8a },
+const rootMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.0, height: 0.72, rows: withText([
+  { label: t('mode_title'), tk: 'mode_title', y: 0.13, h: 0.12, buttons: [{ id: 'gm:arcade', tk: 'm_arcade', w: 0.29, color: 0x1f6f8a },
     { id: 'gm:training', tk: 'm_training', w: 0.29, color: 0x2a2e36, disabled: true }, { id: 'gm:tour', tk: 'm_tour', w: 0.29, color: 0x7a5a10 }] },
-  { label: t('rule3'), tk: 'rule3', y: 0.0, buttons: [{ id: 'k:si', tk: 'yes', w: 0.2 }, { id: 'k:no', tk: 'no', w: 0.2 }] },
-  { label: t('language'), tk: 'language', y: -0.16, buttons: [{ id: 'g:it', text: 'Italiano', w: 0.26 }, { id: 'g:en', text: 'English', w: 0.26 }] },
-  { y: -0.36, h: 0.1, buttons: [{ id: 'quit', tk: 'quit', w: 0.4, color: 0xc4161f }] },
+  { label: t('language'), tk: 'language', y: -0.02, buttons: [{ id: 'g:it', text: 'Italiano', w: 0.26 }, { id: 'g:en', text: 'English', w: 0.26 }] },
+  { y: -0.22, h: 0.1, buttons: [{ id: 'quit', tk: 'quit', w: 0.4, color: 0xc4161f }] },
 ]) });
 // Arcade: stage, avversario e opzioni dell'incontro
-const arcadeMenu = new MenuPanel({ title: t('arcade'), titleTk: 'arcade', titleH: 0.1, width: 1.0, height: 1.36, rows: withText([
-  stageRow(0.40),
-  { label: t('opponent'), tk: 'opponent', y: 0.14, h: 0.2, buttons: FIGHTER_IDS.map(id => ({ id: 'f:' + id, text: FIGHTERS[id].name, w: 0.26, img: fighterImg(id) })) },
-  ...optionRows(-0.07),
-  { y: -0.57, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'start', tk: 'start', w: 0.5, color: 0x1f8a4c }] },
+const arcadeMenu = new MenuPanel({ title: t('arcade'), titleTk: 'arcade', titleH: 0.1, width: 1.0, height: 1.52, rows: withText([
+  stageRow(0.48),
+  { label: t('opponent'), tk: 'opponent', y: 0.22, h: 0.2, buttons: FIGHTER_IDS.map(id => ({ id: 'f:' + id, text: FIGHTERS[id].name, w: 0.26, img: fighterImg(id) })) },
+  ...optionRows(0.01),
+  { y: -0.65, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'start', tk: 'start', w: 0.5, color: 0x1f8a4c }] },
 ]) });
 // Torneo: come l'arcade ma gli avversari li assegna il tabellone
-const tourMenu = new MenuPanel({ title: t('tour'), titleTk: 'tour', titleH: 0.1, width: 1.0, height: 1.16, rows: withText([
-  stageRow(0.29),
-  ...optionRows(0.04),
-  { y: -0.46, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'start_tour', tk: 'start_tour', w: 0.5, color: 0x1f8a4c }] },
+const tourMenu = new MenuPanel({ title: t('tour'), titleTk: 'tour', titleH: 0.1, width: 1.0, height: 1.32, rows: withText([
+  stageRow(0.37),
+  ...optionRows(0.12),
+  { y: -0.54, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'start_tour', tk: 'start_tour', w: 0.5, color: 0x1f8a4c }] },
 ]) });
 const MENUS = [rootMenu, arcadeMenu, tourMenu];
 for (const m of MENUS) { m.group.scale.setScalar(0.88); scene.add(m.group); }
@@ -234,6 +235,10 @@ const bracket = new BracketView(scene, FIGHTERS);
 const tourBtns = new MenuPanel({ title: '', titleH: 0.03, width: 0.9, height: 0.16, rows: withText([
   { y: -0.01, h: 0.09, buttons: [{ id: 'tgo', tk: 'tr_fight', w: 0.45, color: 0x1f8a4c }, { id: 'tquit', tk: 'tr_quit', w: 0.36, color: 0x7a2a2a }] }]) });
 scene.add(tourBtns.group);
+// incontro CPU: pulsante piccolo per andare al risultato
+const skipBtn = new MenuPanel({ title: '', titleH: 0.02, width: 0.3, height: 0.1, rows: withText([
+  { y: -0.005, h: 0.06, buttons: [{ id: 'skip', tk: 'tr_skip', w: 0.25, color: 0x3a4254 }] }]) });
+scene.add(skipBtn.group);
 let armsUpT = 0, prevButtons = false;
 
 let mike = null;
@@ -637,6 +642,7 @@ function startPresentation() {
 onLang(l => {
   sfx.setVoiceLang(l);
   for (const m of MENUS) m.relabel();
+  skipBtn.relabel();
   nextMenu.relabel(); introMenu.relabel(); pause.relabel(); tourBtns.relabel();
   for (const m of MENUS) m.select(menuChoices());
   if (bracket.group.visible && bracket.T) bracket.draw();
@@ -709,7 +715,7 @@ function tick(dt, frame) {
     {
       const e = new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ');
       placeArena(p, e.y); placed = true;
-      if (game.phase === 'menu' && !menuVisible()) showMainMenu();
+      if (game.phase === 'menu' && !menuVisible() && !tour && !fightStarting) showMainMenu();
     }
   }
   if (renderer.xr.isPresenting && frame && xrFrames % 30 === 0) {
@@ -755,7 +761,7 @@ function tick(dt, frame) {
   if (orbit) orbit.update();
   player.update(dt);
   // puntatori: raggi da mani e controller quando c'e' il menu aperto (puntare = toccare col guantone)
-  const menuOpen = menuVisible() || pause.group.visible;   // (solo menu principale e pausa, non i pannellini dell'incontro)
+  const menuOpen = menuVisible() || pause.group.visible || skipBtn.group.visible;   // (solo menu principale e pausa, non i pannellini dell'incontro)
   const rays = [];
   if (menuOpen && renderer.xr.isPresenting && frame) {
     const ref = renderer.xr.getReferenceSpace();
@@ -772,7 +778,12 @@ function tick(dt, frame) {
     if (renderer.xr.isPresenting || sim) calibrateByHand(dt);
     if (mike) updatePause(dt);
   }
-  if (mike) {
+  if (cpu) {
+    for (const g of Object.values(player.gloves)) g.mesh.visible = false;      // guardi soltanto
+    cpu.update(dt);
+    if (skipBtn.update(dt, []) === 'skip') { sfx.punchBlock(); cpu.finish(true); }
+    if (cpu.done) endCpuWatch();
+  } else if (mike && game.phase !== 'watch') {
     mike.update(dt, player);
     handleEvents();
     updateGame(dt);
@@ -838,10 +849,12 @@ function setStage(st) {
   if (st === mode) return;
   mode = st; applyMode(); placed = false; xrFrames = 16;
 }
+let fightStarting = false;
 async function startFight(opponentId) {
-  closeMenus();
+  closeMenus(); fightStarting = true;
   setStage(pickStage());
   await setFighter(opponentId);
+  fightStarting = false; closeMenus();
   newMatch(); startPresentation();
 }
 // ---- torneo: tabellone prima di ogni incontro e dopo (chi passa il turno), coppa alla fine
@@ -853,9 +866,10 @@ function showBracketNext() {
   bracket.showNext(tour, t('tr_next', { round: bracket.roundName(tour.round), b: FIGHTERS[opp].name.toUpperCase() }));
   setTourButtons('tr_fight', true, yaw);
 }
-function setTourButtons(goKey, showQuit, yaw = menuYaw()) {
+function setTourButtons(goKey, showQuit, yaw = menuYaw(), quitKey = 'tr_quit') {
   const go = tourBtns.buttons.find(b => b.id === 'tgo'), q = tourBtns.buttons.find(b => b.id === 'tquit');
-  go.tk = goKey; q.g.visible = showQuit;
+  go.tk = goKey; q.tk = quitKey; q.g.visible = showQuit;
+  if (goKey !== 'tr_watch') tourStep = goKey === 'tr_fight' ? 'next' : 'end';
   go.x0 = go.x0 ?? go.g.position.x; go.g.position.x = showQuit ? go.x0 : 0;     // da solo, al centro
   tourBtns.relabel();
   // sotto il tabellone
@@ -863,19 +877,70 @@ function setTourButtons(goKey, showQuit, yaw = menuYaw()) {
   tourBtns.open(new THREE.Vector3(p.x + Math.sin(yaw) * 1.05, p.y - 0.47, p.z + Math.cos(yaw) * 1.05), yaw, 0.95, 0.0);
   tourBtns.group.rotation.set(0, yaw, 0);
 }
+let tourStep = 'next', pending = null, cpu = null, cpuB = null;
 function showBracketAfter() {
   const res = game.result || {};
   let youWon = res.winner === 'player';
   if (res.winner === 'pari') youWon = game.player.hits >= game.mike.hits;     // pari: passa chi ha colpito di piu'
-  const opp = tour.opponent(), r = tour.result(youWon);
+  const cm = youWon ? tour.cpuMatches() : [];
+  if (cm.length) { pending = { youWon, cm: cm[0] }; showCpuChoice(); return; }
+  advanceRound(youWon, {});
+}
+// un incontro tra due personaggi veri della CPU in questo turno: guardarlo o andare avanti
+function showCpuChoice() {
+  closeMenus(); game.phase = 'menu'; setPeople(false); mike.enabled = false;
+  const yaw = menuYaw(), { cm } = pending;
+  bracket.open(player.head, yaw);
+  bracket.showCpu(tour, cm.j, t('tr_cpu', { round: bracket.roundName(tour.round), a: tour.p[cm.a].name.toUpperCase(), b: tour.p[cm.b].name.toUpperCase() }));
+  tourStep = 'choice';
+  setTourButtons('tr_watch', true, yaw, 'tr_continue');
+}
+// guardi l'incontro: i due pugili combattono nel ring (di lato rispetto a te), tu senza guantoni
+async function startCpuWatch() {
+  const { cm } = pending;
+  closeMenus(); fightStarting = true; game.phase = 'watch';
+  await setFighter(tour.p[cm.a].id);
+  const gltf = await loadMikeGLTF(FIGHTERS[tour.p[cm.b].id].glb, () => {});
+  cpuB = new Mike(gltf, scene, level, FIGHTERS[tour.p[cm.b].id]);
+  fightStarting = false;
+  const away = pos => {                              // nel ring, e lontano da dove sei tu
+    keepInRing(pos);
+    const dx = pos.x - player.head.x, dz = pos.z - player.head.z, d = Math.hypot(dx, dz);
+    if (d < 1.5) { pos.x = player.head.x + dx / Math.max(d, 1e-3) * 1.5; pos.z = player.head.z + dz / Math.max(d, 1e-3) * 1.5; }
+  };
+  mike.bounds = away; cpuB.bounds = away;
+  const place = (f, x) => { f.root.position.set(x, 0, -Math.min(0.6, ringSize / 2 - 0.9)).applyMatrix4(arena.matrixWorld); f.root.visible = true; };
+  place(mike, -0.6); place(cpuB, 0.6);
+  setPeople(true); board.mesh.visible = false;
+  cpu = new CpuMatch(mike, cpuB, roundSecs, {
+    onHit: (zone, p) => { sfx.punchHit(Math.min(1.3, 0.6 + p * 0.4)); if (arenaEnv) arenaEnv.cheer(zone === 'head' ? 0.8 : 0.5); if (mode === 'arena' && zone === 'head') sfx.cheer('boato', 0.5); },
+    onKO: () => { sfx.voiceNow('knockdown'); if (arenaEnv) arenaEnv.cheer(2); if (mode === 'arena') sfx.cheer('boato', 1); },
+  });
+  sfx.bell(1);
+  // pulsante discreto, in basso di lato, per andare subito al risultato
+  skipBtn.open(player.head, menuYaw() + 0.75, 0.55, 0.45);
+}
+function endCpuWatch() {
+  const { cm, youWon } = pending, w = cpu.winner === 0 ? cm.a : cm.b;
+  sfx.bell(3);
+  cpu = null; skipBtn.close();
+  if (cpuB) { scene.remove(cpuB.root); cpuB = null; }
+  mike.bounds = keepInRing; mike.resetPose(); board.mesh.visible = true;
+  pending = null;
+  advanceRound(youWon, { [cm.j]: w });
+}
+function advanceRound(youWon, forced) {
+  const opp = tour.opponent(), r = tour.result(youWon, forced);
   closeMenus(); game.phase = 'menu'; setPeople(false); mike.enabled = false;
   const yaw = menuYaw();
   bracket.open(player.head, yaw);
   const sub = youWon ? (tour.state === 'champion' ? t('tr_champ') : t('tr_adv', { round: bracket.roundName(r) }))
     : t('tr_lost', { b: FIGHTERS[opp].name.toUpperCase(), round: bracket.roundName(r) });
+  if (youWon) setTimeout(() => sfx.advance(false), 300);
   bracket.showAdvance(tour, r, sub, () => {
     if (tour.state === 'next') { showBracketNext(); return; }
     if (tour.state === 'champion') {                  // festa: coriandoli e fuochi sopra la coppa
+      sfx.advance(true);
       party.start(bracket.group.position.clone().add(new THREE.Vector3(0, 0.2, 0)), [0xffc928, 0xffffff, 0xd81e2c]);
       sfx.cheer('applauso', 1); sfx.cheer('boato', 0.9);
     }
@@ -888,6 +953,7 @@ function updateMainMenu(dt, gloves) {
     const id = tourBtns.update(dt, gloves);
     if (!id) return;
     sfx.punchBlock();
+    if (tourStep === 'choice') { if (id === 'tgo') startCpuWatch(); else { const p = pending; pending = null; advanceRound(p.youWon, {}); } return; }
     if (id === 'tgo') { if (tour && tour.state === 'next') startFight(tour.opponent()); else showMainMenu(); }
     else if (id === 'tquit') showMainMenu();
     return;
@@ -931,6 +997,7 @@ function updatePause(dt) {
   }
   const click = pressed && !prevButtons; prevButtons = pressed;
   if (game.phase === 'menu') { updateMainMenu(dt, g); return; }
+  if (game.phase === 'watch') return;                 // incontro CPU: niente pausa, c'e' il pulsante per saltare
   if (!game.paused && !pause.group.visible && game.phase !== 'end' && (armsUpT > 1.5 || click)) { armsUpT = -2; openPause(); return; }
   if (game.paused && click) { closePause(); return; }
   const id = pause.update(dt, g);
@@ -991,7 +1058,7 @@ loadMikeGLTF(FIGHTERS[fighterId].glb, f => statusT('loading', { p: Math.min(100,
   placeArena(new THREE.Vector3(0, 1.65, 0), 0);
   window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.getUpFx = getUp; window.gameApi = { newMatch, showMainMenu, startIntro, startPresentation, girl: () => girl, arena: () => arena, ringSize: () => ringSize }; window.sweatFx = sweat;   // per le prove
   window.tourApi = { MENUS, bracket, tourBtns, show: () => showMainMenu(), open: m => openMenu(MENUS[m]), start: () => { tour = new Tournament(FIGHTERS); showBracketNext(); },
-    after: win => { game.result = { winner: win ? 'player' : 'mike' }; showBracketAfter(); }, fight: () => startFight(tour.opponent()), setStageChoice: c => { stageChoice = c; }, get mode() { return mode; }, get tour() { return tour; } };   // (prove)
+    after: win => { game.result = { winner: win ? 'player' : 'mike' }; showBracketAfter(); }, fight: () => startFight(tour.opponent()), setStageChoice: c => { stageChoice = c; }, get mode() { return mode; }, get tour() { return tour; }, get cpu() { return cpu; }, skipBtn };   // (prove)
   status('');
   $('enter').disabled = !navigator.xr;
   if (navigator.xr) navigator.xr.isSessionSupported('immersive-ar').then(ok => {

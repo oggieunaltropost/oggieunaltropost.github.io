@@ -71,7 +71,7 @@ export class Beach {
 
   // cielo e sfondo: il panorama a 360 gradi della spiaggia vera (proiezione equirettangolare)
   _sky() {
-    const tex = new THREE.TextureLoader().load('assets/spiaggia_cielo.jpg?v=20261003161454', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load('assets/spiaggia_cielo.jpg?v=20261003165254', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -112,7 +112,7 @@ export class Beach {
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     g.setIndex(idx); g.computeVertexNormals();
     const L = new THREE.TextureLoader();
-    const tex = L.load('assets/sabbia_colore.jpg?v=20261003161454'), nrm = L.load('assets/sabbia_rilievo.jpg?v=20261003161454');
+    const tex = L.load('assets/sabbia_colore.jpg?v=20261003165254'), nrm = L.load('assets/sabbia_rilievo.jpg?v=20261003165254');
     tex.colorSpace = THREE.SRGBColorSpace;
     for (const t of [tex, nrm]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; }
     const m = new THREE.MeshStandardMaterial({ map: tex, normalMap: nrm, normalScale: new THREE.Vector2(1.4, 1.4), vertexColors: true, roughness: 1 });
@@ -276,10 +276,11 @@ export class Beach {
     const iron = new THREE.MeshStandardMaterial({ color: 0x2a2f36, roughness: 0.5, metalness: 0.4 });
     for (let k = 0; k < 10; k++) {
       const x = -45 + k * 10;
-      this._take(x, 22.4, 0.6);                                   // (sul bordo della passeggiata)
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 4.2, 8), iron); pole.position.set(x, sandY(x, 22.4) + 2.3, 22.4);
+      this._take(x, 24, 0.6);                                     // (al centro della passeggiata)
+      const deckTop = sandY(0, 24) + 0.425;                       // piano della passeggiata
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 4.2, 8), iron); pole.position.set(x, deckTop + 2.1, 24);
       const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8), new THREE.MeshStandardMaterial({ color: 0xfff6dc, emissive: 0x665a3a }));
-      lamp.position.set(x, pole.position.y + 2.2, 22.4);
+      lamp.position.set(x, pole.position.y + 2.2, 24);
       this.group.add(pole, lamp);
     }
   }

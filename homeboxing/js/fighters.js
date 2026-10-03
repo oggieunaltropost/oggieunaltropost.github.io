@@ -3,7 +3,7 @@
 // Ruolo nel gioco sempre lo stesso ("mike" nel codice = l'avversario); qui cambiano nome e aspetto.
 export const FIGHTERS = {
   bruce: {
-    id: 'bruce', name: 'Bruce', glb: 'assets/bruce.glb?v=20261003161454', thumb: 'assets/fighter_bruce.webp?v=20261003161454',
+    id: 'bruce', name: 'Bruce', glb: 'assets/bruce.glb?v=20261003165254', thumb: 'assets/fighter_bruce.webp?v=20261003165254',
     face: [163, 5, 110],                                           // volto nell'anteprima (x, y, lato) per il tabellone
     skinTint: 0xe3b98f,                                            // pelle piu' abbronzata della texture MakeHuman
     evenSkin: false,                                               // (la schiaritura delle gambe serve solo alla pelle di Mike)
@@ -12,7 +12,7 @@ export const FIGHTERS = {
     feints: { rate: 1.3, moves: ['feint_jab', 'feint_dip', 'feint_hop', 'feint_jab'], speed: 1.0 },
   },
   mike: {
-    id: 'mike', name: 'Mike', glb: 'assets/mike.glb?v=20261003161454', thumb: 'assets/fighter_mike.webp?v=20261003161454',
+    id: 'mike', name: 'Mike', glb: 'assets/mike.glb?v=20261003165254', thumb: 'assets/fighter_mike.webp?v=20261003165254',
     face: [178, 0, 110],
     skinTint: null,
     band: { bg: '#f4f4f0', line: '#c99a2e', text: '#1239a8' },
