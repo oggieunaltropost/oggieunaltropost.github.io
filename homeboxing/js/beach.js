@@ -1,13 +1,15 @@
 // Stage "In spiaggia": il ring appoggiato sulla sabbia. Davanti (oltre Mike) il mare con le onde che
 // si infrangono e gli schizzi; ai lati la spiaggia con palme, ombrelloni e la torretta del bagnino,
-// in lontananza la citta' a sinistra e il promontorio col faro a destra. Tutto generato qui.
+// sullo sfondo il panorama vero della Spiaggia di Mondello (foto a 360 gradi CC0 di Andreas Mischok, Poly Haven):
+// cielo, Monte Pellegrino, pini e lungomare. Il mare vicino, le onde e gli oggetti sono generati qui.
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, il giocatore verso +Z, il mare verso -Z).
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const SHORE = -8.0;          // dove l'acqua incontra la sabbia (z)
 const SEA_Y = -0.32;          // livello medio del mare
-const SUN = new THREE.Vector3(-0.45, 0.62, 0.64).normalize();   // sole alto, dietro a sinistra del giocatore
+const SUN = new THREE.Vector3(-0.53, 0.42, 0.73).normalize();   // il sole della foto: basso, alle spalle del giocatore
+const PANO_U = -0.25;          // rotazione del panorama: il mare della foto davanti al giocatore (-Z)
 
 function rnd(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
 function smooth(a, b, x) { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
@@ -30,26 +32,9 @@ function canvasTex(w, h, draw, repeat = null) {
   if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat[0], repeat[1]); }
   return t;
 }
-function sandTex() {
-  return canvasTex(512, 512, (g, w, h) => {
-    g.fillStyle = '#cdb07a'; g.fillRect(0, 0, w, h);
-    const r = rnd(7);
-    for (let i = 0; i < 26000; i++) {                       // granelli
-      const v = 150 + r() * 70, a = 0.25 + r() * 0.35;
-      g.fillStyle = `rgba(${v + 20},${v},${v - 50},${a})`;
-      g.fillRect(r() * w, r() * h, 1 + r() * 1.5, 1 + r() * 1.5);
-    }
-    g.strokeStyle = 'rgba(150,120,70,0.10)'; g.lineWidth = 3;   // increspature del vento
-    for (let k = 0; k < 28; k++) {
-      const y0 = r() * h; g.beginPath();
-      for (let x = 0; x <= w; x += 16) g.lineTo(x, y0 + Math.sin(x * 0.03 + k) * 6);
-      g.stroke();
-    }
-  }, [60, 30]);
-}
 function barkTex() {
   return canvasTex(64, 256, (g, w, h) => {
-    g.fillStyle = '#7a5c3c'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#6f6556'; g.fillRect(0, 0, w, h);
     for (let y = 0; y < h; y += 9) {
       g.fillStyle = 'rgba(40,25,10,0.45)'; g.fillRect(0, y, w, 3);
       g.fillStyle = 'rgba(200,170,120,0.25)'; g.fillRect(0, y + 4, w, 2);
@@ -59,12 +44,12 @@ function barkTex() {
 function leafTex() {
   const t = canvasTex(128, 512, (g, w, h) => {
     g.clearRect(0, 0, w, h);
-    g.strokeStyle = '#5c7a2a'; g.lineWidth = 5;
+    g.strokeStyle = '#6b6a3a'; g.lineWidth = 5;
     g.beginPath(); g.moveTo(w / 2, 0); g.lineTo(w / 2, h); g.stroke();
     for (let y = 8; y < h - 8; y += 9) {                     // foglioline ai due lati della costa
       const L = (w / 2 - 4) * Math.sin(Math.PI * Math.min(1, y / h + 0.08)) ** 0.7;
       const shade = 70 + Math.round(40 * Math.sin(y * 0.4));
-      g.strokeStyle = `rgb(${40 + shade / 3},${100 + shade},${30})`; g.lineWidth = 5;
+      g.strokeStyle = `rgb(${38 + shade / 4},${70 + shade * 0.7},${32 + shade / 5})`; g.lineWidth = 4;
       g.beginPath(); g.moveTo(w / 2, y); g.lineTo(w / 2 - L, y + 22); g.stroke();
       g.beginPath(); g.moveTo(w / 2, y); g.lineTo(w / 2 + L, y + 22); g.stroke();
     }
@@ -72,34 +57,11 @@ function leafTex() {
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-function windowsTex() {
-  return canvasTex(256, 256, (g, w, h) => {
-    g.fillStyle = '#c9c4ba'; g.fillRect(0, 0, w, h);
-    const r = rnd(3);
-    for (let y = 6; y < h; y += 32) for (let x = 6; x < w; x += 32) {
-      const lit = r();
-      g.fillStyle = lit < 0.5 ? '#5d7590' : lit < 0.8 ? '#7f9bb6' : '#a9c3d8';
-      g.fillRect(x, y, 20, 22);
-    }
-  }, [1, 1]);
-}
 function stripesTex(a, b, n = 8) {
   return canvasTex(256, 32, (g, w, h) => {
     for (let i = 0; i < n; i++) { g.fillStyle = i % 2 ? b : a; g.fillRect(i * w / n, 0, w / n + 1, h); }
   });
 }
-function cloudTex(seed) {
-  return canvasTex(512, 256, (g, w, h) => {
-    const r = rnd(seed);
-    for (let i = 0; i < 40; i++) {
-      const x = w * (0.15 + 0.7 * r()), y = h * (0.45 + 0.25 * r()), rad = 30 + r() * 70;
-      const grd = g.createRadialGradient(x, y, 0, x, y, rad);
-      grd.addColorStop(0, 'rgba(255,255,255,0.55)'); grd.addColorStop(1, 'rgba(255,255,255,0)');
-      g.fillStyle = grd; g.beginPath(); g.arc(x, y, rad, 0, Math.PI * 2); g.fill();
-    }
-  });
-}
-
 // ---------------------------------------------------------------- shader comuni
 const NOISE = `
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -108,8 +70,8 @@ float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * 
 float fbm(vec2 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { v += a * vnoise(p); p *= 2.1; a *= 0.5; } return v; }
 `;
 const COLORS = {
-  zenith: new THREE.Color(0x2f6fc4), horizon: new THREE.Color(0xcfe3f2),
-  deep: new THREE.Color(0x0b5a8c), shallow: new THREE.Color(0x29b8c2), foam: new THREE.Color(0xf4f8f8),
+  zenith: new THREE.Color(0x2a5fae), horizon: new THREE.Color(0xa9c9e6),
+  deep: new THREE.Color(0x1d6aa0), shallow: new THREE.Color(0x48c4c8), foam: new THREE.Color(0xf4f8f8),
 };
 
 export class Beach {
@@ -119,28 +81,27 @@ export class Beach {
     this.sunDir = SUN.clone();
     this.waves = [];
     this._sky(); this._sea(); this._sand(); this._breakers();
-    this._palms(); this._props(); this._promenade(); this._city(); this._headland(); this._boats(); this._birds(); this._clouds();
+    this._palms(); this._props(); this._promenade(); this._birds();
     this.group.traverse(o => { if (o.isMesh || o.isPoints) o.frustumCulled = false; });
   }
 
-  // cielo: sfumatura dall'orizzonte chiaro allo zenit, alone del sole
+  // cielo e sfondo: il panorama a 360 gradi della spiaggia vera (proiezione equirettangolare)
   _sky() {
+    const tex = new THREE.TextureLoader().load('assets/spiaggia_cielo.jpg?v=20261003112745', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
+    this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
-      uniforms: { uZen: { value: COLORS.zenith }, uHor: { value: COLORS.horizon }, uSun: { value: this.sunDir } },
-      vertexShader: `varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-      fragmentShader: `uniform vec3 uZen, uHor, uSun; varying vec3 vD;
-        void main(){ float h = max(vD.y, 0.0);
-          vec3 c = mix(uHor, uZen, pow(h, 0.55));
-          float s = max(dot(normalize(vD), uSun), 0.0);
-          c += vec3(1.0, 0.9, 0.7) * (pow(s, 600.0) * 6.0 + pow(s, 12.0) * 0.25);
-          if (vD.y < 0.0) c = uHor;
-          gl_FragColor = vec4(c, 1.0);
-          #include <tonemapping_fragment>
+      uniforms: { uPano: { value: tex }, uU: { value: PANO_U } },
+      vertexShader: `varying vec3 vD; void main(){ vD = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      fragmentShader: `uniform sampler2D uPano; uniform float uU; varying vec3 vD;
+        void main(){ vec3 d = normalize(vD);
+          vec2 uv = vec2(fract(atan(d.z, d.x) * 0.15915494 + 0.5 + uU), asin(clamp(d.y, -1.0, 1.0)) * 0.31830989 + 0.5);
+          gl_FragColor = vec4(texture2D(uPano, uv).rgb, 1.0);
           #include <colorspace_fragment>
         }`,
     });
-    const sky = new THREE.Mesh(new THREE.SphereGeometry(320, 32, 16), m);
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(320, 64, 32), m);
     sky.renderOrder = -10; sky.frustumCulled = false;
     this.sky = sky; this.group.add(sky);
   }
@@ -215,8 +176,7 @@ export class Beach {
           float foam = smoothstep(0.17, 0.30, vH + (n - 0.5) * 0.18) * 0.7;
           foam += smoothstep(4.0, 0.0, dist) * smoothstep(0.35, 0.7, n) * 0.9;
           col = mix(col, uFoam, clamp(foam, 0.0, 0.9));
-          col = mix(col, uHor, smoothstep(150.0, 320.0, fd) * 0.6);
-          gl_FragColor = vec4(col, 1.0);
+          gl_FragColor = vec4(col, 1.0 - smoothstep(55.0, 120.0, fd));        // al largo lascia vedere il mare della foto
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
         }`,
@@ -225,19 +185,20 @@ export class Beach {
     m.vertexShader = m.vertexShader.replace('varying float vH;', 'varying float vH; varying vec3 vL;')
       .replace('vH = h;', 'vH = h; vL = lp;');
     m.fragmentShader = m.fragmentShader.replace('vec3 lw = (inverse(modelMatrixInv) * vec4(0.0)).xyz;\n', '');
-    const sea = new THREE.Mesh(g, m); sea.frustumCulled = false;
+    m.transparent = true;
+    const sea = new THREE.Mesh(g, m); sea.frustumCulled = false; sea.renderOrder = -5;
     this.group.add(sea);
   }
 
   // sabbia: grande distesa con dune; bagnata e piu' scura vicino all'acqua
   _sand() {
-    const W = 260, D = 150, NX = 130, NZ = 90, pos = [], col = [], uv = [], idx = [];
+    const W = 150, D = 80, NX = 110, NZ = 70, pos = [], col = [], uv = [], idx = [];
     for (let j = 0; j <= NZ; j++) {
       const v = j / NZ, z = -16 + D * Math.pow(v, 1.5);
       for (let i = 0; i <= NX; i++) {
         const u = i / NX * 2 - 1, x = Math.sign(u) * (W / 2) * Math.pow(Math.abs(u), 1.5);
         const y = sandY(x, z);
-        pos.push(x, y, z); uv.push(x / 4, z / 4);
+        pos.push(x, y, z); uv.push(x / 2.2, z / 2.2);
         const wet = smooth(-4.5, -7.5, z);                        // sabbia bagnata
         const k = 1 - 0.35 * wet;
         col.push(k, k * (1 - 0.04 * wet), k * (1 - 0.08 * wet));
@@ -252,8 +213,11 @@ export class Beach {
     g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     g.setIndex(idx); g.computeVertexNormals();
-    const tex = sandTex(); tex.repeat.set(1, 1);
-    const m = new THREE.MeshStandardMaterial({ map: tex, vertexColors: true, roughness: 0.95 });
+    const L = new THREE.TextureLoader();
+    const tex = L.load('assets/sabbia_colore.jpg?v=20261003112745'), nrm = L.load('assets/sabbia_rilievo.jpg?v=20261003112745');
+    tex.colorSpace = THREE.SRGBColorSpace;
+    for (const t of [tex, nrm]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; }
+    const m = new THREE.MeshStandardMaterial({ map: tex, normalMap: nrm, normalScale: new THREE.Vector2(1.4, 1.4), vertexColors: true, roughness: 1 });
     const sand = new THREE.Mesh(g, m); sand.receiveShadow = true;
     this.group.add(sand);
     // velo di schiuma che sale e scende sulla riva dopo ogni onda
@@ -272,7 +236,7 @@ export class Beach {
           float lace = smoothstep(0.45, 0.75, fbm(vL.xz * 1.8 + vec2(0.0, uTime * 0.3)));
           float rim = smoothstep(0.5, 0.0, abs(vL.z - edge));
           vec3 c = mix(uShallow, uFoam, clamp(lace * 0.8 + rim, 0.0, 1.0));
-          float a = inside * (0.35 + 0.55 * max(lace, rim)) * uAlpha;
+          float a = inside * (0.08 + 0.55 * lace + 0.35 * rim * lace) * uAlpha;
           gl_FragColor = vec4(c, a);
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
@@ -323,15 +287,15 @@ export class Beach {
           ${NOISE}
           void main(){
             float n = fbm(vec2(vX * 0.3 + uSeed * 10.0, vS * 3.0 + uTime * 0.6));
-            vec3 face = mix(uShallow, uDeep, 0.35 + 0.4 * (1.0 - vProf));
+            vec3 face = mix(uShallow, uDeep, 0.5 + 0.3 * (1.0 - vProf));
             face *= 0.9 + 0.25 * vProf;                              // la parete d'acqua controluce e' piu' chiara
             float crest = smoothstep(0.8, 1.0, vProf) * smoothstep(0.45, 0.6, vPh);
-            float foam = clamp(crest * (0.6 + 0.6 * n) + vBrk * (0.55 + 0.6 * n), 0.0, 1.0);
+            float foam = clamp(crest * (0.6 + 0.6 * n) + vBrk * smoothstep(0.35, 0.75, n), 0.0, 1.0);
             vec3 c = mix(face, uFoam, foam);
             float a = smoothstep(0.0, 0.18, vS) * (vBrk > 0.0 ? 1.0 : smoothstep(0.0, 0.08, 1.0 - vS));
             a *= (1.0 - smoothstep(0.86, 1.0, vPh)) * smoothstep(0.0, 0.08, vPh);
             a *= smoothstep(45.0, 30.0, abs(vX));
-            a *= mix(0.9, 0.97, foam);
+            a *= mix(0.35, 0.9, foam) * (1.0 - 0.55 * vBrk);   // parete d'acqua trasparente; la schiuma rotta si dissolve
             float fd = length(vW - cameraPosition);
             c = mix(c, uHor, smoothstep(60.0, 200.0, fd) * 0.8);
             gl_FragColor = vec4(c, a);
@@ -341,7 +305,7 @@ export class Beach {
       });
       const mesh = new THREE.Mesh(geo, m); mesh.frustumCulled = false; mesh.renderOrder = 2;
       this.group.add(mesh);
-      this.waves.push({ mesh, u, t: k * 2.9, T: 8.7, H: 1.5 + 0.9 * Math.random(), splashed: false });
+      this.waves.push({ mesh, u, t: k * 2.9, T: 8.7, H: 0.45 + 0.4 * Math.random(), splashed: false });
     }
   }
 
@@ -375,12 +339,12 @@ export class Beach {
       }
       tg.computeVertexNormals(); trunks.push(tg);
       // corona di foglie: strisce piegate che ricadono
-      const nF = 9 + Math.floor(r() * 4);
+      const nF = 15 + Math.floor(r() * 5);
       for (let f = 0; f < nF; f++) {
-        const a = f / nF * Math.PI * 2 + r() * 0.4, L = 3.2 + r() * 1.2, up = 0.5 + r() * 0.5;
+        const a = f / nF * Math.PI * 2 + r() * 0.3, L = 2.6 + r() * 1.4, up = 0.2 + r() * 0.9;
         const S = 10, P = [], U = [], I = [];
         for (let s = 0; s <= S; s++) {
-          const t = s / S, w = 0.55 * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.05 + 0.04)), 0.6);
+          const t = s / S, w = 0.42 * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.05 + 0.04)), 0.6);
           const cx = Math.cos(a) * L * t, cz = Math.sin(a) * L * t, cy = up * t * 2.2 - 2.4 * t * t;
           const px = -Math.sin(a) * w, pz = Math.cos(a) * w;
           const droop = -0.18 * w;                              // la foglia si piega a V
@@ -500,76 +464,6 @@ export class Beach {
     }
   }
 
-  // citta' in lontananza a sinistra, lungo la costa: tutti i palazzi in un solo oggetto
-  _city() {
-    const r = rnd(21), geos = [];
-    for (let k = 0; k < 120; k++) {
-      const t = r();
-      const x = -120 - t * 170 - r() * 15, z = -40 + t * 90 + (r() - 0.5) * 30;
-      const w = 8 + r() * 14, d = 8 + r() * 14, h = 10 + Math.pow(r(), 2) * (50 - t * 15);
-      const b = new THREE.BoxGeometry(w, h, d); b.translate(x, h / 2 - 1, z);
-      const uv = b.attributes.uv;
-      for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * w / 8, uv.getY(i) * h / 8);
-      geos.push(b);
-    }
-    const tex = windowsTex(); tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    const m = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6, metalness: 0.1 });
-    m.onBeforeCompile = sh => {                       // foschia: i palazzi lontani sfumano nel cielo
-      sh.uniforms.uHor = { value: COLORS.horizon };
-      sh.vertexShader = 'varying float vDist;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\nvDist = length(mvPosition.xyz);');
-      sh.fragmentShader = 'uniform vec3 uHor;\nvarying float vDist;\n' + sh.fragmentShader.replace('#include <tonemapping_fragment>',
-        'gl_FragColor.rgb = mix(gl_FragColor.rgb, uHor, smoothstep(30.0, 190.0, vDist) * 0.85);\n#include <tonemapping_fragment>');
-    };
-    const city = new THREE.Mesh(mergeGeometries(geos), m);
-    this.group.add(city);
-  }
-
-  // promontorio verde a destra con il faro
-  _headland() {
-    const g = new THREE.SphereGeometry(1, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2);
-    const p = g.attributes.position;
-    for (let i = 0; i < p.count; i++) {
-      const x = p.getX(i), z = p.getZ(i), y = p.getY(i);
-      const n = 1 + 0.18 * Math.sin(x * 9.0 + z * 4.0) + 0.1 * Math.sin(z * 17.0);
-      p.setXYZ(i, x * n, y * n, z * n);
-    }
-    g.computeVertexNormals(); g.scale(90, 32, 60); g.translate(140, -2, -70);
-    const m = new THREE.MeshStandardMaterial({ color: 0x5f7d4a, roughness: 1 });
-    m.onBeforeCompile = sh => {
-      sh.uniforms.uHor = { value: COLORS.horizon };
-      sh.vertexShader = 'varying float vDist;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\nvDist = length(mvPosition.xyz);');
-      sh.fragmentShader = 'uniform vec3 uHor;\nvarying float vDist;\n' + sh.fragmentShader.replace('#include <tonemapping_fragment>',
-        'gl_FragColor.rgb = mix(gl_FragColor.rgb, uHor, smoothstep(50.0, 230.0, vDist) * 0.6);\n#include <tonemapping_fragment>');
-    };
-    const hill = new THREE.Mesh(g, m);
-    const lh = new THREE.Group(); lh.position.set(78, 18, -92);
-    const tower = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 2.0, 14, 16), new THREE.MeshStandardMaterial({ map: stripesTex('#ffffff', '#d8322a', 2) }));
-    tower.material.map.rotation = Math.PI / 2; tower.position.y = 7;
-    const lamp = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 1.6, 12), new THREE.MeshBasicMaterial({ color: 0xfff3c0 }));
-    lamp.position.y = 14.8;
-    const cap = new THREE.Mesh(new THREE.ConeGeometry(1.6, 1.4, 12), new THREE.MeshStandardMaterial({ color: 0x333333 })); cap.position.y = 16.3;
-    lh.add(tower, lamp, cap);
-    this.group.add(hill, lh);
-  }
-
-  // barche a vela al largo che dondolano
-  _boats() {
-    this.boats = [];
-    const r = rnd(9);
-    for (let k = 0; k < 5; k++) {
-      const b = new THREE.Group();
-      const hull = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 4.5), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }));
-      const sail = new THREE.Mesh(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0.4, -1.6), new THREE.Vector3(0, 6.5, -0.3), new THREE.Vector3(0, 0.4, 1.4)]),
-        new THREE.MeshStandardMaterial({ color: k % 2 ? 0xfafafa : 0xf2e8d0, side: THREE.DoubleSide }));
-      sail.geometry.computeVertexNormals();
-      b.add(hull, sail);
-      b.position.set(-70 + k * 32 + r() * 15, SEA_Y + 0.1, -70 - r() * 80);
-      b.rotation.y = r() * Math.PI;
-      b.userData = { ph: r() * 6, vx: (r() - 0.5) * 0.6 };
-      this.boats.push(b); this.group.add(b);
-    }
-  }
-
   // gabbiani che volano in cerchio
   _birds() {
     this.birds = [];
@@ -585,17 +479,6 @@ export class Beach {
     }
   }
 
-  _clouds() {
-    for (let k = 0; k < 7; k++) {
-      const m = new THREE.MeshBasicMaterial({ map: cloudTex(30 + k), transparent: true, depthWrite: false, fog: false, opacity: 0.85 });
-      const c = new THREE.Mesh(new THREE.PlaneGeometry(170, 60), m);
-      const a = -Math.PI / 2 + (k - 3) * 0.45 + Math.random() * 0.2;
-      c.position.set(Math.cos(a) * 270, 55 + Math.random() * 45, Math.sin(a) * 270);
-      c.lookAt(0, c.position.y * 0.6, 0); c.renderOrder = -9;
-      this.group.add(c);
-    }
-  }
-
   update(dt, onBreak) {
     this.t += dt;
     const t = this.t;
@@ -604,7 +487,7 @@ export class Beach {
     let reach = -8.0, swashA = 0;
     for (const w of this.waves) {
       w.t += dt;
-      if (w.t > w.T) { w.t -= w.T; w.H = 1.5 + Math.random() * 0.9; w.splashed = false; }
+      if (w.t > w.T) { w.t -= w.T; w.H = 0.45 + Math.random() * 0.4; w.splashed = false; }
       const ph = w.t / w.T;
       w.u.uPh.value = ph; w.u.uH.value = w.H; w.u.uTime.value = t;
       w.u.uZ.value = -22 + 14.5 * (1 - Math.pow(1 - ph, 1.4));
@@ -619,13 +502,8 @@ export class Beach {
       }
     }
     this.swashU.uReach.value += (reach - this.swashU.uReach.value) * Math.min(1, dt * 3);
-    this.swashU.uAlpha.value += (Math.max(0.25, swashA) - this.swashU.uAlpha.value) * Math.min(1, dt * 2);
-    // barche, gabbiani, bandiera
-    for (const b of this.boats) {
-      const u = b.userData;
-      b.position.y = SEA_Y + 0.1 + Math.sin(t * 0.8 + u.ph) * 0.18;
-      b.rotation.z = Math.sin(t * 0.7 + u.ph) * 0.06; b.position.x += u.vx * dt;
-    }
+    this.swashU.uAlpha.value += (Math.max(0.1, swashA) - this.swashU.uAlpha.value) * Math.min(1, dt * 2);
+    // gabbiani, bandiera
     for (const b of this.birds) {
       const p = b.userData.p; p.a += p.w * dt;
       b.position.set(p.cx + Math.cos(p.a) * p.r, p.y + Math.sin(t * 0.5 + p.a) * 0.6, p.cz + Math.sin(p.a) * p.r);

@@ -2,17 +2,17 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003111236';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003111236';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003111236';
-import { Player, SimInput } from './player.js?v=20261003111236';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD } from './hud.js?v=20261003111236';
-import { Room } from './room.js?v=20261003111236';
-import { Arena } from './arena.js?v=20261003111236';
-import { Beach } from './beach.js?v=20261003111236';
-import { RingGirl } from './ringgirl.js?v=20261003111236';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003111236';
-import * as sfx from './sfx.js?v=20261003111236';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003112745';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003112745';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003112745';
+import { Player, SimInput } from './player.js?v=20261003112745';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD } from './hud.js?v=20261003112745';
+import { Room } from './room.js?v=20261003112745';
+import { Arena } from './arena.js?v=20261003112745';
+import { Beach } from './beach.js?v=20261003112745';
+import { RingGirl } from './ringgirl.js?v=20261003112745';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003112745';
+import * as sfx from './sfx.js?v=20261003112745';
 
 const $ = id => document.getElementById(id);
 const status = t => { $('status').textContent = t; };
@@ -35,7 +35,8 @@ const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.02, 6
 camera.position.set(0, 1.65, 0);
 scene.add(camera);
 const pmrem = new THREE.PMREMGenerator(renderer);
-scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+const roomEnv = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environment = roomEnv;
 scene.environmentIntensity = 0.7;
 
 const hemi = new THREE.HemisphereLight(0xffffff, 0x404048, 1.1);
@@ -113,10 +114,17 @@ function applyMode() {
   if (onBeach) {                                       // pieno giorno: sole alto dietro di te, cielo azzurro
     hemi.color.set(0xbfe0ff); hemi.groundColor.set(0xb89a68); hemi.intensity = 0.8;
     scene.environmentIntensity = 0.6; key.intensity = 2.3; fill.intensity = 0.4;
-    key.color.set(0xfff0d8); key.position.set(-2.2, 5.0, 3.0);
-    scene.background = new THREE.Color(0xcfe3f2); scene.fog = null;
+    key.color.set(0xfff0d8); key.position.copy(beachEnv.sunDir).multiplyScalar(6);   // il sole della foto
+    scene.background = new THREE.Color(0xa9c9e6); scene.fog = null;
+    // riflessi e luce d'ambiente dal panorama vero (appena l'immagine e' caricata)
+    const useSky = () => {
+      if (!beachEnv.envMap) beachEnv.envMap = pmrem.fromEquirectangular(beachEnv.skyTex).texture;
+      if (mode === 'spiaggia') { scene.environment = beachEnv.envMap; scene.environmentRotation.set(0, -Math.PI / 2, 0); }
+    };
+    if (beachEnv.skyLoaded) useSky(); else beachEnv.onSkyLoad = useSky;
     camera.far = 400;                                  // si vedono orizzonte, citta' e promontorio
   } else {
+    scene.environment = roomEnv; scene.environmentRotation.set(0, 0, 0);
     hemi.color.set(0xffffff); hemi.groundColor.set(0x404048);
     hemi.intensity = inArena ? 0.2 : 1.1;
     scene.environmentIntensity = inArena ? 0.3 : 0.7;     // nel palazzetto il pubblico resta in penombra
@@ -152,12 +160,16 @@ function roomPreview() {
   g.strokeStyle = '#e8412c'; g.lineWidth = 4; g.strokeRect(70, 108, 180, 34);
   g.strokeStyle = '#ffffff'; g.lineWidth = 3; g.strokeRect(70, 118, 180, 24);
   g.fillStyle = '#eeeeee'; for (const x of [70, 250]) g.fillRect(x - 4, 100, 8, 70);
+  // fascia con la scritta: nella stanza vedi la tua casa vera (realta' aumentata / passthrough)
+  g.fillStyle = 'rgba(10,12,18,0.72)'; g.fillRect(0, 74, 320, 52);
+  g.fillStyle = '#ffd34d'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = '900 34px system-ui, sans-serif'; g.fillText('REALTÀ AUMENTATA', 160, 100, 300);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003111236`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003112745`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const mainMenu = new MenuPanel({ title: 'HOME BOXING', subtitle: 'tieni un guantone sul pulsante', width: 1.0, height: 1.36, rows: [
-  { label: 'DOVE', y: 0.33, h: 0.22, buttons: [{ id: 'm:stanza', text: 'Nella stanza', w: 0.29, img: roomPreview() },
+  { label: 'DOVE', y: 0.33, h: 0.22, buttons: [{ id: 'm:stanza', text: 'La tua stanza', w: 0.29, img: roomPreview() },
     { id: 'm:arena', text: 'Nell\'arena', w: 0.29, img: stageImg('arena') }, { id: 'm:spiaggia', text: 'In spiaggia', w: 0.29, img: stageImg('spiaggia') }] },
   { label: 'LIVELLO', y: 0.11, buttons: [{ id: 'l:facile', text: 'Facile', w: 0.205 }, { id: 'l:normale', text: 'Normale', w: 0.205 },
     { id: 'l:difficile', text: 'Difficile', w: 0.205 }, { id: 'l:impossibile', text: 'Impossibile', w: 0.205 }] },
@@ -685,7 +697,7 @@ function updateMainMenu(dt, gloves) {
   else if (id.startsWith('d:')) { roundSecs = parseInt(id.slice(2)); try { localStorage.setItem('hb-roundsec', roundSecs); } catch (e) {} }
   else if (id.startsWith('k:')) { threeKO = id === 'k:si'; try { localStorage.setItem('hb-3ko', threeKO ? 'si' : 'no'); } catch (e) {} }
   else if (id.startsWith('r:')) { rounds = parseInt(id.slice(2)); try { localStorage.setItem('hb-rounds', rounds); } catch (e) {} }
-  else if (id === 'start') { mainMenu.close(); newMatch(); startIntro(); return; }
+  else if (id === 'start') { mainMenu.close(); newMatch(); return; }   // (startIntro: volo iniziale, sospeso: fa girare la testa)
   else if (id === 'quit') { mainMenu.close(); const s = renderer.xr.getSession(); if (s) s.end(); return; }
   mainMenu.select(['m:' + mode, 'l:' + level, 'r:' + rounds, 'd:' + roundSecs, threeKO ? 'k:si' : 'k:no']);
 }
@@ -728,7 +740,7 @@ function calibrateByHand(dt) {
 }
 
 // ---------------------------------------------------------------- avvio
-loadMikeGLTF('assets/mike.glb?v=20261003111236', f => status(`Caricamento gioco… ${Math.min(100, Math.round(f * 100))}%`)).then(gltf => {
+loadMikeGLTF('assets/mike.glb?v=20261003112745', f => status(`Caricamento gioco… ${Math.min(100, Math.round(f * 100))}%`)).then(gltf => {
   mike = new Mike(gltf, scene, level);
   girl.load().catch(e => console.warn('ragazza del ring', e));
   bruises = new Bruises(mike.model);
