@@ -24,7 +24,7 @@ export class RingGirl {
     this.ready = false;
   }
 
-  async load(url = 'assets/ringgirl.glb?v=20261003194913') {
+  async load(url = 'assets/ringgirl.glb?v=20261003195253') {
     const g = await new GLTFLoader().loadAsync(url);
     this.model = g.scene; this.root.add(this.model);
     this.model.traverse(o => {
