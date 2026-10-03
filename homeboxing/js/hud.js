@@ -96,7 +96,7 @@ export class PauseMenu {
     ].map(b => {
       const g = new THREE.Group(); g.position.set(b.x, -0.06, 0.02);
       const base = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.22, 0.04),
-        new THREE.MeshBasicMaterial({ color: b.color, depthTest: false }));
+        new THREE.MeshBasicMaterial({ color: b.color, depthTest: false, transparent: true }));
       base.renderOrder = 1101; g.add(base);
       const fill = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 0.22),
         new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthTest: false }));
@@ -182,18 +182,19 @@ export class MenuPanel {
         const g = new THREE.Group(); g.position.set(x + b.w / 2, row.y, 0.02); x += b.w + gap;
         const h = row.h || 0.09;
         const base = new THREE.Mesh(new THREE.BoxGeometry(b.w, h, 0.03),
-          new THREE.MeshBasicMaterial({ color: b.color || 0x2a2f3a, depthTest: false }));
+          new THREE.MeshBasicMaterial({ color: b.color || 0x3a4254, depthTest: false, transparent: true }));
         base.renderOrder = 1101; g.add(base);
         const sel = new THREE.Mesh(new THREE.PlaneGeometry(b.w + 0.012, h + 0.012),
-          new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false }));
-        sel.scale.set(1 + 0.02 / b.w, 1.25, 1);
+          new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, transparent: true }));
+        sel.scale.set(1 + 0.02 / b.w, 1.1, 1);
         sel.position.z = -0.02; sel.renderOrder = 1100; sel.visible = false; g.add(sel);
         const fill = new THREE.Mesh(new THREE.PlaneGeometry(b.w, h),
           new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthTest: false }));
         fill.position.z = 0.016; fill.renderOrder = 1102; fill.scale.x = 0.001; g.add(fill);
-        const t = lab(b.text, 0, 0, b.w - 0.01, h * 0.6, '#ffffff', 40); t.position.z = 0.018; g.add(t);
+        const px = Math.round(512 * (h * 0.6) / (b.w - 0.01) * 0.82);      // scritta grande quanto il pulsante
+        const t = lab(b.text, 0, 0, b.w - 0.01, h * 0.6, '#ffffff', px); t.position.z = 0.018; g.add(t);
         this.group.add(g);
-        this.buttons.push({ ...b, w: b.w, g, sel, fill, t: 0, base, label: t, on: false, color0: b.color || 0x2a2f3a });
+        this.buttons.push({ ...b, w: b.w, g, sel, fill, t: 0, base, label: t, on: false, color0: b.color || 0x3a4254 });
       }
     }
   }

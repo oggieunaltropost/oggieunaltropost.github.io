@@ -41,7 +41,7 @@ const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).ma
 const vbuf = {};
 let vEnd = 0;
 function loadVoices() {
-  for (const n of VOICES) fetch(`assets/voce/${n}.ogg`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${n}.ogg?v=20261003021006`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { vbuf[n] = b; }).catch(() => {});
 }
 export function announce(names, gain = 1.0) {
@@ -114,7 +114,7 @@ const buf = {};
 let loading = null, amb = null, ambWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261003021006`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
   loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); });
   return loading;

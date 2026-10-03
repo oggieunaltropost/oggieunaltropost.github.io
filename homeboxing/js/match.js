@@ -38,7 +38,7 @@ export class GetUpChallenge {
     this.target.rotation.x = Math.PI / 2;           // il bottone guarda verso di te
     this.target.renderOrder = 1200;
     const ring = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.1, 10, 48),
-      new THREE.MeshBasicMaterial({ color: 0xc4161f, depthTest: false }));
+      new THREE.MeshBasicMaterial({ color: 0xc4161f, depthTest: false, transparent: true }));
     ring.renderOrder = 1201;
     this.pad = new THREE.Group(); this.pad.add(this.target, ring); this.group.add(this.pad);
     // scritta sopra il bottone

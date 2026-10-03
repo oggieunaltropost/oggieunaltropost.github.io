@@ -13,37 +13,106 @@ const PROFILE = [[0.12, 0.044, 0.038], [0.105, 0.045, 0.039], [0.08, 0.046, 0.04
 
 function smoothstep(a, b, x) { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
 
+// Profilo interpolato (piu' sezioni = superficie piu' liscia)
+function profileAt(t) {
+  const n = PROFILE.length - 1, f = t * n, i = Math.min(n - 1, Math.floor(f)), u = f - i, k = u * u * (3 - 2 * u);
+  return PROFILE[i].map((v, j) => v + (PROFILE[i + 1][j] - v) * k);
+}
+
+// Disegno del guantone (mappa in coordinate u = giro attorno, v = dal polsino alla punta)
+function gloveTexture(color) {
+  const W = 1024, H = 512, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'), red = '#' + new THREE.Color(color).getHexString();
+  const vy = v => H * (1 - v);                       // v -> riga del canvas (la texture e' capovolta)
+  const vz = z => (0.12 - z) / 0.305;                // z del profilo -> v
+  g.fillStyle = red; g.fillRect(0, 0, W, H);
+  // polsino bianco con banda rossa
+  g.fillStyle = '#f2f2ee'; g.fillRect(0, vy(vz(-0.01)), W, vy(vz(0.12)) - vy(vz(-0.01)));
+  g.fillStyle = red; g.fillRect(0, vy(vz(0.062)), W, vy(vz(0.042)) - vy(vz(0.062)));
+  g.fillStyle = '#d9d9d3'; g.fillRect(0, vy(vz(-0.004)), W, 6);   // cucitura
+  // piega delle dita sul palmo (u ~ 0.75) e cucitura lungo i fianchi
+  g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = 7;
+  g.beginPath(); g.moveTo(W * 0.62, vy(vz(-0.075))); g.quadraticCurveTo(W * 0.75, vy(vz(-0.068)), W * 0.88, vy(vz(-0.075))); g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,0.18)'; g.lineWidth = 3;
+  for (const u of [0.02, 0.48]) { g.beginPath(); g.moveTo(W * u, vy(vz(-0.012))); g.lineTo(W * u, vy(vz(-0.17))); g.stroke(); }
+  // scritta bianca sul dorso (u ~ 0.25), leggibile da chi guarda il proprio guantone: specchiata in u
+  g.save(); g.translate(W * 0.25, vy(vz(-0.058))); g.scale(-1, 1);
+  g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = '900 58px system-ui, sans-serif'; g.fillText('HOME', 0, -34);
+  g.font = '900 46px system-ui, sans-serif'; g.fillText('BOXING', 0, 20);
+  g.restore();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  t.wrapS = THREE.RepeatWrapping;
+  return t;
+}
+
+// Tubo affusolato lungo una curva (per il pollice), chiuso alle estremita'
+function taperedTube(points, radii, seg = 24, rad = 16) {
+  const curve = new THREE.CatmullRomCurve3(points), frames = curve.computeFrenetFrames(seg, false);
+  const pos = [], idx = [];
+  const rAt = t => { const f = t * (radii.length - 1), i = Math.min(radii.length - 2, Math.floor(f)); return radii[i] + (radii[i + 1] - radii[i]) * (f - i); };
+  for (let i = 0; i <= seg; i++) {
+    const t = i / seg, p = curve.getPointAt(t), N = frames.normals[i], B = frames.binormals[i];
+    // estremita' arrotondate: il raggio si chiude a semisfera
+    const e = Math.min(t, 1 - t) * seg / 3, r = rAt(t) * (e < 1 ? Math.sqrt(Math.max(0.0, 1 - (1 - e) * (1 - e))) : 1);
+    for (let k = 0; k < rad; k++) {
+      const a = 2 * Math.PI * k / rad;
+      pos.push(p.x + r * (Math.cos(a) * N.x + Math.sin(a) * B.x), p.y + r * (Math.cos(a) * N.y + Math.sin(a) * B.y),
+        p.z + r * (Math.cos(a) * N.z + Math.sin(a) * B.z));
+    }
+  }
+  for (let i = 0; i < seg; i++) for (let k = 0; k < rad; k++) {
+    const a = i * rad + k, b = i * rad + (k + 1) % rad, c = (i + 1) * rad + (k + 1) % rad, d = (i + 1) * rad + k;
+    idx.push(a, b, d, b, c, d);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  return g;
+}
+
 // side: 'left' | 'right'. Locale: -Z verso le nocche, +Y dorso della mano, pollice verso il centro del corpo.
 export function makeGloveMesh(side, color = 0xc8101a) {
-  const N = 32, pos = [], idx = [], col = [];
-  const red = new THREE.Color(color), white = new THREE.Color(0xf2f2ee);
-  PROFILE.forEach(([z, ax, ay]) => {
-    for (let k = 0; k < N; k++) {
+  const N = 56, R = 40, pos = [], idx = [], uv = [];
+  for (let r = 0; r < R; r++) {
+    const [z, ax, ay] = profileAt(r / (R - 1));
+    const d = -z;                                              // distanza dal polso verso la punta
+    for (let k = 0; k <= N; k++) {
       const a = 2 * Math.PI * k / N, ca = Math.cos(a), sa = Math.sin(a);
-      let x = ax * ca, y = ay * sa * (sa > 0 ? 1.1 : 0.9);
-      y += 0.007 * smoothstep(0.0, 0.05, -z) * (1 - smoothstep(0.13, 0.175, -z));   // nocche sul dorso
-      pos.push(x, y, z);
-      const cuff = z > -0.01 && !(z > 0.042 && z < 0.062);
-      const c = cuff ? white : red; col.push(c.r, c.g, c.b);
+      let x = ax * ca, y = ay * sa * (sa > 0 ? 1.1 : 0.92);
+      y += 0.008 * smoothstep(0.0, 0.05, d) * (1 - smoothstep(0.13, 0.178, d)) * Math.max(0, sa);   // imbottitura sulle nocche
+      // dita arricciate: rotolo sotto la punta, con una piega dove finiscono sul palmo
+      if (sa < 0) {
+        y -= 0.010 * smoothstep(0.08, 0.13, d) * (1 - smoothstep(0.15, 0.185, d)) * -sa;
+        y += 0.006 * Math.exp(-((d - 0.072) ** 2) / 0.00006) * -sa;
+      }
+      pos.push(x, y, z); uv.push(k / N, r / (R - 1));
     }
-  });
-  for (let r = 0; r < PROFILE.length - 1; r++) for (let k = 0; k < N; k++) {
-    const a = r * N + k, b = r * N + (k + 1) % N, c = (r + 1) * N + (k + 1) % N, d = (r + 1) * N + k;
+  }
+  for (let r = 0; r < R - 1; r++) for (let k = 0; k < N; k++) {
+    const a = r * (N + 1) + k, b = a + 1, c = (r + 1) * (N + 1) + k + 1, d = (r + 1) * (N + 1) + k;
     idx.push(a, d, b, b, d, c);
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   g.setIndex(idx); g.computeVertexNormals();
-  const mat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.32, clearcoat: 0.8, clearcoatRoughness: 0.15 });
+  const nr = g.attributes.normal;                      // giunzione liscia dove il giro si chiude
+  for (let r = 0; r < R; r++) {
+    const a = r * (N + 1), b = a + N;
+    _v.set(nr.getX(a) + nr.getX(b), nr.getY(a) + nr.getY(b), nr.getZ(a) + nr.getZ(b)).normalize();
+    nr.setXYZ(a, _v.x, _v.y, _v.z); nr.setXYZ(b, _v.x, _v.y, _v.z);
+  }
+  const leather = { roughness: 0.34, clearcoat: 0.7, clearcoatRoughness: 0.2 };
+  const mat = new THREE.MeshPhysicalMaterial({ map: gloveTexture(color), ...leather });
   const glove = new THREE.Group();
   const body = new THREE.Mesh(g, mat); body.castShadow = true; glove.add(body);
-  // pollice sul lato interno, verso il palmo
-  const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.021, 0.075, 6, 14),
-    new THREE.MeshPhysicalMaterial({ color, roughness: 0.32, clearcoat: 0.8, clearcoatRoughness: 0.15 }));
+  // pollice: curvo e affusolato, appoggiato al fianco interno verso il palmo, punta contro le dita
   const sx = side === 'right' ? -1 : 1;
-  thumb.position.set(sx * 0.05, -0.024, -0.075);
-  thumb.rotation.set(Math.PI / 2 + 0.15, 0, sx * 0.05);
+  const thumb = new THREE.Mesh(taperedTube([
+    new THREE.Vector3(sx * 0.036, -0.030, 0.004), new THREE.Vector3(sx * 0.056, -0.028, -0.040),
+    new THREE.Vector3(sx * 0.061, -0.030, -0.085), new THREE.Vector3(sx * 0.046, -0.042, -0.122)],
+    [0.017, 0.022, 0.021, 0.016]), new THREE.MeshPhysicalMaterial({ color, ...leather }));
+  thumb.castShadow = true;
   glove.add(thumb);
   return glove;
 }

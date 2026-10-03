@@ -2,6 +2,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+const _hp = new THREE.Vector3(), _hd = new THREE.Vector3(), _hq = new THREE.Quaternion(), _hr = new THREE.Quaternion(),
+  _hw = new THREE.Quaternion(), _hp2 = new THREE.Quaternion(), _he2 = new THREE.Vector3(), _he3 = new THREE.Vector3();
 const SPEED = 0.62;          // m/s: un ciclo di camminata (1 s) = 62 cm (blender/create_ringgirl.py)
 // Materiali dei personaggi MakeHuman: niente trasparenza sulla pelle e sui vestiti (altrimenti si vede
 // "dentro" la testa e il viso sembra tagliato); capelli, sopracciglia e occhi con ritaglio netto.
@@ -22,7 +24,7 @@ export class RingGirl {
     this.ready = false;
   }
 
-  async load(url = 'assets/ringgirl.glb') {
+  async load(url = 'assets/ringgirl.glb?v=20261003021006') {
     const g = await new GLTFLoader().loadAsync(url);
     this.model = g.scene; this.root.add(this.model);
     this.model.traverse(o => {
@@ -44,16 +46,25 @@ export class RingGirl {
         o.material = new THREE.MeshBasicMaterial({ map: this.tex, toneMapped: false });
         this.card = o;
       }
-      else fixHumanMaterial(o);
+      else { fixHumanMaterial(o); if (/body/i.test(o.name)) o.material.color.setScalar(0.8); }   // pelle meno sbiancata dai fari
     });
     this.mixer = new THREE.AnimationMixer(this.model);
     this.walk = this.mixer.clipAction(g.animations.find(a => a.name === 'cammina'));
     this.stand = this.mixer.clipAction(g.animations.find(a => a.name === 'ferma'));
     this.walk.play(); this.stand.play(); this.stand.setEffectiveWeight(0);
+    this.headAnimated = g.animations.some(a => a.tracks.some(t => t.name === 'head.quaternion'));
     this.ready = true;
     this.face = null;
     this.model.traverse(o => { if (o.isMesh && o.morphTargetDictionary && 'blink_l' in o.morphTargetDictionary) this.face = o; });
     this.blinkT = 2; this.gesture = null; this.gestured = false;
+    this.model.traverse(o => { if (o.isBone && o.name === 'head') this.head = o; });
+    if (this.head) {
+      this.headBase = this.head.quaternion.clone();   // posa della testa senza lo sguardo
+      // in posa di riposo il viso guarda avanti (+Z): direzione del viso nel sistema dell'osso
+      this.model.updateMatrixWorld(true);
+      this.faceLocal = new THREE.Vector3(0, 0, 1).applyQuaternion(this.model.quaternion)
+        .applyQuaternion(this.head.getWorldQuaternion(new THREE.Quaternion()).invert());
+    }
   }
 
   _morph(name, v) { if (this.face) this.face.morphTargetInfluences[this.face.morphTargetDictionary[name]] = v; }
@@ -69,11 +80,17 @@ export class RingGirl {
   }
 
   // giro del ring a 50 cm dalle corde; parte dall'angolo lontano a sinistra
-  start(arena, ringSize, round) {
+  start(arena, ringSize, round, viewer = null) {
     if (!this.ready) return;
     this._draw(round);
     const a = Math.max(0.35, ringSize / 2 - 0.95);      // giro interno: passa lontano da Mike seduto all'angolo
-    const pts = [[-a, -a], [a, -a], [a, a], [-a, a]].map(([x, z]) => new THREE.Vector3(x, 0, z).applyMatrix4(arena.matrixWorld));
+    // il lato davanti a te resta ad almeno 90 cm, cosi' quando si ferma ti guarda da una distanza giusta
+    let f = a;
+    if (viewer) {
+      const v = viewer.clone().applyMatrix4(arena.matrixWorld.clone().invert());
+      if (v.z - f < 0.9) f = Math.max(-a + 0.4, v.z - 0.9);
+    }
+    const pts = [[-a, -a], [a, -a], [a, f], [-a, f]].map(([x, z]) => new THREE.Vector3(x, 0, z).applyMatrix4(arena.matrixWorld));
     this.path = [...pts, pts[0]];
     this.seg = 0; this.u = 0; this.pause = 0; this.paused = false; this.gestured = false; this.gesture = null;
     this.root.position.copy(pts[0]);
@@ -103,22 +120,42 @@ export class RingGirl {
     this.stand.setEffectiveWeight(w); this.walk.setEffectiveWeight(1 - w);
     this.mixer.update(dt);
     this.root.updateMatrixWorld(true);
-    if (this.card) this.card.lookAt(look);       // il cartello e' sempre girato verso di te
+    // ferma davanti a te: gira e inclina la testa verso i tuoi occhi (alla tua altezza vera)
+    this.lookW = Math.max(0, Math.min(1, (this.lookW || 0) + (stopNow ? dt : -dt) * 3));
+    if (this.head && !this.headAnimated) this.head.quaternion.copy(this.headBase);   // l'animazione non la muove: si riparte da qui
+    if (this.lookW > 0 && this.head) {
+      // direzione verso i tuoi occhi, limitata (non si torce oltre ~60 gradi dal busto)
+      const hp = this.head.getWorldPosition(_hp);
+      const want = _hd.copy(look).sub(hp).normalize();
+      const body = _he2.set(0, 0, 1).applyQuaternion(this.root.quaternion);
+      const ang = want.angleTo(body);
+      if (ang > 1.05) want.lerp(body, 1 - 1.05 / ang).normalize();
+      this.head.getWorldQuaternion(_hq);
+      const face = _he3.copy(this.faceLocal).applyQuaternion(_hq);
+      const w = this.lookW * this.lookW * (3 - 2 * this.lookW);
+      _hw.setFromUnitVectors(face, want); _hr.identity().slerp(_hw, w);
+      _hq.premultiply(_hr);
+      this.head.parent.getWorldQuaternion(_hp2).invert();
+      this.head.quaternion.copy(_hp2.multiply(_hq));
+      this.head.updateMatrixWorld(true);
+    }
     // viso: sorriso, battito di ciglia; quando ti passa vicino un occhiolino o un bacio (a caso)
     this.blinkT -= dt;
     let bl = 0;
     if (this.blinkT < 0.12) bl = 1;
     if (this.blinkT < 0) this.blinkT = 2 + Math.random() * 3;
-    const near = this.root.position.distanceTo(new THREE.Vector3(look.x, this.root.position.y, look.z)) < 1.5;
-    if (near && !this.gestured) { this.gestured = true; this.gesture = { kind: Math.random() < 0.5 ? 'wink' : 'kiss', t: 0 }; }
+    // quando si ferma davanti a te col cartello: occhiolino (a volte un bacio), ben visibile
+    if (stopNow && this.lookW >= 1 && this.pause < 1.8 && !this.gestured) { this.gestured = true; this.gesture = { kind: Math.random() < 0.7 ? 'wink' : 'kiss', t: 0 }; }
     let wink = 0, kiss = 0;
     if (this.gesture) {
       const g = this.gesture; g.t += dt;
-      const k = Math.sin(Math.min(1, g.t / 1.2) * Math.PI);
-      if (g.kind === 'wink') wink = Math.min(1, k * 1.6); else kiss = k;
-      if (g.t > 1.2) this.gesture = null;
+      // sale in 0.15 s, resta 0.55 s, scende in 0.2 s
+      const k = g.t < 0.15 ? g.t / 0.15 : g.t < 0.7 ? 1 : Math.max(0, 1 - (g.t - 0.7) / 0.2);
+      if (g.kind === 'wink') wink = k; else kiss = Math.sin(Math.min(1, g.t / 1.2) * Math.PI);
+      bl = 0;                                      // niente battito normale mentre ammicca
+      if (g.t > 1.3) this.gesture = null;
     }
     this._morph('blink_l', Math.max(bl, wink)); this._morph('blink_r', bl);
-    this._morph('kiss', kiss); this._morph('smile', 0.55 * (1 - kiss));
+    this._morph('kiss', kiss); this._morph('smile', (0.55 + 0.35 * wink) * (1 - kiss));
   }
 }

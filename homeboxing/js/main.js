@@ -2,16 +2,16 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js';
-import { Sweat, Bruises, Celebration } from './fx.js';
-import { Player, SimInput } from './player.js';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD } from './hud.js';
-import { Room } from './room.js';
-import { Arena } from './arena.js';
-import { RingGirl } from './ringgirl.js';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js';
-import * as sfx from './sfx.js';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003021006';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003021006';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003021006';
+import { Player, SimInput } from './player.js?v=20261003021006';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD } from './hud.js?v=20261003021006';
+import { Room } from './room.js?v=20261003021006';
+import { Arena } from './arena.js?v=20261003021006';
+import { RingGirl } from './ringgirl.js?v=20261003021006';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003021006';
+import * as sfx from './sfx.js?v=20261003021006';
 
 const $ = id => document.getElementById(id);
 const status = t => { $('status').textContent = t; };
@@ -464,7 +464,7 @@ function updateGame(dt) {
     game.message = `Riposo all'angolo · round ${game.round + 1} tra ${left} s`;
     nextMenu.setTitle(`ROUND ${game.round + 1} TRA ${left} s`);
     flash.setBase(0);
-    if (!game.girlStarted && mike.atGoal) { game.girlStarted = true; girl.start(arena, ringSize, game.round + 1); }
+    if (!game.girlStarted && mike.atGoal) { game.girlStarted = true; girl.start(arena, ringSize, game.round + 1, player.head); }
     if (nextMenu.update(dt, Object.values(player.gloves)) === 'next') { sfx.punchBlock(); game.phaseT = REST_S; }
     if (game.phaseT >= REST_S) { game.round++; startRound(); }
   } else if (game.phase === 'end') {
@@ -631,13 +631,13 @@ function calibrateByHand(dt) {
 }
 
 // ---------------------------------------------------------------- avvio
-loadMikeGLTF('assets/mike.glb', f => status(`Caricamento gioco… ${Math.min(100, Math.round(f * 100))}%`)).then(gltf => {
+loadMikeGLTF('assets/mike.glb?v=20261003021006', f => status(`Caricamento gioco… ${Math.min(100, Math.round(f * 100))}%`)).then(gltf => {
   mike = new Mike(gltf, scene, level);
   girl.load().catch(e => console.warn('ragazza del ring', e));
   bruises = new Bruises(mike.model);
   mike.bounds = keepInRing;
   placeArena(new THREE.Vector3(0, 1.65, 0), 0);
-  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.getUpFx = getUp; window.gameApi = { newMatch }; window.sweatFx = sweat;   // per le prove
+  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.getUpFx = getUp; window.gameApi = { newMatch, showMainMenu, girl: () => girl, arena: () => arena, ringSize: () => ringSize }; window.sweatFx = sweat;   // per le prove
   status('');
   $('enter').disabled = !navigator.xr;
   if (navigator.xr) navigator.xr.isSessionSupported('immersive-ar').then(ok => {
