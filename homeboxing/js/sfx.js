@@ -33,7 +33,7 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
-import { FIGHTER_IDS } from './fighters.js?v=20261003172125';
+import { FIGHTER_IDS } from './fighters.js?v=20261003174310';
 // Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
@@ -41,12 +41,14 @@ const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).ma
   'win_you_dq', 'draw', 'box', 'lowblow_1', 'lowblow_2', 'dq', 'intro_1', 'intro_red', 'intro_blue_g', 'title',
   // l'avversario: parte comune + il suo nome (per un nuovo pugile bastano intro_<id> e name_<id>)
   'win_opp_ko', 'win_opp_tko', 'win_opp_points', 'win_opp_dq',
+  // torneo: benvenuto, nome del turno, campione, eliminato
+  'tour_intro', 'tour_r0', 'tour_r1', 'tour_r2', 'tour_r3', 'tour_r4', 'tour_champ', 'tour_out',
   ...FIGHTER_IDS.flatMap(id => [`intro_${id}`, `name_${id}`])];
 let vbuf = {}, vLang = 'it';
 let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261003172125`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261003174310`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
@@ -66,6 +68,10 @@ export function announce(names, gain = 1.0) {
   }
   vEnd = t;
 }
+// lo speaker sta ancora parlando (o ha frasi in coda)?
+export function voiceBusy() { return !!ctx && vEnd > ctx.currentTime; }
+// pausa: si ferma TUTTO l'audio (voce a meta' frase compresa) e riparte da dove era
+export function suspend(on) { if (!ctx) return; if (on) ctx.suspend(); else ctx.resume(); }
 // zittisce lo speaker (anche le frasi gia' in coda)
 export function stopVoices() { for (const s of vPlaying) { try { s.stop(); } catch (e) {} } vPlaying = []; vEnd = 0; }
 export function voiceNow(name, gain = 1.0) { vEnd = 0; announce(name, gain); }   // subito (es. conteggio)
@@ -140,7 +146,7 @@ const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261003172125`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261003174310`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
   loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); });
   return loading;

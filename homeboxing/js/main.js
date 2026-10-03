@@ -2,21 +2,21 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003172125';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003172125';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003172125';
-import { Player, SimInput } from './player.js?v=20261003172125';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003172125';
-import { Room } from './room.js?v=20261003172125';
-import { Arena } from './arena.js?v=20261003172125';
-import { Beach } from './beach.js?v=20261003172125';
-import { RingGirl } from './ringgirl.js?v=20261003172125';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003172125';
-import * as sfx from './sfx.js?v=20261003172125';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003172125';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003172125';
-import { Tournament, BracketView } from './tournament.js?v=20261003172125';
-import { CpuMatch } from './cpu_match.js?v=20261003172125';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003174310';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003174310';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003174310';
+import { Player, SimInput } from './player.js?v=20261003174310';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003174310';
+import { Room } from './room.js?v=20261003174310';
+import { Arena } from './arena.js?v=20261003174310';
+import { Beach } from './beach.js?v=20261003174310';
+import { RingGirl } from './ringgirl.js?v=20261003174310';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003174310';
+import * as sfx from './sfx.js?v=20261003174310';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003174310';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003174310';
+import { Tournament, BracketView } from './tournament.js?v=20261003174310';
+import { CpuMatch } from './cpu_match.js?v=20261003174310';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -73,6 +73,42 @@ const board = new Scoreboard();
 arena.add(board.mesh);
 const PLAYER_Z = 0.8;                 // dove sta il giocatore rispetto al centro del ring (se c'e' spazio)
 let ringSize = 0, ringObj = null, playerZ = PLAYER_Z;
+// Tabellone: resta nel campo visivo, un po' a destra. Si muove solo quando esce dalla zona comoda e
+// lo fa piano (anche se giri la testa di colpo), poi si ferma.
+let boardYaw = null, boardMoving = false, boardVel = 0;
+const _bw = new THREE.Vector3();
+function followBoard(dt) {
+  if (!board.mesh.visible) return;
+  const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
+  const yaw = new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ').y;
+  const want = yaw - 0.36;                                   // (yaw cresce verso sinistra: meno = a destra)
+  if (boardYaw === null) boardYaw = want;
+  const diff = Math.atan2(Math.sin(want - boardYaw), Math.cos(want - boardYaw));
+  if (Math.abs(diff) > 0.5) boardMoving = true;
+  // velocita' che cresce e cala piano (parte dolce e arriva dolce), al massimo ~0,8 rad/s
+  const vWant = boardMoving ? Math.sign(diff) * Math.min(0.8, Math.max(0.1, Math.abs(diff) * 1.1)) : 0;
+  boardVel += Math.max(-1.2 * dt, Math.min(1.2 * dt, vWant - boardVel));
+  boardYaw += Math.abs(boardVel * dt) > Math.abs(diff) && boardMoving ? diff : boardVel * dt;
+  if (boardMoving && Math.abs(diff) < 0.04) { boardMoving = false; }
+  const h = player.head, D = 2.3;
+  _bw.set(h.x - Math.sin(boardYaw) * D, 0, h.z - Math.cos(boardYaw) * D);
+  const y0 = board.mesh.userData.y ?? (h.y + 0.32);
+  board.mesh.userData.y = y0 + ((h.y + 0.32) - y0) * Math.min(1, dt * 0.8);
+  _bw.y = board.mesh.userData.y;
+  const p = arena.worldToLocal(_bw.clone());
+  board.mesh.position.copy(p);
+  board.mesh.lookAt(h);                                      // lookAt in coordinate del mondo
+}
+// Fuori dal ring (in tutto, non solo con la testa oltre le corde): pausa finche' non rientri
+function outOfRing() {
+  const active = ['ready', 'fight', 'presentazione', 'rest'].includes(game.phase);
+  if (!active || !ringSize) return;
+  const p = arena.worldToLocal(player.head.clone()), half = ringSize / 2;
+  const out = Math.abs(p.x) > half + 0.15 || Math.abs(p.z) > half + 0.15;
+  const back = Math.abs(p.x) < half - 0.1 && Math.abs(p.z) < half - 0.1;
+  if (out && !game.paused && !pause.group.visible) { openPause(); game.outRing = true; }
+  else if (back && game.paused && game.outRing) closePause();
+}
 function setRing(size, pz) {
   playerZ = pz;
   if (Math.abs(size - ringSize) > 1e-3) {
@@ -183,7 +219,7 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003172125`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003174310`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -561,7 +597,7 @@ function updateGame(dt) {
     game.message = t('choose_menu');
     flash.setBase(0);
   } else if (game.paused) {
-    game.message = t('pause');
+    game.message = t(game.outRing ? 'out_ring' : 'pause');
   } else if (game.phase === 'presentazione') {
     game.message = t('presenting');
     // conto alla rovescia fino al gong del primo round (presentazione + preparazione)
@@ -608,7 +644,7 @@ function updateGame(dt) {
     if (game.phaseT >= REST_S) { game.round++; startRound(); }
   } else if (game.phase === 'end') {
     flash.setBase(0);
-    if (tour && game.phaseT > 6 && game.phase === 'end') { showBracketAfter(); return; }
+    if (tour && game.phaseT > 6 && game.phase === 'end' && !sfx.voiceBusy()) { showBracketAfter(); return; }
     if (game.phaseT > 6 && !pause.group.visible) openPause(true);
   }
   const xr = renderer.xr.getSession && renderer.xr.getSession();
@@ -626,7 +662,9 @@ renderer.setAnimationLoop((t, frame) => { if (window.pauseLoop) return; const no
 // ---------------------------------------------------------------- presentazione dei pugili (speaker)
 // "Signore e signori, benvenuti… nell'angolo rosso, lo sfidante! … nell'angolo blu… MIKE!", poi il primo round.
 function startPresentation() {
-  const parts = ['intro_1', 'intro_red', 'intro_blue_g', 'intro_' + fighterId, 'name_' + fighterId];
+  if (arenaEnv) arenaEnv.setBanners([[t('bn_red'), t('bn_you')], [t('bn_go'), null], ['HOME BOXING', t(tour ? 'bn_tour' : 'bn_champ')], ['KO!', null]]);
+  const head = tour ? (tour.round === 0 ? ['tour_intro', 'tour_r0'] : ['tour_r' + tour.round]) : ['intro_1'];
+  const parts = [...head, 'intro_red', 'intro_blue_g', 'intro_' + fighterId, 'name_' + fighterId];
   const d = parts.map(n => sfx.voiceDur(n));
   if (d.some(x => !x)) return;                         // voci non ancora caricate: si parte e basta
   sfx.announce(parts);
@@ -638,8 +676,9 @@ function startPresentation() {
   // il pubblico applaude ai nomi
   const crowd = (ms, k, g) => setTimeout(() => { if (game.phase !== 'presentazione') return;
     if (mode === 'arena') { sfx.cheer(k, g); if (arenaEnv) arenaEnv.cheer(1.2); } }, ms);
-  crowd((d[0] + d[1] + 0.3) * 1000, 'applauso', 0.8);
-  crowd((d[0] + d[1] + d[2] + d[3] + d[4] + 0.9) * 1000, 'boato', 0.9);
+  const upTo = n => d.slice(0, n).reduce((a, b) => a + b + 0.2, 0);
+  crowd((upTo(head.length + 1) + 0.1) * 1000, 'applauso', 0.8);
+  crowd((upTo(parts.length) + 0.5) * 1000, 'boato', 0.9);
 }
 // cambio lingua dal menu: scritte e voci
 onLang(l => {
@@ -795,6 +834,8 @@ function tick(dt, frame) {
     updateGame(dt);
   }
   flash.update(dt);
+  followBoard(dt);
+  outOfRing();
   countdown.update(dt);
   sweat.update(dt);
   girl.update(dt, player.head);
@@ -816,10 +857,11 @@ function openPause(end = false) {
   const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
   const e = new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ');
   pause.open(player.head, e.y, end);
-  if (!end) sfx.bell(1);
+  if (!end) sfx.suspend(true);                    // tutto l'audio si ferma (anche lo speaker a meta' frase)
 }
 function closePause() {
-  game.paused = false; pause.close();
+  game.paused = false; pause.close(); game.outRing = false;
+  sfx.suspend(false);
   mike.enabled = game.phase === 'fight' && !game.kd;
 }
 const menuChoices = () => ['s:' + stageChoice, 'f:' + oppChoice, 'l:' + level, 'r:' + rounds, 'd:' + roundSecs,
@@ -947,10 +989,11 @@ function advanceRound(youWon, forced) {
   const sub = youWon ? (tour.state === 'champion' ? t('tr_champ') : t('tr_adv', { round: bracket.roundName(r) }))
     : t('tr_lost', { b: FIGHTERS[opp].name.toUpperCase(), round: bracket.roundName(r) });
   if (youWon) setTimeout(() => sfx.advance(false), 300);
+  else sfx.announce(['tour_out']);
   bracket.showAdvance(tour, r, sub, () => {
     if (tour.state === 'next') { showBracketNext(); return; }
     if (tour.state === 'champion') {                  // festa: coriandoli e fuochi sopra la coppa
-      sfx.advance(true);
+      sfx.advance(true); sfx.announce(['tour_champ']);
       party.start(bracket.group.position.clone().add(new THREE.Vector3(0, 0.2, 0)), [0xffc928, 0xffffff, 0xd81e2c]);
       sfx.cheer('applauso', 1); sfx.cheer('boato', 0.9);
     }
