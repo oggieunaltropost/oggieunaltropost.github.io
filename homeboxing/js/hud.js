@@ -166,16 +166,42 @@ export class MenuPanel {
     this.hold = holdTime;
     this.group = new THREE.Group(); this.group.name = 'menu'; this.group.visible = false;
     const W = spec.width || 0.95, H = spec.height || 0.7;
-    const bg = new THREE.Mesh(new THREE.PlaneGeometry(W, H),
-      new THREE.MeshBasicMaterial({ color: 0x0b0d12, transparent: true, opacity: 0.9, depthTest: false }));
+    // fondo scuro con angoli arrotondati e cornice dorata; dietro, un bagliore dorato che pulsa piano
+    const M = 0.05, CW = 1024, CH = Math.round(1024 * (H + 2 * M) / (W + 2 * M)), sc = CW / (W + 2 * M);
+    const frame = (glowOnly) => {
+      const c = document.createElement('canvas'); c.width = CW; c.height = CH;
+      const g = c.getContext('2d'), x0 = M * sc, y0 = M * sc, w = W * sc, h = H * sc, r = 0.035 * sc;
+      const path = () => { g.beginPath(); g.roundRect(x0, y0, w, h, r); };
+      const gold = g.createLinearGradient(0, 0, CW, CH);
+      gold.addColorStop(0, '#fff1a8'); gold.addColorStop(0.35, '#ffc928'); gold.addColorStop(0.65, '#d99a14'); gold.addColorStop(1, '#fff1a8');
+      if (glowOnly) {
+        g.shadowColor = 'rgba(255,201,40,0.95)'; g.shadowBlur = 0.03 * sc;
+        g.strokeStyle = 'rgba(255,201,40,0.9)'; g.lineWidth = 0.012 * sc; path(); g.stroke(); g.stroke();
+      } else {
+        const bgG = g.createLinearGradient(0, y0, 0, y0 + h);
+        bgG.addColorStop(0, 'rgba(22,26,36,0.95)'); bgG.addColorStop(1, 'rgba(8,10,14,0.95)');
+        g.fillStyle = bgG; path(); g.fill();
+        g.strokeStyle = gold; g.lineWidth = 0.009 * sc; path(); g.stroke();
+        g.strokeStyle = 'rgba(255,241,168,0.45)'; g.lineWidth = 0.0025 * sc;
+        g.beginPath(); g.roundRect(x0 + 0.014 * sc, y0 + 0.014 * sc, w - 0.028 * sc, h - 0.028 * sc, r * 0.7); g.stroke();
+      }
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    };
+    const glow = new THREE.Mesh(new THREE.PlaneGeometry(W + 2 * M, H + 2 * M),
+      new THREE.MeshBasicMaterial({ map: frame(true), transparent: true, depthTest: false, depthWrite: false }));
+    glow.renderOrder = 1099; glow.position.z = -0.002; this.group.add(glow); this.glow = glow;
+    const bg = new THREE.Mesh(new THREE.PlaneGeometry(W + 2 * M, H + 2 * M),
+      new THREE.MeshBasicMaterial({ map: frame(false), transparent: true, depthTest: false }));
     bg.renderOrder = 1100; this.group.add(bg);
+    this.time = 0;
     const lab = PauseMenu.prototype._label;
-    this.title = lab(spec.title, 0, H / 2 - (spec.titleH || 0.09) / 2 - 0.025, W - 0.06, spec.titleH || 0.09, '#ffd34d', 64);
+    this.title = lab(spec.title, 0, H / 2 - (spec.titleH || 0.09) / 2 - 0.04, W - 0.06, spec.titleH || 0.09, '#ffd34d', 64);
     this.group.add(this.title);
     if (spec.subtitle) this.group.add(lab(spec.subtitle, 0, H / 2 - 0.13, W - 0.1, 0.045, '#c9ced8', 30));
     this.buttons = [];
     for (const row of spec.rows) {
-      if (row.label) this.group.add(lab(row.label, 0, row.y + 0.075, W - 0.1, 0.04, '#9aa3b6', 28));
+      if (row.label) this.group.add(lab(row.label, 0, row.y + (row.h || 0.09) / 2 + 0.03, W - 0.1, 0.04, '#9aa3b6', 28));
       const gap = 0.02, total = row.buttons.reduce((a, b) => a + b.w, 0) + gap * (row.buttons.length - 1);
       let x = -total / 2;
       for (const b of row.buttons) {
@@ -190,9 +216,18 @@ export class MenuPanel {
         sel.position.z = -0.02; sel.renderOrder = 1100; sel.visible = false; g.add(sel);
         const fill = new THREE.Mesh(new THREE.PlaneGeometry(b.w, h),
           new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthTest: false }));
-        fill.position.z = 0.016; fill.renderOrder = 1102; fill.scale.x = 0.001; g.add(fill);
-        const px = Math.round(512 * (h * 0.6) / (b.w - 0.01) * 0.82);      // scritta grande quanto il pulsante
-        const t = lab(b.text, 0, 0, b.w - 0.01, h * 0.6, '#ffffff', px); t.position.z = 0.018; g.add(t);
+        fill.position.z = 0.016; fill.renderOrder = 1102; fill.scale.x = 0.001; fill.visible = false; g.add(fill);
+        let t;
+        if (b.img) {                                   // pulsante con anteprima: immagine sopra, nome sotto
+          const ih = h * 0.7, im = new THREE.Mesh(new THREE.PlaneGeometry(b.w - 0.018, ih - 0.012),
+            new THREE.MeshBasicMaterial({ map: b.img, transparent: true, depthTest: false, toneMapped: false }));
+          im.position.set(0, h / 2 - ih / 2, 0.017); im.renderOrder = 1102; g.add(im);
+          const lh = h * 0.24, px = Math.round(512 * (lh * 0.75) / (b.w - 0.01) * 0.82);
+          t = lab(b.text, 0, -h / 2 + h * 0.15, b.w - 0.01, lh * 0.75, '#ffffff', px); t.position.z = 0.018; g.add(t);
+        } else {
+          const px = Math.round(512 * (h * 0.6) / (b.w - 0.01) * 0.82);      // scritta grande quanto il pulsante
+          t = lab(b.text, 0, 0, b.w - 0.01, h * 0.6, '#ffffff', px); t.position.z = 0.018; g.add(t);
+        }
         this.group.add(g);
         this.buttons.push({ ...b, w: b.w, g, sel, fill, t: 0, base, label: t, on: false, color0: b.color || 0x3a4254 });
       }
@@ -225,6 +260,8 @@ export class MenuPanel {
   close() { this.group.visible = false; }
   update(dt, gloves) {
     if (!this.group.visible) return null;
+    this.time += dt;
+    this.glow.material.opacity = 0.55 + 0.45 * Math.sin(this.time * 2.2);    // bagliore che pulsa
     this.group.updateMatrixWorld(true);
     for (const b of this.buttons) {
       const p = b.g.getWorldPosition(new THREE.Vector3());
@@ -232,6 +269,7 @@ export class MenuPanel {
       b.t = on ? b.t + dt : Math.max(0, b.t - dt * 3);
       b.fill.scale.x = Math.max(0.001, Math.min(1, b.t / this.hold));
       b.fill.position.x = -b.w / 2 * (1 - b.fill.scale.x);
+      b.fill.visible = b.t > 0.01;                 // vuota: niente righina bianca al centro
       if (b.t >= this.hold) { b.t = -0.5; return b.id; }      // pausa breve prima di poterlo ripremere
     }
     return null;

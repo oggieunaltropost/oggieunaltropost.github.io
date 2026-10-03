@@ -128,6 +128,7 @@ export class Mike {
       if (m.envMapIntensity !== undefined) m.envMapIntensity = 0.8;
     });
     this.brandShorts();
+    this.evenSkin();
     const bone = n => this.model.getObjectByName(n);
     this.bones = {};
     for (const n of ['head', 'neck_01', 'spine_01', 'spine_02', 'spine_03', 'hand_l', 'hand_r', 'lowerarm_l', 'lowerarm_r', 'pelvis'])
@@ -234,6 +235,32 @@ export class Mike {
   }
 
   // fascia bianca dei calzoncini con la scritta HOME BOXING tra due righe dorate (mappatura cilindrica)
+  // La pelle MakeHuman ha le gambe molto piu' scure (e pelose) del busto: a terra, sotto i fari, sembravano
+  // bruciate. Si schiarisce gradualmente la zona delle gambe della texture (meta' bassa del pezzo del corpo).
+  evenSkin() {
+    let body = null;
+    this.model.traverse(o => { if (o.isMesh && o.material.name === 'Pelle' && o.material.map) body = o; });
+    if (!body) return;
+    const img = body.material.map.image, W = img.width, H = img.height;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+    const y0 = Math.round(H * 0.56), y1 = Math.round(H * 0.86), x1 = Math.round(W * 0.6);
+    const d = g.getImageData(0, y0, x1, y1 - y0), a = d.data;
+    for (let y = 0; y < y1 - y0; y++) {
+      const v = (y0 + y) / H;
+      const k = 1 + 0.5 * Math.min(1, Math.max(0, (v - 0.56) / 0.12)) * Math.min(1, Math.max(0, (0.86 - v) / 0.03));
+      for (let x = 0, i = y * x1 * 4; x < x1; x++, i += 4) {
+        if (a[i] + a[i + 1] + a[i + 2] < 40) continue;          // sfondo nero fuori dal disegno
+        a[i] = Math.min(255, a[i] * k); a[i + 1] = Math.min(255, a[i + 1] * k); a[i + 2] = Math.min(255, a[i + 2] * k);
+      }
+    }
+    g.putImageData(d, 0, y0);
+    const t = new THREE.CanvasTexture(c);
+    const o = body.material.map;
+    t.flipY = o.flipY; t.colorSpace = o.colorSpace; t.wrapS = o.wrapS; t.wrapT = o.wrapT; t.anisotropy = 4;
+    body.material.map = t; body.material.needsUpdate = true;
+  }
+
   brandShorts() {
     let band = null;
     this.model.traverse(o => { if (o.isMesh && o.material.name === 'Raso bianco') band = o; });
@@ -266,9 +293,11 @@ export class Mike {
   }
   celebrate() {
     for (const l of this.layers) l.out = true;
-    const a = this.mixer.clipAction(this.clips.celebrate);
+    // a caso: due braccia alzate o un braccio solo
+    const name = this.clips.celebrate1 && Math.random() < 0.5 ? 'celebrate1' : 'celebrate';
+    const a = this.mixer.clipAction(this.clips[name]);
     a.reset(); a.setLoop(THREE.LoopRepeat, Infinity); a.setEffectiveWeight(0); a.play();
-    this.layers.push({ name: 'celebrate', action: a, t: 0, dur: 1e9, ts: 1, w: 0, out: false, hold: true });
+    this.layers.push({ name, action: a, t: 0, dur: 1e9, ts: 1, w: 0, out: false, hold: true });
   }
 
   // ---- espressioni: battito di ciglia, smorfia quando lo colpisci, fiatone quando e' stanco
@@ -296,16 +325,26 @@ export class Mike {
 
   // ---- atterramento
   knockdown() {
-    this.enabled = false; this.down = true;
+    this.enabled = false; this.down = true; this.downLoop = false;
     this.punch = null; this.combo = []; this.reaction = null; this.defending = null;
     this.setState('stalk'); this.nextAttack = 2;
     this.play('knockdown', 1, true);        // la clip e' gia' lenta: barcolla stordito, poi va giu'
   }
-  getUp() { this.getupLayer = this.play('getup', 1); this.down = false; }
+  getUp() { this.getupLayer = this.play('getup', 1); this.down = false; this.downLoop = false; }
+  // finita la caduta resta a terra tramortito: ciclo lento (testa che ciondola, un ginocchio che si piega)
+  _downLoop() {
+    const fall = this.layers.find(l => l.name === 'knockdown' && !l.out);
+    if (!fall || fall.t < fall.dur || !this.clips.down) return;
+    for (const l of this.layers) l.out = true;
+    const a = this.mixer.clipAction(this.clips.down);
+    a.reset(); a.setLoop(THREE.LoopRepeat, Infinity); a.setEffectiveWeight(0); a.play();
+    this.layers.push({ name: 'down', action: a, t: 0, dur: 1e9, ts: 1, w: 0, out: false, hold: true });
+    this.downLoop = true;
+  }
   isUp() { return !this.getupLayer || this.getupLayer.t >= this.getupLayer.dur - 0.15; }
   resetPose() {
     for (const l of this.layers) l.out = true;
-    this.down = false; this.getupLayer = null; this.punch = null; this.combo = []; this.defending = null; this.reaction = null;
+    this.down = false; this.downLoop = false; this.getupLayer = null; this.punch = null; this.combo = []; this.defending = null; this.reaction = null;
   }
 
   setLevel(name) {
@@ -329,6 +368,7 @@ export class Mike {
   current() { return this.layers.find(l => !l.out) || null; }
 
   animate(dt) {
+    if (this.down && !this.downLoop) this._downLoop();
     let total = 0;
     for (const l of this.layers) {
       l.t += dt * l.ts;

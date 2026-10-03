@@ -41,7 +41,7 @@ const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).ma
 const vbuf = {};
 let vEnd = 0;
 function loadVoices() {
-  for (const n of VOICES) fetch(`assets/voce/${n}.ogg?v=20261003021006`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${n}.ogg?v=20261003110527`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { vbuf[n] = b; }).catch(() => {});
 }
 export function announce(names, gain = 1.0) {
@@ -66,7 +66,7 @@ export function voiceRate(name, rate = 1, gain = 1.0) {
 
 // uscendo dal gioco: silenzio totale (si riaccende con initAudio)
 export function stopAll() {
-  crowdAmbient(false);
+  crowdAmbient(false); seaAmbient(false);
   if (ctx && ctx.state === 'running') ctx.suspend();
 }
 
@@ -109,14 +109,15 @@ export function bell(times = 1) {
 }
 
 // Pubblico del palazzetto: suoni veri generati con AudioGen (tools/gen_crowd_audio.py, tools/make_audio.py)
-const SAMPLES = ['brusio', 'tifo', 'boato_0', 'boato_1', 'boato_2', 'boato_3', 'ooh_0', 'ooh_1', 'ooh_2', 'applauso_0', 'applauso_1'];
+const SAMPLES = ['brusio', 'tifo', 'boato_0', 'boato_1', 'boato_2', 'boato_3', 'ooh_0', 'ooh_1', 'ooh_2', 'applauso_0', 'applauso_1',
+  'mare', 'onda_0', 'onda_1', 'onda_2'];
 const buf = {};
-let loading = null, amb = null, ambWanted = false;
+let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261003021006`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261003110527`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
-  loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); });
+  loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); });
   return loading;
 }
 function loopSrc(b, gain) {
@@ -134,6 +135,24 @@ export function crowdAmbient(on) {
   } else if (!on && amb) {
     amb.brusio.s.stop(); amb.tifo.s.stop(); amb = null;
   }
+}
+// spiaggia: risacca continua (AudioGen, tools/gen_beach_audio.py)
+export function seaAmbient(on) {
+  seaWanted = on;
+  if (!ctx) return;
+  if (on && !sea) {
+    if (!buf.mare) { loadSamples(); return; }
+    sea = loopSrc(buf.mare, 0.55);
+  } else if (!on && sea) { sea.s.stop(); sea = null; }
+}
+// un'onda che si infrange (gain secondo la distanza)
+export function wave(gain = 0.6) {
+  if (!ctx || !sea) return;
+  const names = ['onda_0', 'onda_1', 'onda_2'].filter(n => buf[n]);
+  if (!names.length) return;
+  const s = ctx.createBufferSource(); s.buffer = buf[names[Math.floor(Math.random() * names.length)]];
+  const g = ctx.createGain(); g.gain.value = gain;
+  s.connect(g); g.connect(master); s.start();
 }
 // x = eccitazione del pubblico (0..1): il brusio cresce e partono i cori
 export function crowdLevel(x) {

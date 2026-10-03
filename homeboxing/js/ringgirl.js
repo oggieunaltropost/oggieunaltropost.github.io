@@ -24,7 +24,7 @@ export class RingGirl {
     this.ready = false;
   }
 
-  async load(url = 'assets/ringgirl.glb?v=20261003021006') {
+  async load(url = 'assets/ringgirl.glb?v=20261003110527') {
     const g = await new GLTFLoader().loadAsync(url);
     this.model = g.scene; this.root.add(this.model);
     this.model.traverse(o => {
@@ -103,7 +103,7 @@ export class RingGirl {
     let a = this.path[this.seg], b = this.path[this.seg + 1];
     const len = a.distanceTo(b);
     // a meta' del lato davanti a te si ferma un attimo e mostra il cartello
-    if (!this.paused && this.seg === 2 && this.u > 0.5) { this.paused = true; this.pause = 2.5; }
+    if (!this.paused && this.seg === 2 && this.u > 0.5) { this.paused = true; this.pause = 3.4; }
     const stopNow = this.pause > 0;
     if (stopNow) this.pause -= dt;
     else {
@@ -121,7 +121,7 @@ export class RingGirl {
     this.mixer.update(dt);
     this.root.updateMatrixWorld(true);
     // ferma davanti a te: gira e inclina la testa verso i tuoi occhi (alla tua altezza vera)
-    this.lookW = Math.max(0, Math.min(1, (this.lookW || 0) + (stopNow ? dt : -dt) * 3));
+    this.lookW = Math.max(0, Math.min(1, (this.lookW || 0) + (stopNow ? dt : -dt) * 1.1));   // la testa si gira piano verso di te (~0.9 s)
     if (this.head && !this.headAnimated) this.head.quaternion.copy(this.headBase);   // l'animazione non la muove: si riparte da qui
     if (this.lookW > 0 && this.head) {
       // direzione verso i tuoi occhi, limitata (non si torce oltre ~60 gradi dal busto)
@@ -145,7 +145,7 @@ export class RingGirl {
     if (this.blinkT < 0.12) bl = 1;
     if (this.blinkT < 0) this.blinkT = 2 + Math.random() * 3;
     // quando si ferma davanti a te col cartello: occhiolino (a volte un bacio), ben visibile
-    if (stopNow && this.lookW >= 1 && this.pause < 1.8 && !this.gestured) { this.gestured = true; this.gesture = { kind: Math.random() < 0.7 ? 'wink' : 'kiss', t: 0 }; }
+    if (stopNow && this.lookW >= 1 && this.pause < 2.2 && !this.gestured) { this.gestured = true; this.gesture = { kind: Math.random() < 0.7 ? 'wink' : 'kiss', t: 0 }; }
     let wink = 0, kiss = 0;
     if (this.gesture) {
       const g = this.gesture; g.t += dt;

@@ -2,16 +2,17 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003021006';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003021006';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003021006';
-import { Player, SimInput } from './player.js?v=20261003021006';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD } from './hud.js?v=20261003021006';
-import { Room } from './room.js?v=20261003021006';
-import { Arena } from './arena.js?v=20261003021006';
-import { RingGirl } from './ringgirl.js?v=20261003021006';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003021006';
-import * as sfx from './sfx.js?v=20261003021006';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003110527';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003110527';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003110527';
+import { Player, SimInput } from './player.js?v=20261003110527';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD } from './hud.js?v=20261003110527';
+import { Room } from './room.js?v=20261003110527';
+import { Arena } from './arena.js?v=20261003110527';
+import { Beach } from './beach.js?v=20261003110527';
+import { RingGirl } from './ringgirl.js?v=20261003110527';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003110527';
+import * as sfx from './sfx.js?v=20261003110527';
 
 const $ = id => document.getElementById(id);
 const status = t => { $('status').textContent = t; };
@@ -95,22 +96,39 @@ stool.visible = false; scene.add(stool);
 let level = 'normale';
 try { level = localStorage.getItem('hb-level') || 'normale'; } catch (e) {}
 if (!LEVELS[level]) level = 'normale';
-// dove si gioca: 'stanza' = realta' mista nella tua stanza, 'arena' = palazzetto virtuale con il pubblico
+// dove si gioca: 'stanza' = realta' mista nella tua stanza, 'arena' = palazzetto virtuale con il pubblico,
+// 'spiaggia' = ring sulla sabbia in riva al mare
+const MODES = ['stanza', 'arena', 'spiaggia'];
 let mode = 'stanza';
 try { mode = localStorage.getItem('hb-mode') || 'stanza'; } catch (e) {}
-let arenaEnv = null;
+if (!MODES.includes(mode)) mode = 'stanza';
+let arenaEnv = null, beachEnv = null;
 function applyMode() {
-  const inArena = mode === 'arena';
+  const inArena = mode === 'arena', onBeach = mode === 'spiaggia';
   if (inArena && !arenaEnv) { arenaEnv = new Arena(RING_SIZE); arena.add(arenaEnv.group); }
+  if (onBeach && !beachEnv) { beachEnv = new Beach(); arena.add(beachEnv.group); }
   if (arenaEnv) arenaEnv.group.visible = inArena;
-  room.group.visible = !inArena;
-  hemi.intensity = inArena ? 0.2 : 1.1;
-  scene.environmentIntensity = inArena ? 0.3 : 0.7;     // nel palazzetto il pubblico resta in penombra
-  key.intensity = inArena ? 0.9 : 2.2;
-  fill.intensity = inArena ? 1.5 : 0.5;
-  scene.background = inArena ? new THREE.Color(0x05060a) : (sim ? new THREE.Color(0x2a2c31) : null);
-  scene.fog = inArena ? new THREE.Fog(0x05060a, 9, 26) : null;
+  if (beachEnv) beachEnv.group.visible = onBeach;
+  room.group.visible = mode === 'stanza';
+  if (onBeach) {                                       // pieno giorno: sole alto dietro di te, cielo azzurro
+    hemi.color.set(0xbfe0ff); hemi.groundColor.set(0xb89a68); hemi.intensity = 0.8;
+    scene.environmentIntensity = 0.6; key.intensity = 2.3; fill.intensity = 0.4;
+    key.color.set(0xfff0d8); key.position.set(-2.2, 5.0, 3.0);
+    scene.background = new THREE.Color(0xcfe3f2); scene.fog = null;
+    camera.far = 400;                                  // si vedono orizzonte, citta' e promontorio
+  } else {
+    hemi.color.set(0xffffff); hemi.groundColor.set(0x404048);
+    hemi.intensity = inArena ? 0.2 : 1.1;
+    scene.environmentIntensity = inArena ? 0.3 : 0.7;     // nel palazzetto il pubblico resta in penombra
+    key.intensity = inArena ? 0.9 : 2.2; key.color.set(0xfff1e0); key.position.set(1.2, 3.5, 1.5);
+    fill.intensity = inArena ? 1.5 : 0.5;
+    scene.background = inArena ? new THREE.Color(0x05060a) : (sim ? new THREE.Color(0x2a2c31) : null);
+    scene.fog = inArena ? new THREE.Fog(0x05060a, 9, 26) : null;
+    camera.far = 60;
+  }
+  camera.updateProjectionMatrix();
   sfx.crowdAmbient(inArena);
+  sfx.seaAmbient(onBeach);
 }
 const READY_S = 6;                    // secondi prima del gong
 
@@ -119,14 +137,34 @@ const flash = new HitFlash(camera);
 const pause = new PauseMenu();
 scene.add(pause.group);
 // menu principale dentro il gioco (stanza o arena, livello, inizia, esci)
-const mainMenu = new MenuPanel({ title: 'HOME BOXING', subtitle: 'tieni un guantone sul pulsante', width: 1.0, height: 1.26, rows: [
-  { label: 'DOVE', y: 0.37, buttons: [{ id: 'm:stanza', text: 'Nella stanza', w: 0.42 }, { id: 'm:arena', text: 'Nell\'arena', w: 0.42 }] },
-  { label: 'LIVELLO', y: 0.21, buttons: [{ id: 'l:facile', text: 'Facile', w: 0.205 }, { id: 'l:normale', text: 'Normale', w: 0.205 },
+// anteprime degli stage nel menu: foto del gioco per arena e spiaggia, un disegno per la stanza
+function roomPreview() {
+  const c = document.createElement('canvas'); c.width = 320; c.height = 200;
+  const g = c.getContext('2d');
+  g.fillStyle = '#d9cbb4'; g.fillRect(0, 0, 320, 120);                       // parete
+  g.fillStyle = '#9b7a55'; g.fillRect(0, 120, 320, 80);                      // parquet
+  g.strokeStyle = 'rgba(60,40,20,0.35)';
+  for (let x = -200; x < 520; x += 28) { g.beginPath(); g.moveTo(160 + (x - 160) * 0.5, 120); g.lineTo(x, 200); g.stroke(); }
+  g.fillStyle = '#8fc3e8'; g.fillRect(28, 22, 70, 60); g.strokeStyle = '#ffffff'; g.lineWidth = 5; g.strokeRect(28, 22, 70, 60);   // finestra
+  g.beginPath(); g.moveTo(63, 22); g.lineTo(63, 82); g.stroke();
+  g.fillStyle = '#4b5d78'; g.fillRect(222, 78, 86, 34); g.fillRect(218, 64, 94, 20);   // divano
+  g.fillStyle = '#1e66c9'; g.fillRect(70, 132, 180, 46);                           // ring
+  g.strokeStyle = '#e8412c'; g.lineWidth = 4; g.strokeRect(70, 108, 180, 34);
+  g.strokeStyle = '#ffffff'; g.lineWidth = 3; g.strokeRect(70, 118, 180, 24);
+  g.fillStyle = '#eeeeee'; for (const x of [70, 250]) g.fillRect(x - 4, 100, 8, 70);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003110527`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const mainMenu = new MenuPanel({ title: 'HOME BOXING', subtitle: 'tieni un guantone sul pulsante', width: 1.0, height: 1.36, rows: [
+  { label: 'DOVE', y: 0.33, h: 0.22, buttons: [{ id: 'm:stanza', text: 'Nella stanza', w: 0.29, img: roomPreview() },
+    { id: 'm:arena', text: 'Nell\'arena', w: 0.29, img: stageImg('arena') }, { id: 'm:spiaggia', text: 'In spiaggia', w: 0.29, img: stageImg('spiaggia') }] },
+  { label: 'LIVELLO', y: 0.11, buttons: [{ id: 'l:facile', text: 'Facile', w: 0.205 }, { id: 'l:normale', text: 'Normale', w: 0.205 },
     { id: 'l:difficile', text: 'Difficile', w: 0.205 }, { id: 'l:impossibile', text: 'Impossibile', w: 0.205 }] },
-  { label: 'ROUND', y: 0.05, buttons: [{ id: 'r:1', text: '1', w: 0.15 }, { id: 'r:3', text: '3', w: 0.15 }, { id: 'r:6', text: '6', w: 0.15 }, { id: 'r:12', text: '12', w: 0.15 }] },
-  { label: 'DURATA DI UN ROUND', y: -0.11, buttons: [{ id: 'd:60', text: '1 min', w: 0.2 }, { id: 'd:120', text: '2 min', w: 0.2 }, { id: 'd:180', text: '3 min', w: 0.2 }] },
-  { label: 'REGOLA DEI 3 ATTERRAMENTI', y: -0.27, buttons: [{ id: 'k:si', text: 'Sì', w: 0.2 }, { id: 'k:no', text: 'No', w: 0.2 }] },
-  { y: -0.45, h: 0.12, buttons: [{ id: 'start', text: 'INIZIA INCONTRO', w: 0.52, color: 0x1f8a4c }, { id: 'quit', text: 'ESCI DAL GIOCO', w: 0.34, color: 0xc4161f }] },
+  { label: 'ROUND', y: -0.05, buttons: [{ id: 'r:1', text: '1', w: 0.15 }, { id: 'r:3', text: '3', w: 0.15 }, { id: 'r:6', text: '6', w: 0.15 }, { id: 'r:12', text: '12', w: 0.15 }] },
+  { label: 'DURATA DI UN ROUND', y: -0.21, buttons: [{ id: 'd:60', text: '1 min', w: 0.2 }, { id: 'd:120', text: '2 min', w: 0.2 }, { id: 'd:180', text: '3 min', w: 0.2 }] },
+  { label: 'REGOLA DEI 3 ATTERRAMENTI', y: -0.37, buttons: [{ id: 'k:si', text: 'Sì', w: 0.2 }, { id: 'k:no', text: 'No', w: 0.2 }] },
+  { y: -0.55, h: 0.12, buttons: [{ id: 'start', text: 'INIZIA INCONTRO', w: 0.52, color: 0x1f8a4c }, { id: 'quit', text: 'ESCI DAL GIOCO', w: 0.34, color: 0xc4161f }] },
 ] });
 scene.add(mainMenu.group);
 let armsUpT = 0, prevButtons = false;
@@ -166,7 +204,7 @@ let lastPlace = null, fitted = false;
 function placeArena(headPos, yaw) {
   lastPlace = { head: headPos.clone(), yaw };
   // ring piu' grande possibile dentro la stanza scansionata; senza scansione: 3,2 m davanti a te
-  const fit = mode === 'arena' ? null : room.fitRing(headPos, yaw, RING_SIZE, PLAYER_Z);
+  const fit = mode !== 'stanza' ? null : room.fitRing(headPos, yaw, RING_SIZE, PLAYER_Z);
   fitted = !!fit;
   arena.rotation.y = yaw;
   if (fit) {
@@ -501,7 +539,8 @@ function tick(dt, frame) {
     const userSet = floorSource === 'mano' || floorSource === 'manuale';
     if (y !== null && !userSet && (floorSource !== 'stanza' || Math.abs(y - floorY) > 0.02)) setFloor(y, 'stanza');
     // la pianta della stanza e' arrivata dopo: rimetti il ring della misura giusta
-    if (placed && !fitted && room.floorPoly && lastPlace) placeArena(lastPlace.head, lastPlace.yaw);
+    // (solo nella stanza: nell'arena il ring non si adatta e rimetterlo a posto riportava Mike al punto di partenza)
+    if (placed && !fitted && mode === 'stanza' && room.floorPoly && lastPlace && game.phase === 'menu') placeArena(lastPlace.head, lastPlace.yaw);
     // nessuna scansione dopo 3 s e altezza della testa poco credibile: stima (occhi ~ 1,55 m da terra)
     if (y === null && floorSource === 'visore' && xrFrames > 200) {
       const h = player.head.y + 0.06 - floorY;
@@ -524,7 +563,7 @@ function tick(dt, frame) {
     const y = headMax - eye;
     if (floorSource === 'visore' || Math.abs(y - floorY) > 0.02) setFloor(y, 'stima');
   }
-  if (renderer.xr.isPresenting && mode !== 'arena' && xrFrames % 300 === 0 && xrFrames > 600 &&
+  if (renderer.xr.isPresenting && mode === 'stanza' && xrFrames % 300 === 0 && xrFrames > 600 &&
       (floorSource === 'stanza' || floorSource === 'mano')) {
     const eye = headMax - floorY;
     if (eye > 1.2 && eye < 2.1) try { localStorage.setItem('hb-eye', eye.toFixed(3)); } catch (e) {}
@@ -553,6 +592,7 @@ function tick(dt, frame) {
   }
   if (party.update(dt)) sfx.firework();
   if (arenaEnv && arenaEnv.group.visible) { arenaEnv.update(dt); sfx.crowdLevel(arenaEnv.excite); }
+  if (beachEnv && beachEnv.group.visible) beachEnv.update(dt, h => sfx.wave(0.2 + 0.25 * h));
   player.endFrame();
   renderer.render(scene, camera);
 }
@@ -631,7 +671,7 @@ function calibrateByHand(dt) {
 }
 
 // ---------------------------------------------------------------- avvio
-loadMikeGLTF('assets/mike.glb?v=20261003021006', f => status(`Caricamento gioco… ${Math.min(100, Math.round(f * 100))}%`)).then(gltf => {
+loadMikeGLTF('assets/mike.glb?v=20261003110527', f => status(`Caricamento gioco… ${Math.min(100, Math.round(f * 100))}%`)).then(gltf => {
   mike = new Mike(gltf, scene, level);
   girl.load().catch(e => console.warn('ragazza del ring', e));
   bruises = new Bruises(mike.model);
