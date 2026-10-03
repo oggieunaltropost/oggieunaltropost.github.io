@@ -88,7 +88,7 @@ export class Beach {
 
   // cielo e sfondo: il panorama a 360 gradi della spiaggia vera (proiezione equirettangolare)
   _sky() {
-    const tex = new THREE.TextureLoader().load('assets/spiaggia_cielo.jpg?v=20261003115240', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load('assets/spiaggia_cielo.jpg?v=20261003120215', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -177,7 +177,9 @@ export class Beach {
           float foam = smoothstep(0.17, 0.30, vH + (n - 0.5) * 0.18) * 0.7;
           foam += smoothstep(4.0, 0.0, dist) * smoothstep(0.35, 0.7, n) * 0.9;
           col = mix(col, uFoam, clamp(foam, 0.0, 0.9));
-          gl_FragColor = vec4(col, 1.0 - smoothstep(55.0, 120.0, fd));        // al largo lascia vedere il mare della foto
+          float ang = atan(abs(vL.x), max(0.001, uShore - vL.z + 6.0));          // 0 = davanti, 1.57 = di lato
+          float side = 1.0 - smoothstep(0.75, 1.05, ang) * smoothstep(10.0, 30.0, abs(vL.x));
+          gl_FragColor = vec4(col, (1.0 - smoothstep(55.0, 120.0, fd)) * side);  // al largo e ai lati lascia vedere la foto
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
         }`,
@@ -215,7 +217,7 @@ export class Beach {
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     g.setIndex(idx); g.computeVertexNormals();
     const L = new THREE.TextureLoader();
-    const tex = L.load('assets/sabbia_colore.jpg?v=20261003115240'), nrm = L.load('assets/sabbia_rilievo.jpg?v=20261003115240');
+    const tex = L.load('assets/sabbia_colore.jpg?v=20261003120215'), nrm = L.load('assets/sabbia_rilievo.jpg?v=20261003120215');
     tex.colorSpace = THREE.SRGBColorSpace;
     for (const t of [tex, nrm]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; }
     const m = new THREE.MeshStandardMaterial({ map: tex, normalMap: nrm, normalScale: new THREE.Vector2(1.4, 1.4), vertexColors: true, roughness: 1 });
@@ -238,6 +240,7 @@ export class Beach {
           float rim = smoothstep(0.5, 0.0, abs(vL.z - edge));
           vec3 c = mix(uShallow, uFoam, clamp(lace * 0.8 + rim, 0.0, 1.0));
           float a = inside * (0.08 + 0.55 * lace + 0.35 * rim * lace) * uAlpha;
+          a *= smoothstep(30.0, 18.0, abs(vL.x));               // ai lati sfuma (oltre c'e' la spiaggia della foto)
           gl_FragColor = vec4(c, a);
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
@@ -295,7 +298,7 @@ export class Beach {
             vec3 c = mix(face, uFoam, foam);
             float a = smoothstep(0.0, 0.18, vS) * (vBrk > 0.0 ? 1.0 : smoothstep(0.0, 0.08, 1.0 - vS));
             a *= (1.0 - smoothstep(0.86, 1.0, vPh)) * smoothstep(0.0, 0.08, vPh);
-            a *= smoothstep(45.0, 30.0, abs(vX));
+            a *= smoothstep(32.0, 18.0, abs(vX));
             a *= mix(0.35, 0.9, foam) * (1.0 - 0.55 * vBrk);   // parete d'acqua trasparente; la schiuma rotta si dissolve
             float fd = length(vW - cameraPosition);
             c = mix(c, uHor, smoothstep(60.0, 200.0, fd) * 0.8);
@@ -327,8 +330,8 @@ export class Beach {
     for (let k = 0; k < 9; k++) spots.push([-40 + k * 10 + r() * 3, 19 + r() * 1.5]);
     for (const [x, z] of spots) {
       if (Math.abs(x) < 7.5 && z < 11) continue;               // lontano dal ring e dal giro della ragazza
-      if (!this._free(x, z, 1.6)) continue;                    // niente palme dentro ombrelloni, cabine, bar o altre palme
-      this._take(x, z, 1.6);
+      if (!this._free(x, z, 2.0)) continue;                    // niente palme dentro ombrelloni, cabine, bar o altre palme
+      this._take(x, z, 2.0);
       const h = 6 + r() * 4.5, lean = (r() - 0.5) * 2.2, ang = r() * Math.PI * 2;
       const by = sandY(x, z);
       const top = new THREE.Vector3(x + Math.cos(ang) * lean, by + h, z + Math.sin(ang) * lean);
@@ -466,6 +469,7 @@ export class Beach {
     const iron = new THREE.MeshStandardMaterial({ color: 0x2a2f36, roughness: 0.5, metalness: 0.4 });
     for (let k = 0; k < 10; k++) {
       const x = -45 + k * 10;
+      this._take(x, 22.4, 0.6);                                   // (sul bordo della passeggiata)
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 4.2, 8), iron); pole.position.set(x, sandY(x, 22.4) + 2.3, 22.4);
       const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8), new THREE.MeshStandardMaterial({ color: 0xfff6dc, emissive: 0x665a3a }));
       lamp.position.set(x, pole.position.y + 2.2, 22.4);
