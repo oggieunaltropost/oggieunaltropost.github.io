@@ -2,19 +2,19 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003130016';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003130016';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003130016';
-import { Player, SimInput } from './player.js?v=20261003130016';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003130016';
-import { Room } from './room.js?v=20261003130016';
-import { Arena } from './arena.js?v=20261003130016';
-import { Beach } from './beach.js?v=20261003130016';
-import { RingGirl } from './ringgirl.js?v=20261003130016';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003130016';
-import * as sfx from './sfx.js?v=20261003130016';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003130016';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003130016';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003130137';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003130137';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003130137';
+import { Player, SimInput } from './player.js?v=20261003130137';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003130137';
+import { Room } from './room.js?v=20261003130137';
+import { Arena } from './arena.js?v=20261003130137';
+import { Beach } from './beach.js?v=20261003130137';
+import { RingGirl } from './ringgirl.js?v=20261003130137';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003130137';
+import * as sfx from './sfx.js?v=20261003130137';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003130137';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003130137';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -174,7 +174,7 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003130016`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003130137`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 const mainMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.0, height: 1.72, rows: [
   { label: t('where'), tk: 'where', y: 0.565, h: 0.22, buttons: [{ id: 'm:stanza', tk: 'm_stanza', w: 0.29, img: roomPreview() },
@@ -318,7 +318,8 @@ function knockdown(who, power) {
   sfx.voiceNow('knockdown');
   if (arenaEnv) arenaEnv.cheer(2);
   if (mode === 'arena') sfx.cheer('boato', 1);
-  const refill = KD_REFILL[f.kd - 1] || 0;
+  // energia che si recupera rialzandosi: 75, 50, 25; senza la regola dei 3 atterramenti si continua (20, 15, minimo 10)
+  const refill = KD_REFILL[f.kd - 1] ?? (threeKO ? 0 : Math.max(10, 25 - 5 * (f.kd - 3)));
   const kd = { who, count: 0, t: 0, up: false, refill, final: refill <= 0, tko: threeKO && f.kd >= 3 };
   if (who === 'mike') {
     mike.knockdown();
@@ -327,7 +328,7 @@ function knockdown(who, power) {
   } else {
     const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
     const e = new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ');
-    const n = [10, 20, 30][f.kd - 1] || 30;
+    const n = 10 * f.kd;                      // colpi per rialzarsi: 10 in piu' a ogni atterramento
     if (!kd.final && !kd.tko) {
       getUp.start(n, 0.11, player.head, e.y);
       game.message = t('you_down_hit', { n });
