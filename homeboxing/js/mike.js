@@ -135,6 +135,7 @@ export class Mike {
     });
     this.brandShorts();
     if (this.cfg0.hairTint) this.model.traverse(o => { if (o.isMesh && o.material.name === 'Capelli folti') this.tintHair(o.material, this.cfg0.hairTint); });
+    if (this.cfg0.fur) this.model.traverse(o => { if (o.isMesh && o.material.name === 'Capelli') this.furMaterial(o.material, this.cfg0.fur); });
     if (this.cfg0.noStubble) this.model.traverse(o => { if (o.isMesh && o.material.name === 'Capelli') o.visible = false; });
     if (this.cfg0.glow) this.model.traverse(o => { if (o.isMesh && this.cfg0.glow.includes(o.material.name)) { o.material.emissive.copy(o.material.color); o.material.emissiveIntensity = o.material.name === 'Cresta' ? 1.4 : 0.6; o.material.toneMapped = false; } });
     if (this.cfg0.evenSkin !== false) this.evenSkin();
@@ -276,6 +277,30 @@ export class Mike {
     body.material.map = t; body.material.needsUpdate = true;
   }
 
+  // barba e capelli a spazzola folti: trama di peli (colore con piccole variazioni, bordi sfrangiati)
+  furMaterial(m, hex) {
+    const c = document.createElement('canvas'); c.width = c.height = 512;
+    const g = c.getContext('2d'), base = new THREE.Color(hex);
+    g.fillStyle = '#' + base.getHexString(); g.fillRect(0, 0, 512, 512);          // base piena (niente buchi)
+    for (let i = 0; i < 26000; i++) {
+      const x = Math.random() * 512, y = Math.random() * 512, l = 3 + Math.random() * 7, a = Math.random() * Math.PI;
+      const k = 0.45 + Math.random() * 1.3;
+      g.strokeStyle = `rgba(${Math.min(255, base.r * 255 * k) | 0},${Math.min(255, base.g * 255 * k) | 0},${Math.min(255, base.b * 255 * k) | 0},${0.55 + Math.random() * 0.45})`;
+      g.lineWidth = 0.8 + Math.random() * 0.9;
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
+    }
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(6, 6);
+    m.map = t; m.color.set(0xffffff); m.roughness = 0.9;
+    // bordo sfumato: dal colore dei vertici si tiene solo la trasparenza (attaccatura morbida), puntinata (alphaHash)
+    this.model.traverse(o => {
+      const ca = o.isMesh && o.material === m && o.geometry.attributes.color;
+      if (!ca || ca.itemSize < 4) return;
+      for (let i = 0; i < ca.count; i++) ca.setXYZ(i, 1, 1, 1);
+      ca.needsUpdate = true;
+    });
+    m.vertexColors = true; m.alphaTest = 0; m.alphaHash = true; m.transparent = false; m.needsUpdate = true;
+  }
+
   // capelli chiari (biondo): la texture MakeHuman e' scura; si tiene solo il chiaroscuro delle ciocche e si ricolora
   tintHair(m, hex) {
     const img = m.map && m.map.image; if (!img || !img.width) return;
@@ -352,8 +377,9 @@ export class Mike {
     const pant = tired * (0.5 + 0.5 * Math.sin(this.breath * Math.PI));
     if (this.down) { blink = 0.75; }
     this._morph('blink_l', Math.max(blink, p * 0.7)); this._morph('blink_r', Math.max(blink, p * 0.9));
-    this._morph('squint_l', p * 0.6); this._morph('squint_r', p * 0.6);
-    this._morph('brow_l', p * 0.8); this._morph('brow_r', p * 0.8);
+    const mean = this.cfg0.mean || {};                    // espressione di base (es. Brutus sempre accigliato)
+    this._morph('squint_l', Math.max(p * 0.6, mean.squint || 0)); this._morph('squint_r', Math.max(p * 0.6, mean.squint || 0));
+    this._morph('brow_l', Math.max(p * 0.8, mean.brow || 0)); this._morph('brow_r', Math.max(p * 0.8, mean.brow || 0));
     this._morph('grimace', p * 0.9);
     this._morph('mouth_open', Math.max(pant * 0.75, p * 0.25));     // fiatone: bocca che si apre e chiude
     this._morph('nose_l', pant * 0.6); this._morph('nose_r', pant * 0.6);
