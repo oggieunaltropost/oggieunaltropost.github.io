@@ -1,7 +1,7 @@
 // Incontro vero: danno, atterramenti, conteggio dell'arbitro, KO e KO tecnico (regole del pugilato),
 // e la prova per rialzarsi quando vai a terra tu.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261003204205';
+import { t as tr } from './i18n.js?v=20261003210134';
 
 export const ROUNDS = 3, ROUND_S = 180, REST_S = 30;
 
@@ -63,10 +63,10 @@ export class GetUpChallenge {
     g.clearRect(0, 0, W, H);
     g.fillStyle = 'rgba(10,12,18,0.85)'; g.fillRect(0, 0, W, H);
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = '#ffd34d'; g.font = '900 64px system-ui, sans-serif';
-    g.fillText(tr('getup_title', { n: this.n }), W / 2, 80);
-    g.fillStyle = '#ffffff'; g.font = '800 92px system-ui, sans-serif';
-    g.fillText(tr('getup_left', { n: this.left }), W / 2, 182);
+    // scritte che si rimpiccioliscono se non ci stanno (niente piu' testo tagliato)
+    const fit = (text, px, weight, y) => { let s = px; do { g.font = `${weight} ${s}px system-ui, sans-serif`; s -= 2; } while (g.measureText(text).width > W * 0.92 && s > 14); g.fillText(text, W / 2, y); };
+    g.fillStyle = '#ffd34d'; fit(tr('getup_title', { n: this.n }), 64, 900, 80);
+    g.fillStyle = '#ffffff'; fit(tr('getup_left', { n: this.left }), 92, 800, 182);
     this.tex.needsUpdate = true;
   }
 

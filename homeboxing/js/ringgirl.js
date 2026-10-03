@@ -9,7 +9,8 @@ const SPEED = 0.62;          // m/s: un ciclo di camminata (1.33 s) = 83 cm (ble
 // "dentro" la testa e il viso sembra tagliato); capelli, sopracciglia e occhi con ritaglio netto.
 export function fixHumanMaterial(o) {
   const m = o.material, n = (m.name || '').toLowerCase();
-  if (/eyebrow|eyelash|hair|short0|bob0|long0|ponytail|braid|afro/.test(n)) { m.transparent = false; m.alphaTest = 0.45; }
+  if (/eyebrow|eyelash/.test(n)) { m.transparent = true; m.alphaTest = 0.04; m.depthWrite = false; m.opacity = 0.7; o.renderOrder = 2; }   // sopracciglia sottili e sfumate
+  else if (/hair|short0|bob0|long0|ponytail|braid|afro/.test(n)) { m.transparent = false; m.alphaTest = 0.45; }
   else if (/high-poly|eye/.test(n)) { m.transparent = false; m.alphaTest = 0.9; m.roughness = 0.15; }   // solo il bulbo, niente velo della cornea
   else { m.transparent = false; m.alphaTest = 0; m.opacity = 1; }
   m.depthWrite = true; m.side = THREE.FrontSide; m.needsUpdate = true;
@@ -24,7 +25,7 @@ export class RingGirl {
     this.ready = false;
   }
 
-  async load(url = 'assets/ringgirl.glb?v=20261003204205') {
+  async load(url = 'assets/ringgirl.glb?v=20261003210134') {
     const g = await new GLTFLoader().loadAsync(url);
     this.model = g.scene; this.root.add(this.model);
     this.model.traverse(o => {

@@ -48,15 +48,15 @@ const MOVES = new Set(['slip_l', 'slip_r', 'duck']);
 // probabilita' che vada a vuoto; reflex = probabilita' di evitarlo all'ultimo anche senza essersi preparato;
 // toughness = quanto danno incassa dai tuoi colpi (1 = normale).
 export const LEVELS = {
-  facile: { label: 'Facile', readGuard: 0.25, evade: 0.05, reflex: 0.0, toughness: 1.3, guardReach: -0.03, stalkDist: 0.85, openFactor: 0.1, reactChance: 0.35, reactDelay: [0.14, 0.24],
+  facile: { label: 'Facile', readGuard: 0.45, evade: 0.05, reflex: 0.0, toughness: 1.3, guardReach: -0.03, stalkDist: 0.85, openFactor: 0.1, reactChance: 0.35, reactDelay: [0.14, 0.24],
     attackEvery: [2.6, 4.2], retreatTime: 0.9, punchSpeed: 0.75, moveSpeed: 0.6, defenseSpeed: 1.1, threatDist: 0.8,
     threatSpeed: 1.6, smart: false, chain: false, counterChance: 0.1, blockReach: 0.07, bodyBias: 0.15, feints: 0, lowGuard: 0.6,
     combos: combos('1', '2', '1-2', '1-1', '1-1-2', '2-3') },
-  normale: { label: 'Normale', readGuard: 0.6, evade: 0.38, reflex: 0.12, toughness: 1.0, guardReach: 0.0, stalkDist: 0.9, openFactor: 0.25, reactChance: 0.68, reactDelay: [0.05, 0.13],
+  normale: { label: 'Normale', readGuard: 0.8, evade: 0.38, reflex: 0.12, toughness: 1.0, guardReach: 0.0, stalkDist: 0.9, openFactor: 0.25, reactChance: 0.68, reactDelay: [0.05, 0.13],
     attackEvery: [0.9, 1.8], retreatTime: 0.5, punchSpeed: 1.0, moveSpeed: 0.9, defenseSpeed: 1.35, threatDist: 0.95,
     threatSpeed: 1.3, smart: false, chain: false, counterChance: 0.35, blockReach: 0.09, bodyBias: 0.45, feints: 0.08, lowGuard: 0.5,
     combos: combos('1', '1-2', '1-1-2', '1-2-3', '3-2', '2-3', '1-6', '1-2b', '1-schivata-2') },
-  difficile: { label: 'Difficile', readGuard: 0.9, evade: 0.75, reflex: 0.42, toughness: 0.7, guardReach: 0.03, stalkDist: 0.95, openFactor: 0.45, reactChance: 0.9, reactDelay: [0.02, 0.06],
+  difficile: { label: 'Difficile', readGuard: 0.96, evade: 0.75, reflex: 0.42, toughness: 0.7, guardReach: 0.03, stalkDist: 0.95, openFactor: 0.45, reactChance: 0.9, reactDelay: [0.02, 0.06],
     attackEvery: [0.35, 0.85], retreatTime: 0.28, punchSpeed: 1.25, moveSpeed: 1.15, defenseSpeed: 1.75, threatDist: 1.25,
     threatSpeed: 0.95, smart: true, chain: true, counterChance: 0.65, blockReach: 0.11, bodyBias: 0.65, feints: 0.15, lowGuard: 0.4,
     combos: combos('1-2', '1-1-2', '1-2-3', '1-2-3-2', '1-6-3-2', '3-2-3', '2-3-2', '1-2-5-2', '1-schivata-2',
@@ -82,7 +82,7 @@ const PUNCH = {
 // parte "ferma" delle difese (fotogrammi): la tiene finche' il tuo pugno e' ancora in arrivo
 const HOLD = { block: [3, 12], block_low: [3, 12], slip_l: [4, 10], slip_r: [4, 10], duck: [5, 11] };
 
-const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3();
+const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _e = new THREE.Vector3();
 const _q = new THREE.Quaternion();
 const STEP_SPEED = 0.22 / 0.5;    // un ciclo di passi (0,5 s) avanza di 22 cm
 
@@ -283,14 +283,14 @@ export class Mike {
     const c = document.createElement('canvas'); c.width = c.height = 512;
     const g = c.getContext('2d'), base = new THREE.Color(hex);
     g.fillStyle = '#' + base.getHexString(); g.fillRect(0, 0, 512, 512);          // base piena (niente buchi)
-    for (let i = 0; i < 26000; i++) {
-      const x = Math.random() * 512, y = Math.random() * 512, l = 3 + Math.random() * 7, a = Math.random() * Math.PI;
-      const k = 0.45 + Math.random() * 1.3;
+    for (let i = 0; i < 30000; i++) {
+      const x = Math.random() * 512, y = Math.random() * 512, l = 2 + Math.random() * 5, a = Math.random() * Math.PI;
+      const k = 0.78 + Math.random() * 0.5;             // poco contrasto: niente puntini
       g.strokeStyle = `rgba(${Math.min(255, base.r * 255 * k) | 0},${Math.min(255, base.g * 255 * k) | 0},${Math.min(255, base.b * 255 * k) | 0},${0.55 + Math.random() * 0.45})`;
-      g.lineWidth = 0.8 + Math.random() * 0.9;
+      g.lineWidth = 0.6 + Math.random() * 0.6;
       g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
     }
-    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(6, 6);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(10, 10); t.anisotropy = 4;
     m.map = t; m.color.set(0xffffff); m.roughness = 0.9;
     // bordo sfumato: dal colore dei vertici si tiene solo la trasparenza (attaccatura morbida), puntinata (alphaHash)
     this.model.traverse(o => {
@@ -299,7 +299,9 @@ export class Mike {
       for (let i = 0; i < ca.count; i++) ca.setXYZ(i, 1, 1, 1);
       ca.needsUpdate = true;
     });
-    m.vertexColors = true; m.alphaTest = 0; m.alphaHash = true; m.transparent = false; m.needsUpdate = true;
+    // trasparenza vera (bordo sfumato liscio, non a retino); disegnata dopo la pelle
+    m.vertexColors = true; m.alphaTest = 0.02; m.alphaHash = false; m.transparent = true; m.depthWrite = false; m.needsUpdate = true;
+    this.model.traverse(o => { if (o.isMesh && o.material === m) o.renderOrder = 1; });
   }
 
   // capelli chiari (biondo): la texture MakeHuman e' scura; si tiene solo il chiaroscuro delle ciocche e si ricolora
@@ -416,10 +418,23 @@ export class Mike {
     this.levelName = LEVELS[name] ? name : 'normale';
     this.applyRound(this.round || 1);
   }
+  // crescita della difficolta' (torneo, sopravvivenza): 0 = il livello scelto, 1 = il livello successivo.
+  // Le abilita' si avvicinano in percentuale a quelle del livello sopra, senza saltarci dentro.
+  setRamp(x) { this.ramp = Math.max(0, Math.min(1, x || 0)); this.applyRound(this.round || 1); }
   // stanchezza dei round (non la salute): un po' piu' lento e meno pronto a ogni round, +2,5% fino al 25% al massimo
   applyRound(round) {
     this.round = round;
     const t = Math.min(0.25, 0.025 * (round - 1)), b = { ...MIKE, ...LEVELS[this.levelName] };
+    const names = Object.keys(LEVELS), nxt = LEVELS[names[Math.min(names.length - 1, names.indexOf(this.levelName) + 1)]];
+    if (this.ramp > 0 && nxt) {
+      const k = this.ramp;
+      for (const [key, v] of Object.entries(nxt)) {
+        if (typeof v === 'number' && typeof b[key] === 'number') b[key] = b[key] + (v - b[key]) * k;
+        else if (Array.isArray(v) && Array.isArray(b[key]) && typeof v[0] === 'number') b[key] = b[key].map((x, i) => x + (v[i] - x) * k);
+        else if (key === 'combos' && k >= 0.5) b.combos = [...b.combos, ...v];   // a meta' strada usa anche le combinazioni del livello sopra
+        else if (typeof v === 'boolean' && k >= 0.5) b[key] = v;
+      }
+    }
     const md = this.cfg0.mods;                           // stile del pugile (es. Eddy agile)
     if (md) { b.moveSpeed *= md.moveSpeed || 1; b.defenseSpeed *= md.defenseSpeed || 1; b.evade = Math.min(0.95, (b.evade ?? 0) + (md.evade || 0));
       b.attackEvery = b.attackEvery.map(v => v * (md.attackEvery || 1));
@@ -702,7 +717,8 @@ export class Mike {
     const head = player.head.clone().add(_d.set(0, -0.05, 0)), body = player.head.clone().add(_d.set(0, -0.45, 0));
     const spec = PUNCH[name], sx = spec.side === 'l' ? 1 : -1;
     const target = spec.zone === 'body' ? body : head;
-    const shoulder = this.root.position.clone().add(_d.set(0, 1.45, 0)).addScaledVector(side, 0.2 * sx);
+    const shY = this.headCenter(_e).y - this.root.position.y - 0.27;                 // spalle all'altezza vera del pugile
+    const shoulder = this.root.position.clone().add(_d.set(0, shY, 0)).addScaledVector(side, 0.2 * sx);
     let start;
     if (name === 'jab' || name === 'cross') start = shoulder;                                         // dritto, da davanti
     else if (name.startsWith('hook')) start = target.clone().addScaledVector(side, 0.45 * sx).addScaledVector(f, -0.15);   // di lato
@@ -720,17 +736,23 @@ export class Mike {
   // se il prossimo colpo e' coperto, Mike (secondo il livello) lo cambia con uno che arriva dove sei scoperto
   readGuard(player) {
     const name = this.combo[0];
-    if (!name || !PUNCH[name] || !player || Math.random() >= (this.cfg.readGuard ?? 0.6)) return;
-    if (this.pathClearance(name, player) >= 0.16) return;
+    if (!name || !PUNCH[name] || !player || Math.random() >= (this.cfg.readGuard ?? 0.6)) return true;
+    const CLEAR = 0.2;                                         // guantone del giocatore piu' vicino di 20 cm = colpo coperto
+    if (this.pathClearance(name, player) >= CLEAR) return true;
     const open = Object.keys(PUNCH).filter(n => this.clips[n] && n !== name)
-      .map(n => ({ n, c: this.pathClearance(n, player) })).filter(o => o.c >= 0.16);
-    if (!open.length) return;                                  // tutto coperto: tira lo stesso (finira' sui guantoni)
+      .map(n => ({ n, c: this.pathClearance(n, player) })).filter(o => o.c >= CLEAR).sort((x, y) => y.c - x.c);
+    if (!open.length) return false;                            // tutto coperto: non tira sui guantoni, aspetta un'apertura
     const head = open.filter(o => PUNCH[o.n].zone === 'head');
-    this.combo[0] = pick(head.length && Math.random() < 0.7 ? head : open).n;
+    const best = (head.length && Math.random() < 0.6 ? head : open).slice(0, 2);   // tra i piu' scoperti
+    this.combo[0] = pick(best).n;
+    return true;
   }
 
   nextPunch(player = this.lastPlayer) {
-    this.readGuard(player);
+    if (this.readGuard(player) === false && this.combo.length && PUNCH[this.combo[0]] && Math.random() < (this.cfg.readGuard ?? 0.6)) {
+      // guardia chiusa dappertutto: interrompe la combinazione e torna a studiarti (riparte appena ti apri)
+      this.combo = []; this.punch = null; this.nextAttack = 0.25 + Math.random() * 0.35; this.setState('retreat'); return;
+    }
     const name = this.combo.shift();
     if (!name || !this.clips[name]) { this.punch = null; this.setState('retreat'); return; }
     if (MOVES.has(name)) {                                   // movimento di difesa dentro la combinazione

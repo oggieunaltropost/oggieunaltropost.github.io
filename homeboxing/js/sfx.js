@@ -33,7 +33,7 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
-import { FIGHTER_IDS } from './fighters.js?v=20261003204205';
+import { FIGHTER_IDS } from './fighters.js?v=20261003210134';
 // Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
@@ -48,7 +48,7 @@ let vbuf = {}, vLang = 'it';
 let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261003204205`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261003210134`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
@@ -119,6 +119,17 @@ export function whoosh() {
 
 // campana del ring
 // torneo: passi il turno (fanfara breve che sale); champion = fanfara piu' lunga per la coppa
+// sopravvivenza: il gettone sale di un piano (soffio che sale, arpeggio, colpo d'arrivo)
+export function climb(dur = 1.7, top = false) {
+  if (!ctx) return;
+  const t = ctx.currentTime + 0.02;
+  noise(t, dur, 300, 0.9, 0.16, 'bandpass', 3800);
+  const notes = top ? [392, 523, 659, 784, 1047, 1319, 1568] : [392, 523, 659, 784, 1047];
+  notes.forEach((f, i) => tone(t + i * dur / notes.length * 0.9, 0.18, f, 0.12, 'triangle'));
+  tone(t + dur, 0.5, 98, 0.35, 'sine', 55);                       // arrivo: colpo basso
+  noise(t + dur, 0.35, 2400, 0.7, 0.18, 'highpass');
+  for (const [m, g] of [[1, 0.22], [2.41, 0.1]]) tone(t + dur, 1.2, 880 * m, g);   // campana
+}
 export function advance(champion = false) {
   if (!ctx) return;
   const t = ctx.currentTime + 0.02;
@@ -146,7 +157,7 @@ const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261003204205`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261003210134`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
   loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); });
   return loading;

@@ -1,6 +1,6 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261003204205';
+import { t as tr } from './i18n.js?v=20261003210134';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
 let RAYS = [];
@@ -193,6 +193,9 @@ export class PauseMenu {
   open(head, yaw, end = false) {
     this.setTitle(tr(end ? 'fight_over' : 'pause'));
     this.buttons[0].group.visible = !end;
+    // fine incontro: solo due pulsanti, centrati
+    const xs = end ? { restart: -0.145, exit: 0.145 } : { resume: -0.29, restart: 0, exit: 0.29 };
+    for (const b of this.buttons) if (xs[b.id] !== undefined) { b.x = xs[b.id]; b.group.position.x = b.x; }
     this.buttons[1].group.children[2].visible = true;
     this.group.position.set(head.x - Math.sin(yaw) * 0.55, head.y - 0.1, head.z - Math.cos(yaw) * 0.55);
     this.group.rotation.set(0, yaw, 0);
@@ -262,15 +265,30 @@ export class MenuPanel {
     this.group.add(this.title);
     this.spec = spec; this.rowLabels = [];
     if (spec.subtitle) { this.sub = lab(spec.subtitle, 0, H / 2 - 0.155, W - 0.1, 0.045, '#c9ced8', 30); this.group.add(this.sub); }
-    this.buttons = [];
+    this.buttons = []; this.carousels = [];
+    if (spec.draggable) {                                  // barra sotto il pannello: lo si prende e lo si sposta
+      const c = document.createElement('canvas'); c.width = 256; c.height = 40; const g = c.getContext('2d');
+      g.fillStyle = '#ffffff'; g.beginPath(); g.roundRect(4, 6, 248, 28, 14); g.fill();
+      const tx = new THREE.CanvasTexture(c);
+      const bar = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.047), new THREE.MeshBasicMaterial({ map: tx, color: 0x9aa3b6, transparent: true, opacity: 0.85, depthTest: false }));
+      bar.position.set(0, -H / 2 - 0.085, 0.01); bar.renderOrder = 1103; this.group.add(bar);
+      this.drag = { bar, t: 0, grab: null };
+    }
     for (const row of spec.rows) {
+      if (row.carousel) {                                  // riga a scorrimento: frecce ai lati (fuori dalla cornice)
+        const k = this.carousels.length;
+        row._arrows = [{ id: `__car${k}-`, text: '‹', w: 0.06, x: -W / 2 + 0.065 }, { id: `__car${k}+`, text: '›', w: 0.06, x: W / 2 - 0.065 }];   // dentro la cornice
+      }
       if (row.label) {
         const m = lab(row.label, 0, row.y + (row.h || 0.09) / 2 + 0.03, W - 0.1, 0.04, '#9aa3b6', 28);
         this.group.add(m); this.rowLabels.push({ m, tk: row.tk });
       }
       const gap = 0.02, total = row.buttons.reduce((a, b) => a + b.w, 0) + gap * (row.buttons.length - 1);
       let x = row.x ?? -total / 2;                  // (row.x: riga allineata da quel punto, es. in basso a sinistra)
-      for (const b of row.buttons) {
+      const car = row.carousel ? { row, items: [], idx: 0, off: 0, goal: null, drag: null, hoverT: 0, hoverI: -1, y: row.y, h: row.h || 0.09,
+        spacing: (row.buttons[0] ? row.buttons[0].w : 0.18) + 0.03 } : null;
+      if (car) this.carousels.push(car);
+      for (const b of [...row.buttons, ...(row._arrows || [])]) {
         const g = new THREE.Group(); g.position.set(x + b.w / 2, row.y, 0.02); x += b.w + gap;
         const h = row.h || 0.09;
         const base = new THREE.Mesh(new THREE.BoxGeometry(b.w, h, 0.03),
@@ -295,12 +313,20 @@ export class MenuPanel {
           t = lab(b.text, 0, 0, b.w - 0.01, h * 0.6, '#ffffff', px); t.position.z = 0.018; g.add(t);
         }
         this.group.add(g);
-        this.buttons.push({ ...b, w: b.w, bh: h, g, sel, fill, t: 0, base, label: t, on: false, color0: b.color || 0x3a4254 });
+        const bt = { ...b, w: b.w, bh: h, g, sel, fill, t: 0, base, label: t, on: false, color0: b.color || 0x3a4254 };
+        if (b.x !== undefined) g.position.x = b.x;
+        if (car && !b.id.startsWith('__car')) { bt.car = car; car.items.push(bt); }
+        this.buttons.push(bt);
       }
     }
   }
   // evidenzia la scelta attuale (es. livello, modalita')
   select(ids) {
+    for (const c of this.carousels) {
+      const i = c.items.findIndex(b => ids.includes(b.id));
+      if (i >= 0 && !c.drag && c.goal === null) { c.idx = i; c.off = i; }
+      this._layout(c);
+    }
     for (const b of this.buttons) {
       const on = ids.includes(b.id);
       b.sel.visible = on;
@@ -337,17 +363,98 @@ export class MenuPanel {
     this.time += dt;
     this.glow.material.opacity = 0.55 + 0.45 * Math.sin(this.time * 2.2);    // bagliore che pulsa
     this.group.updateMatrixWorld(true);
-    const aimed = pointed(this.group, this.buttons, 0.035, b => [b.g.position.x, b.g.position.y, b.w / 2, b.bh / 2], [this.W / 2 + 0.05, this.H / 2 + 0.05]);
+    if (this.drag && this._updateDrag(dt, gloves)) return null;            // lo stai spostando: niente pulsanti
+    const aimed = pointed(this.group, this.buttons, 0.035, b => [b.g.position.x, b.g.position.y, b.w / 2 * b.g.scale.x, b.bh / 2 * b.g.scale.y], [this.W / 2 + 0.05, this.H / 2 + 0.05]);
+    for (const c of this.carousels) { const id = this._updateCarousel(c, dt, gloves, aimed); if (id) return id; }
     for (const b of this.buttons) {
-      if (b.disabled || !b.g.visible) continue;       // (non ancora disponibile o nascosto)
+      if (b.disabled || !b.g.visible || b.car) continue;       // (non ancora disponibile o nascosto; le voci a scorrimento non si "premono")
       const p = b.g.getWorldPosition(new THREE.Vector3());
       const on = aimed.has(b) || gloves.some(g => g.mesh.visible && g.center.distanceTo(p) < Math.max(0.09, b.w / 2));
       b.t = on ? b.t + dt : Math.max(0, b.t - dt * 3);
       b.fill.scale.x = Math.max(0.001, Math.min(1, b.t / this.hold));
       b.fill.position.x = -b.w / 2 * (1 - b.fill.scale.x);
       b.fill.visible = b.t > 0.01;                 // vuota: niente righina bianca al centro
-      if (b.t >= this.hold) { b.t = -0.5; return b.id; }      // pausa breve prima di poterlo ripremere
+      if (b.t >= this.hold) {
+        b.t = -0.5;                                  // pausa breve prima di poterlo ripremere
+        const m = /^__car(\d+)([+-])$/.exec(b.id);
+        if (m) { const c = this.carousels[+m[1]]; c.goal = Math.max(0, Math.min(c.items.length - 1, c.idx + (m[2] === '+' ? 1 : -1))); b.t = this.hold * 0.55; continue; }
+        return b.id;
+      }
     }
+    return null;
+  }
+  // barra di presa: mano (o raggio) ferma sulla barra per 0,4 s = presa; il pannello segue la mano;
+  // mano ferma per 0,6 s = lasciato li'
+  _updateDrag(dt, gloves) {
+    const D = this.drag, bw = D.bar.getWorldPosition(new THREE.Vector3());
+    const rayPoint = (r, dist) => r.o.clone().addScaledVector(r.d.clone().normalize(), dist);
+    if (D.grab) {
+      const G = D.grab;
+      let p = null;
+      if (G.glove) p = G.glove.mesh.visible ? G.glove.center.clone() : null;
+      else { const r = RAYS[G.ray]; if (r) p = rayPoint(r, G.dist); }
+      if (!p) { D.grab = null; D.bar.material.color.setHex(0x9aa3b6); return false; }
+      G.still = p.distanceTo(G.last) < 0.004 ? G.still + dt : 0;
+      G.last.copy(p);
+      this.group.position.copy(p).add(G.offset);
+      if (G.still > 0.6) { D.grab = null; D.t = -0.8; D.bar.material.color.setHex(0x9aa3b6); }
+      return true;
+    }
+    let src = null;
+    for (const g of gloves) if (g.mesh.visible && g.center.distanceTo(bw) < 0.075) src = { glove: g, p: g.center.clone() };
+    if (!src) RAYS.forEach((r, i) => {
+      const l = rayLocal(this.group, r.o, r.d, 0.01);
+      if (l && Math.abs(l.x - D.bar.position.x) < 0.17 && Math.abs(l.y - D.bar.position.y) < 0.04) {
+        const w = l.clone().applyMatrix4(this.group.matrixWorld);
+        if (!r.hit || r.o.distanceTo(w) < r.o.distanceTo(r.hit)) r.hit = w;
+        src = { ray: i, p: w, dist: r.o.distanceTo(w) };
+      }
+    });
+    D.t = src ? D.t + dt : Math.max(Math.min(D.t, 0), D.t - dt);
+    D.bar.material.color.setHex(src ? 0xffd34d : 0x9aa3b6);
+    if (src && D.t > 0.4) {
+      D.grab = { ...src, offset: this.group.position.clone().sub(src.p), last: src.p.clone(), still: 0 };
+      D.t = 0;
+      return true;
+    }
+    return false;
+  }
+  // voci a scorrimento: quella al centro e' la scelta; le altre rimpiccioliscono e spariscono ai lati
+  _layout(c) {
+    for (let i = 0; i < c.items.length; i++) {
+      const b = c.items[i], d = i - c.off, ad = Math.abs(d);
+      b.g.visible = ad < 1.45;                       // tre voci alla volta (le altre scorrono)
+      b.g.position.set(d * c.spacing, c.y, 0.02 - Math.min(1, ad) * 0.01);
+      b.g.scale.setScalar(1 - 0.16 * Math.min(1, ad));
+    }
+  }
+  _updateCarousel(c, dt, gloves, aimed) {
+    const n = c.items.length;
+    // mano dentro la fascia della riga: la fila segue il movimento della mano
+    let hand = null;
+    for (const g of gloves) {
+      if (!g.mesh.visible) continue;
+      const l = this.group.worldToLocal(g.center.clone());
+      if (Math.abs(l.y - c.y) < c.h / 2 + 0.04 && Math.abs(l.x) < this.W / 2 && Math.abs(l.z) < 0.16) { hand = l; break; }
+    }
+    if (hand) {
+      if (c.drag) { const dx = hand.x - c.drag.x; c.off = Math.max(-0.35, Math.min(n - 0.65, c.off - dx / c.spacing)); if (Math.abs(dx) > 0.002) c.goal = null; }
+      c.drag = { x: hand.x };
+    } else c.drag = null;
+    // puntare (raggio) o tenere ferma la mano su una voce laterale per mezzo secondo: va al centro
+    let hov = -1;
+    c.items.forEach((b, i) => { if (b.g.visible && aimed.has(b)) hov = i; });
+    if (hov >= 0 && hov !== c.idx && !hand) { if (hov === c.hoverI) c.hoverT += dt; else { c.hoverI = hov; c.hoverT = 0; } if (c.hoverT > 0.45) { c.goal = hov; c.hoverT = 0; } }
+    else { c.hoverI = -1; c.hoverT = 0; }
+    if (!c.drag) {                                   // lasciata: si ferma sulla voce piu' vicina (o su quella chiesta)
+      const target = c.goal !== null ? c.goal : Math.max(0, Math.min(n - 1, Math.round(c.off)));
+      c.off += (target - c.off) * Math.min(1, dt * 9);
+      if (Math.abs(target - c.off) < 0.01) {
+        c.off = target; c.goal = null;
+        if (target !== c.idx) { c.idx = target; this._layout(c); return c.items[target].id; }
+      }
+    }
+    this._layout(c);
     return null;
   }
 }
