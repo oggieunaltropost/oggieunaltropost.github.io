@@ -108,7 +108,8 @@ export async function loadMikeGLTF(url, onProgress) {
 }
 
 export class Mike {
-  constructor(gltf, scene, level = 'normale') {
+  constructor(gltf, scene, level = 'normale', cfg = null) {
+    this.cfg0 = cfg || {};                                 // aspetto del personaggio (fighters.js)
     this.setLevel(level);
     this.root = new THREE.Group(); this.root.name = 'Mike';
     this.model = gltf.scene;
@@ -120,7 +121,9 @@ export class Mike {
       o.castShadow = true;
       const m = o.material, n = m.name || '';
       // capelli rasati: ritaglio netto invece della trasparenza (che sulla nuca "sfarfallava" con la pelle)
-      if (n === 'Capelli') { m.transparent = false; m.depthWrite = true; m.vertexColors = true; m.alphaTest = 0.45; m.roughness = 1; m.envMapIntensity = 0.15; m.specularIntensity = 0.2; }
+      if (n === 'Raso blu' || n === 'Raso bianco') { m.sheen = 0; m.roughness = Math.max(m.roughness, 0.42); }   // raso: niente velo bianco (li sbiancava)
+      if (n === 'Capelli folti') { m.transparent = false; m.depthWrite = true; m.alphaTest = 0.5; m.side = THREE.DoubleSide; m.roughness = 0.6; }   // capelli veri (Bruce)
+      else if (n === 'Capelli') { m.transparent = false; m.depthWrite = true; m.vertexColors = true; m.alphaTest = 0.45; m.roughness = 1; m.envMapIntensity = 0.15; m.specularIntensity = 0.2; }
       else if (/teeth|tongue/i.test(n)) { m.transparent = false; m.alphaTest = 0; o.castShadow = false; }
       else if (n.includes('eyebrow') || n.includes('eyelash')) { m.transparent = true; m.depthWrite = false; m.alphaTest = 0.05; o.renderOrder = 2; o.castShadow = false; }
       // occhi: si tiene solo il bulbo con l'iride; la cornea (velo bianco semitrasparente) si scarta del tutto
@@ -128,7 +131,8 @@ export class Mike {
       if (m.envMapIntensity !== undefined) m.envMapIntensity = 0.8;
     });
     this.brandShorts();
-    this.evenSkin();
+    if (this.cfg0.evenSkin !== false) this.evenSkin();
+    if (this.cfg0.skinTint) this.model.traverse(o => { if (o.isMesh && o.material.name === 'Pelle') o.material.color.setHex(this.cfg0.skinTint); });
     const bone = n => this.model.getObjectByName(n);
     this.bones = {};
     for (const n of ['head', 'neck_01', 'spine_01', 'spine_02', 'spine_03', 'hand_l', 'hand_r', 'lowerarm_l', 'lowerarm_r', 'pelvis'])
@@ -267,9 +271,10 @@ export class Mike {
     if (!band) return;
     const c = document.createElement('canvas'); c.width = 2048; c.height = 160;
     const g = c.getContext('2d');
-    g.fillStyle = '#f4f4f0'; g.fillRect(0, 0, 2048, 160);
-    g.fillStyle = '#c99a2e'; g.fillRect(0, 14, 2048, 10); g.fillRect(0, 128, 2048, 10);
-    g.fillStyle = '#1239a8'; g.font = '900 78px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    const B = this.cfg0.band || { bg: '#f4f4f0', line: '#c99a2e', text: '#1239a8' };
+    g.fillStyle = B.bg; g.fillRect(0, 0, 2048, 160);
+    g.fillStyle = B.line; g.fillRect(0, 14, 2048, 10); g.fillRect(0, 128, 2048, 10);
+    g.fillStyle = B.text; g.font = '900 78px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText('HOME BOXING ★', 1024, 80);             // una sola scritta, centrata sul davanti (u = 0.5 = +Z)
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
     tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping; tex.anisotropy = 4;

@@ -1,6 +1,6 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261003121134';
+import { t as tr } from './i18n.js?v=20261003123527';
 
 export class Scoreboard {
   constructor() {
@@ -22,7 +22,7 @@ export class Scoreboard {
   }
 
   draw(s) {
-    const key = JSON.stringify(s) + tr('you');
+    const key = JSON.stringify(s) + tr('you') + tr('opp');
     if (key === this.last) return;
     this.last = key;
     const g = this.canvas.getContext('2d'), W = 1024, H = 560;
@@ -51,7 +51,7 @@ export class Scoreboard {
       if (extra) { g.fillStyle = p.penalties ? '#ffd34d' : '#ff8a8a'; g.fillText(extra, x, 428); }
     };
     col(W * 0.27, tr('you'), '#c4161f', s.player);
-    col(W * 0.73, 'MIKE', '#1a49b8', s.mike);
+    col(W * 0.73, tr('opp'), '#1a49b8', s.mike);
     g.fillStyle = '#2a2f3a'; g.fillRect(W / 2 - 2, 110, 4, 300);
     g.fillStyle = '#ffffff'; g.font = '700 34px system-ui, sans-serif';
     g.fillText(s.message || '', W / 2, 482);

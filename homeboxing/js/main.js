@@ -2,18 +2,19 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003121134';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003121134';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003121134';
-import { Player, SimInput } from './player.js?v=20261003121134';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD } from './hud.js?v=20261003121134';
-import { Room } from './room.js?v=20261003121134';
-import { Arena } from './arena.js?v=20261003121134';
-import { Beach } from './beach.js?v=20261003121134';
-import { RingGirl } from './ringgirl.js?v=20261003121134';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003121134';
-import * as sfx from './sfx.js?v=20261003121134';
-import { t, lang, setLang, onLang } from './i18n.js?v=20261003121134';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003123527';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003123527';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003123527';
+import { Player, SimInput } from './player.js?v=20261003123527';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD } from './hud.js?v=20261003123527';
+import { Room } from './room.js?v=20261003123527';
+import { Arena } from './arena.js?v=20261003123527';
+import { Beach } from './beach.js?v=20261003123527';
+import { RingGirl } from './ringgirl.js?v=20261003123527';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003123527';
+import * as sfx from './sfx.js?v=20261003123527';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003123527';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003123527';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -171,22 +172,30 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003121134`); t.colorSpace = THREE.SRGBColorSpace; return t; };
-const mainMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.0, height: 1.5, rows: [
-  { label: t('where'), tk: 'where', y: 0.41, h: 0.22, buttons: [{ id: 'm:stanza', tk: 'm_stanza', w: 0.29, img: roomPreview() },
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003123527`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
+const mainMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.0, height: 1.72, rows: [
+  { label: t('where'), tk: 'where', y: 0.565, h: 0.22, buttons: [{ id: 'm:stanza', tk: 'm_stanza', w: 0.29, img: roomPreview() },
     { id: 'm:arena', tk: 'm_arena', w: 0.29, img: stageImg('arena') }, { id: 'm:spiaggia', tk: 'm_spiaggia', w: 0.29, img: stageImg('spiaggia') }] },
-  { label: t('level'), tk: 'level', y: 0.19, buttons: [{ id: 'l:facile', tk: 'l_facile', w: 0.205 }, { id: 'l:normale', tk: 'l_normale', w: 0.205 },
+  { label: t('opponent'), tk: 'opponent', y: 0.27, h: 0.22, buttons: FIGHTER_IDS.map(id => ({ id: 'f:' + id, text: FIGHTERS[id].name, w: 0.29, img: fighterImg(id) })) },
+  { label: t('level'), tk: 'level', y: 0.035, buttons: [{ id: 'l:facile', tk: 'l_facile', w: 0.205 }, { id: 'l:normale', tk: 'l_normale', w: 0.205 },
     { id: 'l:difficile', tk: 'l_difficile', w: 0.205 }, { id: 'l:impossibile', tk: 'l_impossibile', w: 0.205 }] },
-  { label: t('rounds'), tk: 'rounds', y: 0.03, buttons: [{ id: 'r:1', text: '1', w: 0.15 }, { id: 'r:3', text: '3', w: 0.15 }, { id: 'r:6', text: '6', w: 0.15 }, { id: 'r:12', text: '12', w: 0.15 }] },
-  { label: t('duration'), tk: 'duration', y: -0.13, buttons: [{ id: 'd:60', text: '1 min', w: 0.2 }, { id: 'd:120', text: '2 min', w: 0.2 }, { id: 'd:180', text: '3 min', w: 0.2 }] },
-  { label: t('rule3'), tk: 'rule3', y: -0.29, buttons: [{ id: 'k:si', tk: 'yes', w: 0.2 }, { id: 'k:no', tk: 'no', w: 0.2 }] },
-  { label: t('language'), tk: 'language', y: -0.45, buttons: [{ id: 'g:it', text: 'Italiano', w: 0.26 }, { id: 'g:en', text: 'English', w: 0.26 }] },
-  { y: -0.63, h: 0.12, buttons: [{ id: 'start', tk: 'start', w: 0.52, color: 0x1f8a4c }, { id: 'quit', tk: 'quit', w: 0.34, color: 0xc4161f }] },
+  { label: t('rounds'), tk: 'rounds', y: -0.10, buttons: [{ id: 'r:1', text: '1', w: 0.15 }, { id: 'r:3', text: '3', w: 0.15 }, { id: 'r:6', text: '6', w: 0.15 }, { id: 'r:12', text: '12', w: 0.15 }] },
+  { label: t('duration'), tk: 'duration', y: -0.26, buttons: [{ id: 'd:60', text: '1 min', w: 0.2 }, { id: 'd:120', text: '2 min', w: 0.2 }, { id: 'd:180', text: '3 min', w: 0.2 }] },
+  { label: t('rule3'), tk: 'rule3', y: -0.42, buttons: [{ id: 'k:si', tk: 'yes', w: 0.2 }, { id: 'k:no', tk: 'no', w: 0.2 }] },
+  { label: t('language'), tk: 'language', y: -0.58, buttons: [{ id: 'g:it', text: 'Italiano', w: 0.26 }, { id: 'g:en', text: 'English', w: 0.26 }] },
+  { y: -0.76, h: 0.12, buttons: [{ id: 'start', tk: 'start', w: 0.52, color: 0x1f8a4c }, { id: 'quit', tk: 'quit', w: 0.34, color: 0xc4161f }] },
 ].map(r => ({ ...r, buttons: r.buttons.map(b => ({ ...b, text: b.tk ? t(b.tk) : b.text })) })) });
+mainMenu.group.scale.setScalar(0.88);           // piu' righe: stesso ingombro di prima
 scene.add(mainMenu.group);
 let armsUpT = 0, prevButtons = false;
 
 let mike = null;
+// avversario scelto (nel codice resta "mike" = l'avversario)
+let fighterId = 'bruce';
+try { fighterId = localStorage.getItem('hb-fighter') || 'bruce'; } catch (e) {}
+if (!FIGHTERS[fighterId]) fighterId = 'bruce';
+setOpponentName(FIGHTERS[fighterId].name);
 let sim = null, orbit = null;
 
 // tiene Mike dentro le corde
@@ -369,7 +378,7 @@ function endMatch(winner, how) {
   sfx.cheer('applauso', 1); sfx.cheer('boato', 0.9);
   // verdetto dell'annunciatore, come nei veri incontri
   const kind = how === 'KO' ? 'ko' : how === 'TKO' ? 'tko' : how === 'DQ' ? 'dq' : 'points';
-  const who = winner === 'player' ? 'you' : 'mike';
+  const who = winner === 'player' ? 'you' : fighterId;
   setTimeout(() => sfx.announce(winner === 'pari' ? ['scorecards', 'draw']
     : kind === 'points' ? ['scorecards', 'winner_intro', `win_${who}_points`]
     : kind === 'dq' ? [`win_${who}_dq`] : ['winner_intro', `win_${who}_${kind}`]), kind === 'dq' ? 2600 : 1800);
@@ -555,7 +564,7 @@ renderer.setAnimationLoop((t, frame) => { if (window.pauseLoop) return; const no
 // ---------------------------------------------------------------- presentazione dei pugili (speaker)
 // "Signore e signori, benvenuti… nell'angolo rosso, lo sfidante! … nell'angolo blu… MIKE!", poi il primo round.
 function startPresentation() {
-  const parts = ['intro_1', 'intro_red', 'intro_blue'];
+  const parts = ['intro_1', 'intro_red', FIGHTERS[fighterId].voiceBlue];
   const d = parts.map(n => sfx.voiceDur(n));
   if (d.some(x => !x)) return;                         // voci non ancora caricate: si parte e basta
   sfx.announce(parts);
@@ -726,7 +735,7 @@ function closePause() {
   game.paused = false; pause.close();
   mike.enabled = game.phase === 'fight' && !game.kd;
 }
-const menuChoices = () => ['m:' + mode, 'l:' + level, 'r:' + rounds, 'd:' + roundSecs, threeKO ? 'k:si' : 'k:no', 'g:' + lang];
+const menuChoices = () => ['m:' + mode, 'f:' + fighterId, 'l:' + level, 'r:' + rounds, 'd:' + roundSecs, threeKO ? 'k:si' : 'k:no', 'g:' + lang];
 function showMainMenu() {
   if (greetPending) { greetPending = false; setTimeout(() => sfx.voiceNow('title'), 500); }   // "Home Boxing!" all'ingresso
   newMatch(); game.phase = 'menu'; game.message = t('menu');
@@ -747,6 +756,7 @@ function updateMainMenu(dt, gloves) {
   else if (id.startsWith('k:')) { threeKO = id === 'k:si'; try { localStorage.setItem('hb-3ko', threeKO ? 'si' : 'no'); } catch (e) {} }
   else if (id.startsWith('r:')) { rounds = parseInt(id.slice(2)); try { localStorage.setItem('hb-rounds', rounds); } catch (e) {} }
   else if (id.startsWith('g:')) setLang(id.slice(2));
+  else if (id.startsWith('f:')) setFighter(id.slice(2));
   else if (id === 'start') { mainMenu.close(); newMatch(); startPresentation(); return; }   // (startIntro: volo iniziale, sospeso: fa girare la testa)
   else if (id === 'quit') { mainMenu.close(); const s = renderer.xr.getSession(); if (s) s.end(); return; }
   mainMenu.select(menuChoices());
@@ -790,8 +800,30 @@ function calibrateByHand(dt) {
 }
 
 // ---------------------------------------------------------------- avvio
-loadMikeGLTF('assets/mike.glb?v=20261003121134', f => statusT('loading', { p: Math.min(100, Math.round(f * 100)) })).then(gltf => {
-  mike = new Mike(gltf, scene, level);
+// cambio avversario dal menu: si carica il suo modello e prende il posto del precedente
+let fighterLoading = false;
+function setFighter(id) {
+  if (!FIGHTERS[id] || id === fighterId || fighterLoading) return;
+  fighterLoading = true;
+  loadMikeGLTF(FIGHTERS[id].glb, () => {}).then(gltf => {
+    fighterLoading = false;
+    fighterId = id;
+    try { localStorage.setItem('hb-fighter', id); } catch (e) {}
+    setOpponentName(FIGHTERS[id].name);
+    const old = mike;
+    mike = new Mike(gltf, scene, level, FIGHTERS[id]);
+    mike.bounds = keepInRing;
+    bruises = new Bruises(mike.model);
+    if (old) scene.remove(old.root);
+    window.mike = mike;
+    if (lastPlace) placeArena(lastPlace.head, lastPlace.yaw); else placeArena(new THREE.Vector3(0, 1.65, 0), 0);
+    if (game.phase === 'menu') { newMatch(); game.phase = 'menu'; game.message = t('menu'); }
+    mainMenu.select(menuChoices());
+  }).catch(e => { fighterLoading = false; console.warn('avversario', e); });
+}
+
+loadMikeGLTF(FIGHTERS[fighterId].glb, f => statusT('loading', { p: Math.min(100, Math.round(f * 100)) })).then(gltf => {
+  mike = new Mike(gltf, scene, level, FIGHTERS[fighterId]);
   girl.load().catch(e => console.warn('ragazza del ring', e));
   bruises = new Bruises(mike.model);
   mike.bounds = keepInRing;

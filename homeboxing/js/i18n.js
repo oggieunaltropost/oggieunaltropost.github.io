@@ -11,15 +11,15 @@ const STR = {
     pause: 'PAUSA', fight_over: 'FINE INCONTRO', resume: 'RIPRENDI', restart: 'RICOMINCIA', menu_btn: 'MENU',
     getup_title: 'COLPISCI {n} VOLTE PER RIALZARTI', getup_left: 'ancora {n}',
     you: 'TU', stats: 'Colpi {h} · Parate {b} · Schivate {d}', down_times: 'A terra {n} {v}', once: 'volta', times: 'volte', penalties: 'Penalità {n}/3',
-    round_of: 'Round {r} di {n}', mike_down: 'MIKE E\' A TERRA!',
+    round_of: 'Round {r} di {n}', mike_down: '{NAME} E\' A TERRA!',
     you_down_hit: 'SEI A TERRA! Colpisci {n} volte il bottone per rialzarti', you_down_out: 'SEI A TERRA… non hai più energia',
-    third_kd: '{who}: terzo atterramento, l\'arbitro ferma l\'incontro!', who_you: 'Tu', who_mike: 'Mike',
+    third_kd: '{who}: terzo atterramento, l\'arbitro ferma l\'incontro!', who_you: 'Tu', who_mike: '{name}', opp: '{NAME}', opponent: 'AVVERSARIO',
     is_up: 'in piedi', is_down: 'a terra', hit_button: ' · colpisci il bottone! ({n})', up_after8: 'In piedi! Si riprende dopo l\'8',
-    win_you: 'HAI VINTO per {how}!', win_mike: 'Vince Mike per {how}', draw: 'Pareggio ai punti ({pts})',
+    win_you: 'HAI VINTO per {how}!', win_mike: 'Vince {name} per {how}', draw: 'Pareggio ai punti ({pts})',
     how_KO: 'KO', how_TKO: 'KO tecnico', how_DQ: 'squalifica', how_PTS: 'decisione ai punti',
     dq3: 'Terzo colpo basso: SQUALIFICATO!', lowblow: 'Colpo basso! Penalità {p} di 3',
-    you_head: 'Tu: colpo alla testa +2', you_body: 'Tu: colpo al corpo +1', mike_blocks: 'Mike para', mike_dodges: 'Mike schiva',
-    mike_body: 'Mike: colpo al corpo +1', mike_head: 'Mike: colpo alla testa +2', blocked: 'Parata!', dodged: 'Schivata!',
+    you_head: 'Tu: colpo alla testa +2', you_body: 'Tu: colpo al corpo +1', mike_blocks: '{name} para', mike_dodges: '{name} schiva',
+    mike_body: '{name}: colpo al corpo +1', mike_head: '{name}: colpo alla testa +2', blocked: 'Parata!', dodged: 'Schivata!',
     choose_menu: 'Scegli dal menu davanti a te', starts_in: 'Round {r} di {n} · si comincia tra {s}…',
     low_ring: 'Ring basso? Accovacciati e tieni una mano a terra 2 s · {s}', pause_hint: 'Pausa: alza le due mani all\'altezza della fronte · {s}',
     rest: 'Riposo all\'angolo · round {r} tra {s} s', menu: 'Menu', floor_fixed: 'Pavimento sistemato!', presenting: 'Presentazione dei pugili…',
@@ -37,15 +37,15 @@ const STR = {
     pause: 'PAUSED', fight_over: 'FIGHT OVER', resume: 'RESUME', restart: 'RESTART', menu_btn: 'MENU',
     getup_title: 'HIT IT {n} TIMES TO GET UP', getup_left: '{n} to go',
     you: 'YOU', stats: 'Hits {h} · Blocks {b} · Dodges {d}', down_times: 'Down {n} {v}', once: 'time', times: 'times', penalties: 'Penalties {n}/3',
-    round_of: 'Round {r} of {n}', mike_down: 'MIKE IS DOWN!',
+    round_of: 'Round {r} of {n}', mike_down: '{NAME} IS DOWN!',
     you_down_hit: 'YOU\'RE DOWN! Hit the button {n} times to get up', you_down_out: 'YOU\'RE DOWN… no energy left',
-    third_kd: '{who}: third knockdown, the referee stops the fight!', who_you: 'You', who_mike: 'Mike',
+    third_kd: '{who}: third knockdown, the referee stops the fight!', who_you: 'You', who_mike: '{name}', opp: '{NAME}', opponent: 'OPPONENT',
     is_up: 'up', is_down: 'down', hit_button: ' · hit the button! ({n})', up_after8: 'Up! The fight resumes after eight',
-    win_you: 'YOU WIN by {how}!', win_mike: 'Mike wins by {how}', draw: 'Draw on points ({pts})',
+    win_you: 'YOU WIN by {how}!', win_mike: '{name} wins by {how}', draw: 'Draw on points ({pts})',
     how_KO: 'knockout', how_TKO: 'technical knockout', how_DQ: 'disqualification', how_PTS: 'decision on points',
     dq3: 'Third low blow: DISQUALIFIED!', lowblow: 'Low blow! Penalty {p} of 3',
-    you_head: 'You: head shot +2', you_body: 'You: body shot +1', mike_blocks: 'Mike blocks', mike_dodges: 'Mike dodges',
-    mike_body: 'Mike: body shot +1', mike_head: 'Mike: head shot +2', blocked: 'Blocked!', dodged: 'Dodged!',
+    you_head: 'You: head shot +2', you_body: 'You: body shot +1', mike_blocks: '{name} blocks', mike_dodges: '{name} dodges',
+    mike_body: '{name}: body shot +1', mike_head: '{name}: head shot +2', blocked: 'Blocked!', dodged: 'Dodged!',
     choose_menu: 'Choose from the menu in front of you', starts_in: 'Round {r} of {n} · starting in {s}…',
     low_ring: 'Ring too low? Crouch and keep a hand on the floor for 2 s · {s}', pause_hint: 'Pause: raise both hands to forehead height · {s}',
     rest: 'Resting in the corner · round {r} in {s} s', menu: 'Menu', floor_fixed: 'Floor adjusted!', presenting: 'Introducing the fighters…',
@@ -70,8 +70,12 @@ export function setLang(l) {
   for (const f of listeners) f(l);
 }
 // t('chiave', { var: valore }) -> testo nella lingua attuale
+// nome dell'avversario scelto: {name} / {NAME} nelle frasi
+let opp = 'Bruce';
+export function setOpponentName(n) { opp = n; }
 export function t(key, vars) {
   let s = (STR[lang] && STR[lang][key]) ?? STR.it[key] ?? key;
+  s = s.split('{name}').join(opp).split('{NAME}').join(opp.toUpperCase());
   if (vars) for (const k in vars) s = s.split('{' + k + '}').join(vars[k]);
   return s;
 }
