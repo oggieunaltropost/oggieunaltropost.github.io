@@ -2,19 +2,19 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003123527';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003123527';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003123527';
-import { Player, SimInput } from './player.js?v=20261003123527';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD } from './hud.js?v=20261003123527';
-import { Room } from './room.js?v=20261003123527';
-import { Arena } from './arena.js?v=20261003123527';
-import { Beach } from './beach.js?v=20261003123527';
-import { RingGirl } from './ringgirl.js?v=20261003123527';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003123527';
-import * as sfx from './sfx.js?v=20261003123527';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003123527';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003123527';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003130016';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003130016';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003130016';
+import { Player, SimInput } from './player.js?v=20261003130016';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003130016';
+import { Room } from './room.js?v=20261003130016';
+import { Arena } from './arena.js?v=20261003130016';
+import { Beach } from './beach.js?v=20261003130016';
+import { RingGirl } from './ringgirl.js?v=20261003130016';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003130016';
+import * as sfx from './sfx.js?v=20261003130016';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003130016';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003130016';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -148,6 +148,8 @@ const READY_S = 6;                    // secondi prima del gong
 const player = new Player(renderer, scene, camera);
 const flash = new HitFlash(camera);
 const pause = new PauseMenu();
+const rayPointers = new RayPointers(scene);
+const _rayM = new THREE.Matrix4();
 scene.add(pause.group);
 // menu principale dentro il gioco (stanza o arena, livello, inizia, esci)
 // anteprime degli stage nel menu: foto del gioco per arena e spiaggia, un disegno per la stanza
@@ -172,7 +174,7 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003123527`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003130016`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 const mainMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.0, height: 1.72, rows: [
   { label: t('where'), tk: 'where', y: 0.565, h: 0.22, buttons: [{ id: 'm:stanza', tk: 'm_stanza', w: 0.29, img: roomPreview() },
@@ -251,7 +253,7 @@ function placeArena(headPos, yaw) {
 }
 
 // ---------------------------------------------------------------- incontro: round, punti, danno, atterramenti
-const POWER = { facile: 0.75, normale: 0.95, difficile: 1.15, impossibile: 1.35 };   // forza dei pugni di Mike
+const POWER = { facile: 0.65, normale: 0.95, difficile: 1.3, impossibile: 1.8 };   // forza dei pugni di Mike
 // Atterramenti: si va giu' solo a energia zero. Rialzandosi l'energia risale sempre meno; quando non ce n'e'
 // piu' da recuperare si resta giu': KO. Con la "regola dei 3 KO" il terzo atterramento chiude l'incontro.
 const KD_REFILL = [75, 50, 25];
@@ -378,10 +380,11 @@ function endMatch(winner, how) {
   sfx.cheer('applauso', 1); sfx.cheer('boato', 0.9);
   // verdetto dell'annunciatore, come nei veri incontri
   const kind = how === 'KO' ? 'ko' : how === 'TKO' ? 'tko' : how === 'DQ' ? 'dq' : 'points';
-  const who = winner === 'player' ? 'you' : fighterId;
+  // verdetto: per l'avversario parte comune ("...dall'angolo blu...") e poi il suo nome
+  const verdict = winner === 'player' ? [`win_you_${kind}`] : [`win_opp_${kind}`, 'name_' + fighterId];
   setTimeout(() => sfx.announce(winner === 'pari' ? ['scorecards', 'draw']
-    : kind === 'points' ? ['scorecards', 'winner_intro', `win_${who}_points`]
-    : kind === 'dq' ? [`win_${who}_dq`] : ['winner_intro', `win_${who}_${kind}`]), kind === 'dq' ? 2600 : 1800);
+    : kind === 'points' ? ['scorecards', 'winner_intro', ...verdict]
+    : kind === 'dq' ? verdict : ['winner_intro', ...verdict]), kind === 'dq' ? 2600 : 1800);
 }
 
 // colpo basso: niente punti, Mike si accascia; penalita' (alla terza squalifica); si riprende col gong
@@ -436,7 +439,7 @@ function handleEvents() {
           sweat.burst(e.point, e.dir, Math.min(1.5, e.speed / 4), blood);
         }
         player.pulse(e.side, 1.0, 70);
-        landed('mike', e.zone, Math.min(1.5, e.speed / 5));
+        landed('mike', e.zone, Math.min(1.5, e.speed / 5) * (mike.cfg.toughness ?? 1));   // ai livelli alti incassa meno
         break;
       }
       case 'mikeBlocked':
@@ -564,7 +567,7 @@ renderer.setAnimationLoop((t, frame) => { if (window.pauseLoop) return; const no
 // ---------------------------------------------------------------- presentazione dei pugili (speaker)
 // "Signore e signori, benvenuti… nell'angolo rosso, lo sfidante! … nell'angolo blu… MIKE!", poi il primo round.
 function startPresentation() {
-  const parts = ['intro_1', 'intro_red', FIGHTERS[fighterId].voiceBlue];
+  const parts = ['intro_1', 'intro_red', 'intro_blue_g', 'intro_' + fighterId, 'name_' + fighterId];
   const d = parts.map(n => sfx.voiceDur(n));
   if (d.some(x => !x)) return;                         // voci non ancora caricate: si parte e basta
   sfx.announce(parts);
@@ -577,7 +580,7 @@ function startPresentation() {
   const crowd = (ms, k, g) => setTimeout(() => { if (game.phase !== 'presentazione') return;
     if (mode === 'arena') { sfx.cheer(k, g); if (arenaEnv) arenaEnv.cheer(1.2); } }, ms);
   crowd((d[0] + d[1] + 0.3) * 1000, 'applauso', 0.8);
-  crowd((d[0] + d[1] + d[2] + 0.5) * 1000, 'boato', 0.9);
+  crowd((d[0] + d[1] + d[2] + d[3] + d[4] + 0.9) * 1000, 'boato', 0.9);
 }
 // cambio lingua dal menu: scritte e voci
 onLang(l => {
@@ -698,6 +701,19 @@ function tick(dt, frame) {
   if (renderer.xr.isPresenting) xrFrames++;
   if (orbit) orbit.update();
   player.update(dt);
+  // puntatori: raggi da mani e controller quando c'e' un menu aperto (puntare = toccare col guantone)
+  const menuOpen = mainMenu.group.visible || nextMenu.group.visible || introMenu.group.visible || pause.group.visible;
+  const rays = [];
+  if (menuOpen && renderer.xr.isPresenting && frame) {
+    const ref = renderer.xr.getReferenceSpace();
+    for (const src of renderer.xr.getSession().inputSources) {
+      const pose = src.targetRaySpace && frame.getPose(src.targetRaySpace, ref);
+      if (!pose) continue;
+      const m = _rayM.fromArray(pose.transform.matrix);
+      rays.push({ o: new THREE.Vector3().setFromMatrixPosition(m), d: new THREE.Vector3(0, 0, -1).transformDirection(m), hit: null });
+    }
+  }
+  setRays(rays);
   if (intro) updateIntro(dt);
   else {
     if (renderer.xr.isPresenting || sim) calibrateByHand(dt);
@@ -718,6 +734,7 @@ function tick(dt, frame) {
   if (party.update(dt)) sfx.firework();
   if (arenaEnv && arenaEnv.group.visible) { arenaEnv.update(dt); sfx.crowdLevel(arenaEnv.excite); }
   if (beachEnv && beachEnv.group.visible) beachEnv.update(dt, h => sfx.wave(0.2 + 0.25 * h));
+  rayPointers.update(rays, menuOpen);
   player.endFrame();
   renderer.render(scene, camera);
 }
@@ -870,7 +887,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) sfx.s
 function startSim() {
   sfx.initAudio();
   $('overlay').hidden = true; $('simhelp').hidden = false;
-  sim = new SimInput(camera, renderer.domElement);
+  sim = new SimInput(camera, renderer.domElement); window.simInput = sim;   // (per le prove)
   addEventListener('keydown', e => { if (e.code === 'KeyM') showMainMenu(); });   // menu nell'anteprima
   sim.base.set(0, 1.65, 0);
   player.sim = sim; window.sim = sim;

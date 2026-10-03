@@ -43,24 +43,27 @@ const MOVES = new Set(['slip_l', 'slip_r', 'duck']);
 // guardReach = quanto copre la guardia normale (senza parare apposta);
 // openFactor = quanto reagisce subito dopo che hai parato/schivato un suo colpo (la tua finestra per colpire);
 // bodyBias = quanto va al corpo se tieni la guardia alta; feints = finte al secondo mentre ti studia;
-// lowGuard = quanto spesso abbassa la guardia mentre ti studia (e lascia la testa scoperta).
+// lowGuard = quanto spesso abbassa la guardia mentre ti studia (e lascia la testa scoperta);
+// readGuard = quanto spesso mira dove sei scoperto; evade = se si sta gia' difendendo quando arriva il tuo colpo,
+// probabilita' che vada a vuoto; reflex = probabilita' di evitarlo all'ultimo anche senza essersi preparato;
+// toughness = quanto danno incassa dai tuoi colpi (1 = normale).
 export const LEVELS = {
-  facile: { label: 'Facile', readGuard: 0.35, guardReach: -0.03, stalkDist: 0.85, openFactor: 0.1, reactChance: 0.35, reactDelay: [0.14, 0.24],
-    attackEvery: [2.2, 3.8], retreatTime: 0.8, punchSpeed: 0.8, moveSpeed: 0.6, defenseSpeed: 1.1, threatDist: 0.8,
+  facile: { label: 'Facile', readGuard: 0.25, evade: 0.05, reflex: 0.0, toughness: 1.3, guardReach: -0.03, stalkDist: 0.85, openFactor: 0.1, reactChance: 0.35, reactDelay: [0.14, 0.24],
+    attackEvery: [2.6, 4.2], retreatTime: 0.9, punchSpeed: 0.75, moveSpeed: 0.6, defenseSpeed: 1.1, threatDist: 0.8,
     threatSpeed: 1.6, smart: false, chain: false, counterChance: 0.1, blockReach: 0.07, bodyBias: 0.15, feints: 0, lowGuard: 0.6,
     combos: combos('1', '2', '1-2', '1-1', '1-1-2', '2-3') },
-  normale: { label: 'Normale', readGuard: 0.65, guardReach: 0.0, stalkDist: 0.9, openFactor: 0.25, reactChance: 0.68, reactDelay: [0.05, 0.13],
+  normale: { label: 'Normale', readGuard: 0.6, evade: 0.38, reflex: 0.12, toughness: 1.0, guardReach: 0.0, stalkDist: 0.9, openFactor: 0.25, reactChance: 0.68, reactDelay: [0.05, 0.13],
     attackEvery: [0.9, 1.8], retreatTime: 0.5, punchSpeed: 1.0, moveSpeed: 0.9, defenseSpeed: 1.35, threatDist: 0.95,
     threatSpeed: 1.3, smart: false, chain: false, counterChance: 0.35, blockReach: 0.09, bodyBias: 0.45, feints: 0.08, lowGuard: 0.5,
     combos: combos('1', '1-2', '1-1-2', '1-2-3', '3-2', '2-3', '1-6', '1-2b', '1-schivata-2') },
-  difficile: { label: 'Difficile', readGuard: 0.85, guardReach: 0.03, stalkDist: 0.95, openFactor: 0.45, reactChance: 0.9, reactDelay: [0.02, 0.06],
-    attackEvery: [0.5, 1.2], retreatTime: 0.35, punchSpeed: 1.15, moveSpeed: 1.1, defenseSpeed: 1.6, threatDist: 1.1,
-    threatSpeed: 1.1, smart: true, chain: true, counterChance: 0.65, blockReach: 0.11, bodyBias: 0.65, feints: 0.15, lowGuard: 0.4,
+  difficile: { label: 'Difficile', readGuard: 0.9, evade: 0.75, reflex: 0.42, toughness: 0.7, guardReach: 0.03, stalkDist: 0.95, openFactor: 0.45, reactChance: 0.9, reactDelay: [0.02, 0.06],
+    attackEvery: [0.35, 0.85], retreatTime: 0.28, punchSpeed: 1.25, moveSpeed: 1.15, defenseSpeed: 1.75, threatDist: 1.25,
+    threatSpeed: 0.95, smart: true, chain: true, counterChance: 0.65, blockReach: 0.11, bodyBias: 0.65, feints: 0.15, lowGuard: 0.4,
     combos: combos('1-2', '1-1-2', '1-2-3', '1-2-3-2', '1-6-3-2', '3-2-3', '2-3-2', '1-2-5-2', '1-schivata-2',
       '1-2-schivata-2-3', '1-2-abbassata-3-2', 'abbassata-6-3', '1-3b-3') },
-  impossibile: { label: 'Impossibile', readGuard: 1.0, guardReach: 0.07, stalkDist: 1.0, openFactor: 0.95, reactChance: 1.0, reactDelay: [0.0, 0.0],
-    attackEvery: [0.3, 0.8], retreatTime: 0.25, punchSpeed: 1.3, moveSpeed: 1.3, defenseSpeed: 2.0, threatDist: 1.3,
-    threatSpeed: 0.9, smart: true, chain: true, counterChance: 0.85, blockReach: 0.15, bodyBias: 0.85, feints: 0.22, lowGuard: 0.3,
+  impossibile: { label: 'Impossibile', readGuard: 1.0, evade: 0.97, reflex: 0.9, toughness: 0.35, guardReach: 0.07, stalkDist: 1.0, openFactor: 0.95, reactChance: 1.0, reactDelay: [0.0, 0.0],
+    attackEvery: [0.12, 0.4], retreatTime: 0.12, punchSpeed: 1.5, moveSpeed: 1.4, defenseSpeed: 2.4, threatDist: 1.6,
+    threatSpeed: 0.7, smart: true, chain: true, counterChance: 0.85, blockReach: 0.15, bodyBias: 0.85, feints: 0.22, lowGuard: 0.3,
     combos: combos('1-2-3', '1-2-3-2', '1-6-3-2', '3-2-3', '2-3-2', '1-2-5-2', '1-2-schivata-2-3',
       '1-2-abbassata-3-2', 'abbassata-6-3', '1-schivata-2', '6-3b-3', '2b-3-2', '3-4') },
 };
@@ -756,6 +759,17 @@ export class Mike {
       if (!ev && distPointSeg(hc, a, b) < g.radius + 0.115) ev = { type: 'playerHit', zone: 'head' };
       if (!ev && distSegSeg(a, b, t0, t1) < g.radius + 0.16) ev = { type: 'playerHit', zone: 'body' };
       if (!ev) continue;
+      // ai livelli alti la difesa funziona: se si stava gia' difendendo il colpo va quasi sempre a vuoto,
+      // e a Impossibile lo evita all'ultimo anche senza essersi preparato
+      if (ev.type === 'playerHit' && this.stun <= 0 && !this.down) {
+        const d = this.defending;
+        if (d && Math.random() < (this.cfg.evade ?? 0)) ev = { type: d.type.startsWith('block') ? 'mikeBlocked' : 'mikeDodged' };
+        else if (!d && Math.random() < (this.cfg.reflex ?? 0)) {
+          const mv = ev.zone === 'body' ? 'block_low' : pick(['slip_l', 'slip_r', 'duck', 'block']);
+          this.play(mv, this.cfg.defenseSpeed);
+          ev = { type: mv.startsWith('block') ? 'mikeBlocked' : 'mikeDodged' };
+        }
+      }
       g.cooldown = 0.45; g.contactPoint.copy(g.center);
       ev.side = g.side; ev.speed = g.peakSpeed();
       const lp = this.root.worldToLocal(g.center.clone()), lh = this.root.worldToLocal(hc.clone());

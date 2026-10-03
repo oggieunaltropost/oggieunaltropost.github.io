@@ -33,18 +33,20 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
+import { FIGHTER_IDS } from './fighters.js?v=20261003130016';
 // Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
   'final_round', 'ten_seconds', 'knockdown', 'winner_intro', 'scorecards', 'win_you_ko', 'win_you_tko', 'win_you_points',
-  'win_mike_ko', 'win_mike_tko', 'win_mike_points', 'draw', 'box', 'lowblow_1', 'lowblow_2', 'dq', 'win_mike_dq', 'win_you_dq',
-  'intro_1', 'intro_red', 'intro_blue', 'title',
-  'intro_blue_bruce', 'win_bruce_ko', 'win_bruce_tko', 'win_bruce_points', 'win_bruce_dq'];
+  'win_you_dq', 'draw', 'box', 'lowblow_1', 'lowblow_2', 'dq', 'intro_1', 'intro_red', 'intro_blue_g', 'title',
+  // l'avversario: parte comune + il suo nome (per un nuovo pugile bastano intro_<id> e name_<id>)
+  'win_opp_ko', 'win_opp_tko', 'win_opp_points', 'win_opp_dq',
+  ...FIGHTER_IDS.flatMap(id => [`intro_${id}`, `name_${id}`])];
 let vbuf = {}, vLang = 'it';
 let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261003123527`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261003130016`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
@@ -125,7 +127,7 @@ const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261003123527`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261003130016`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
   loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); });
   return loading;

@@ -1,13 +1,11 @@
 // Stage "In spiaggia": il ring appoggiato sulla sabbia. Davanti (oltre Mike) il mare con le onde che
 // si infrangono e gli schizzi; ai lati la spiaggia con palme, ombrelloni e la torretta del bagnino,
 // sullo sfondo il panorama vero della Spiaggia di Mondello (foto a 360 gradi CC0 di Andreas Mischok, Poly Haven):
-// cielo, Monte Pellegrino, pini e lungomare. Il mare vicino, le onde e gli oggetti sono generati qui.
+// cielo, mare in lontananza, Monte Pellegrino, pini e lungomare. Sabbia e oggetti vicini sono generati qui.
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, il giocatore verso +Z, il mare verso -Z).
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
-const SHORE = -8.0;          // dove l'acqua incontra la sabbia (z)
-const SEA_Y = -0.32;          // livello medio del mare
 const SUN = new THREE.Vector3(-0.53, 0.42, 0.73).normalize();   // il sole della foto: basso, alle spalle del giocatore
 const PANO_U = -0.25;          // rotazione del panorama: il mare della foto davanti al giocatore (-Z)
 
@@ -17,8 +15,6 @@ function smooth(a, b, x) { const t = Math.min(1, Math.max(0, (x - a) / (b - a)))
 // altezza della sabbia: piatta attorno al ring, scende verso il mare, dune dietro
 export function sandY(x, z) {
   let y = 0;
-  if (z < -4) y = -0.09 * (-4 - z);
-  y = Math.max(y, -1.8);
   y += 0.9 * smooth(14, 40, z) * (0.6 + 0.4 * Math.sin(x * 0.07) * Math.sin(z * 0.11 + 1.3));
   y += 0.25 * smooth(12, 40, Math.abs(x)) * Math.sin(x * 0.19 + z * 0.05);
   return y;
@@ -62,25 +58,12 @@ function stripesTex(a, b, n = 8) {
     for (let i = 0; i < n; i++) { g.fillStyle = i % 2 ? b : a; g.fillRect(i * w / n, 0, w / n + 1, h); }
   });
 }
-// ---------------------------------------------------------------- shader comuni
-const NOISE = `
-float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-  return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
-float fbm(vec2 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { v += a * vnoise(p); p *= 2.1; a *= 0.5; } return v; }
-`;
-const COLORS = {
-  zenith: new THREE.Color(0x2a5fae), horizon: new THREE.Color(0xa9c9e6),
-  deep: new THREE.Color(0x1d6aa0), shallow: new THREE.Color(0x48c4c8), foam: new THREE.Color(0xf4f8f8),
-};
-
 export class Beach {
   constructor() {
     this.group = new THREE.Group(); this.group.name = 'spiaggia';
     this.t = 0;
     this.sunDir = SUN.clone();
-    this.waves = [];
-    this._sky(); this._sea(); this._sand(); this._breakers();
+    this._sky(); this._sand();
     this.occ = [];                                     // spazi gia' occupati: niente oggetti uno dentro l'altro
     this._props(); this._promenade(); this._palms(); this._birds();
     this.group.traverse(o => { if (o.isMesh || o.isPoints) o.frustumCulled = false; });
@@ -88,7 +71,7 @@ export class Beach {
 
   // cielo e sfondo: il panorama a 360 gradi della spiaggia vera (proiezione equirettangolare)
   _sky() {
-    const tex = new THREE.TextureLoader().load('assets/spiaggia_cielo.jpg?v=20261003123527', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load('assets/spiaggia_cielo.jpg?v=20261003130016', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -107,92 +90,6 @@ export class Beach {
     this.sky = sky; this.group.add(sky);
   }
 
-  // mare: piano fitto vicino alla riva e rado al largo, onde che vanno verso la spiaggia
-  _sea() {
-    const NX = 160, NZ = 110, pos = [], idx = [];
-    for (let j = 0; j <= NZ; j++) {
-      const v = j / NZ, z = SHORE + 2.5 - 280 * Math.pow(v, 2.2);
-      for (let i = 0; i <= NX; i++) {
-        const u = i / NX * 2 - 1, x = Math.sign(u) * 300 * Math.pow(Math.abs(u), 2.0);
-        pos.push(x, 0, z);
-      }
-    }
-    for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) {
-      const a = j * (NX + 1) + i, b = a + 1, c = a + NX + 1, d = c + 1;
-      idx.push(a, c, b, b, c, d);
-    }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
-    this.seaU = {
-      uTime: { value: 0 }, uSun: { value: this.sunDir }, uZen: { value: COLORS.zenith }, uHor: { value: COLORS.horizon },
-      uDeep: { value: COLORS.deep }, uShallow: { value: COLORS.shallow }, uFoam: { value: COLORS.foam },
-      uShore: { value: SHORE }, uSeaY: { value: SEA_Y },
-    };
-    const m = new THREE.ShaderMaterial({
-      uniforms: this.seaU,
-      vertexShader: `uniform float uTime, uShore, uSeaY; varying vec3 vW; varying vec3 vN; varying float vH;
-        const vec4 W0 = vec4( 0.10, 1.0, 11.0, 0.16);
-        const vec4 W1 = vec4(-0.35, 1.0,  6.5, 0.07);
-        const vec4 W2 = vec4( 0.45, 1.0,  4.2, 0.04);
-        const vec4 W3 = vec4(-0.10, 1.0, 19.0, 0.10);
-        const vec4 W4 = vec4( 0.80, 1.0,  2.6, 0.02);
-        void wave(vec4 w, vec2 p, float k0, inout float h, inout vec2 d){
-          vec2 D = normalize(w.xy); float k = 6.2831 / w.z; float c = sqrt(9.8 / k);
-          float f = k * (dot(D, p) - c * uTime); float A = w.w * k0;
-          h += A * sin(f); d += A * k * D * cos(f);
-        }
-        void main(){
-          vec4 wp = modelMatrix * vec4(position, 1.0);
-          vec3 lp = position;
-          float out_ = clamp((uShore - lp.z) / 14.0, 0.0, 1.0);   // vicino a riva onde piu' basse
-          float k0 = 0.35 + 0.65 * out_;
-          float h = 0.0; vec2 d = vec2(0.0);
-          wave(W0, lp.xz, k0, h, d); wave(W1, lp.xz, k0, h, d); wave(W2, lp.xz, k0, h, d);
-          wave(W3, lp.xz, k0, h, d); wave(W4, lp.xz, k0, h, d);
-          lp.y = uSeaY + h;
-          vH = h; vN = normalize(mat3(modelMatrix) * vec3(-d.x, 1.0, -d.y));
-          vec4 w2 = modelMatrix * vec4(lp, 1.0); vW = w2.xyz;
-          gl_Position = projectionMatrix * viewMatrix * w2;
-        }`,
-      fragmentShader: `uniform float uTime, uShore; uniform vec3 uSun, uZen, uHor, uDeep, uShallow, uFoam;
-        varying vec3 vW; varying vec3 vN; varying float vH; varying vec3 vL;
-        ${NOISE}
-        void main(){
-          vec3 V = normalize(cameraPosition - vW);
-          vec2 q = vW.xz * 0.35 + vec2(0.0, uTime * 0.25);
-          float fd = length(vW - cameraPosition);
-          vec3 N = normalize(vN + vec3(vnoise(q) - 0.5, 0.0, vnoise(q + 7.3) - 0.5) * 0.18 * exp(-fd / 35.0));
-          float fres = 0.02 + 0.98 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
-          vec3 R = reflect(-V, N);
-          vec3 sky = mix(mix(uZen, uHor, 0.35), uZen, clamp(R.y * 3.0, 0.0, 1.0));
-          // distanza dalla riva nel sistema del ring (il piano segue il ring)
-          vec3 lw = (inverse(modelMatrixInv) * vec4(0.0)).xyz;
-          float dist = max(0.0, -(vL.z - uShore));
-          float sh = exp(-dist / 9.0);
-          vec3 water = mix(uDeep, uShallow, sh * 0.85);
-          water *= 0.85 + 0.3 * max(dot(N, uSun), 0.0);
-          vec3 col = mix(water, sky, clamp(fres, 0.0, 0.55));
-          col += vec3(1.0, 0.95, 0.85) * pow(max(dot(R, uSun), 0.0), 300.0) * 3.0;
-          float n = fbm(vW.xz * 0.5 + vec2(uTime * 0.05, uTime * 0.12));
-          float foam = smoothstep(0.17, 0.30, vH + (n - 0.5) * 0.18) * 0.7;
-          foam += smoothstep(4.0, 0.0, dist) * smoothstep(0.35, 0.7, n) * 0.9;
-          col = mix(col, uFoam, clamp(foam, 0.0, 0.9));
-          float ang = atan(abs(vL.x), max(0.001, uShore - vL.z + 6.0));          // 0 = davanti, 1.57 = di lato
-          float side = 1.0 - smoothstep(0.75, 1.05, ang) * smoothstep(10.0, 30.0, abs(vL.x));
-          gl_FragColor = vec4(col, (1.0 - smoothstep(55.0, 120.0, fd)) * side);  // al largo e ai lati lascia vedere la foto
-          #include <tonemapping_fragment>
-          #include <colorspace_fragment>
-        }`,
-    });
-    // la distanza dalla riva serve nel sistema del ring: si passa la posizione locale come varying
-    m.vertexShader = m.vertexShader.replace('varying float vH;', 'varying float vH; varying vec3 vL;')
-      .replace('vH = h;', 'vH = h; vL = lp;');
-    m.fragmentShader = m.fragmentShader.replace('vec3 lw = (inverse(modelMatrixInv) * vec4(0.0)).xyz;\n', '');
-    m.transparent = true;
-    const sea = new THREE.Mesh(g, m); sea.frustumCulled = false; sea.renderOrder = -5;
-    this.group.add(sea);
-  }
-
   // sabbia: grande distesa con dune; bagnata e piu' scura vicino all'acqua
   _sand() {
     const W = 150, D = 80, NX = 110, NZ = 70, pos = [], col = [], uv = [], idx = [];
@@ -202,9 +99,7 @@ export class Beach {
         const u = i / NX * 2 - 1, x = Math.sign(u) * (W / 2) * Math.pow(Math.abs(u), 1.5);
         const y = sandY(x, z);
         pos.push(x, y, z); uv.push(x / 2.2, z / 2.2);
-        const wet = smooth(-4.5, -7.5, z);                        // sabbia bagnata
-        const k = 1 - 0.35 * wet;
-        col.push(k, k * (1 - 0.04 * wet), k * (1 - 0.08 * wet));
+        col.push(1, 1, 1);
       }
     }
     for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) {
@@ -217,100 +112,12 @@ export class Beach {
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     g.setIndex(idx); g.computeVertexNormals();
     const L = new THREE.TextureLoader();
-    const tex = L.load('assets/sabbia_colore.jpg?v=20261003123527'), nrm = L.load('assets/sabbia_rilievo.jpg?v=20261003123527');
+    const tex = L.load('assets/sabbia_colore.jpg?v=20261003130016'), nrm = L.load('assets/sabbia_rilievo.jpg?v=20261003130016');
     tex.colorSpace = THREE.SRGBColorSpace;
     for (const t of [tex, nrm]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; }
     const m = new THREE.MeshStandardMaterial({ map: tex, normalMap: nrm, normalScale: new THREE.Vector2(1.4, 1.4), vertexColors: true, roughness: 1 });
     const sand = new THREE.Mesh(g, m); sand.receiveShadow = true;
     this.group.add(sand);
-    // velo di schiuma che sale e scende sulla riva dopo ogni onda
-    const fg = new THREE.PlaneGeometry(90, 4.5, 90, 10); fg.rotateX(-Math.PI / 2); fg.translate(0, 0, -6.3);
-    const p = fg.attributes.position;
-    for (let i = 0; i < p.count; i++) p.setY(i, sandY(p.getX(i), p.getZ(i)) + 0.02);
-    this.swashU = { uTime: { value: 0 }, uReach: { value: -8 }, uAlpha: { value: 0 }, uFoam: { value: COLORS.foam }, uShallow: { value: COLORS.shallow } };
-    const sm = new THREE.ShaderMaterial({
-      transparent: true, depthWrite: false, uniforms: this.swashU,
-      vertexShader: `varying vec3 vL; void main(){ vL = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-      fragmentShader: `uniform float uTime, uReach, uAlpha; uniform vec3 uFoam, uShallow; varying vec3 vL;
-        ${NOISE}
-        void main(){
-          float edge = uReach + (fbm(vec2(vL.x * 0.35, uTime * 0.2)) - 0.5) * 1.2;
-          float inside = smoothstep(edge + 0.05, edge - 0.25, vL.z);
-          float lace = smoothstep(0.45, 0.75, fbm(vL.xz * 1.8 + vec2(0.0, uTime * 0.3)));
-          float rim = smoothstep(0.5, 0.0, abs(vL.z - edge));
-          vec3 c = mix(uShallow, uFoam, clamp(lace * 0.8 + rim, 0.0, 1.0));
-          float a = inside * (0.08 + 0.55 * lace + 0.35 * rim * lace) * uAlpha;
-          a *= smoothstep(30.0, 18.0, abs(vL.x));               // ai lati sfuma (oltre c'e' la spiaggia della foto)
-          gl_FragColor = vec4(c, a);
-          #include <tonemapping_fragment>
-          #include <colorspace_fragment>
-        }`,
-    });
-    this.swash = new THREE.Mesh(fg, sm); this.swash.renderOrder = 1;
-    this.group.add(this.swash);
-  }
-
-  // frangenti: fasce d'onda che arrivano verso riva, si alzano, si arricciano e si rompono in schiuma
-  _breakers() {
-    const NX = 140, NY = 14, pos = [], uv = [], idx = [];
-    for (let j = 0; j <= NY; j++) for (let i = 0; i <= NX; i++) {
-      pos.push(-45 + 90 * i / NX, 0, 0); uv.push(i / NX, j / NY);
-    }
-    for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) {
-      const a = j * (NX + 1) + i, b = a + 1, c = a + NX + 1, d = c + 1;
-      idx.push(a, c, b, b, c, d);
-    }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx);
-    for (let k = 0; k < 3; k++) {
-      const u = {
-        uZ: { value: -30 }, uPh: { value: 0 }, uH: { value: 1.1 }, uSeed: { value: k * 1.7 + 0.3 }, uTime: { value: 0 },
-        uSeaY: { value: SEA_Y }, uDeep: { value: COLORS.deep }, uShallow: { value: COLORS.shallow }, uFoam: { value: COLORS.foam },
-        uSun: { value: this.sunDir }, uHor: { value: COLORS.horizon },
-      };
-      const m = new THREE.ShaderMaterial({
-        transparent: true, side: THREE.DoubleSide, uniforms: u,
-        vertexShader: `uniform float uZ, uPh, uH, uSeed, uSeaY; varying float vS, vPh, vBrk, vProf, vX; varying vec3 vW;
-          void main(){
-            float x = position.x, s = uv.y;
-            float ph = clamp(uPh + x * 0.0022 + 0.04 * sin(x * 0.06 + uSeed), 0.0, 1.0);
-            float grow = smoothstep(0.0, 0.62, ph), brk = smoothstep(0.62, 0.8, ph);
-            float H = uH * (0.7 + 0.3 * sin(x * 0.09 + uSeed * 3.0)) * grow * (1.0 - 0.8 * brk);
-            float prof = s < 0.72 ? pow(s / 0.72, 1.7) : pow(1.0 - (s - 0.72) / 0.28, 0.55);
-            float y = uSeaY - 0.04 + H * prof;
-            float wdt = 4.0 + 5.0 * brk;
-            float z = uZ + (s - 0.5) * wdt;
-            z += 0.55 * H * smoothstep(0.45, 0.62, ph) * (1.0 - brk) * pow(s, 3.0);   // la cresta si arriccia in avanti
-            vS = s; vPh = ph; vBrk = brk; vProf = prof; vX = x;
-            vec4 w = modelMatrix * vec4(x, y, z, 1.0); vW = w.xyz;
-            gl_Position = projectionMatrix * viewMatrix * w;
-          }`,
-        fragmentShader: `uniform float uTime, uSeed; uniform vec3 uDeep, uShallow, uFoam, uSun, uHor;
-          varying float vS, vPh, vBrk, vProf, vX; varying vec3 vW;
-          ${NOISE}
-          void main(){
-            float n = fbm(vec2(vX * 0.3 + uSeed * 10.0, vS * 3.0 + uTime * 0.6));
-            vec3 face = mix(uShallow, uDeep, 0.5 + 0.3 * (1.0 - vProf));
-            face *= 0.9 + 0.25 * vProf;                              // la parete d'acqua controluce e' piu' chiara
-            float crest = smoothstep(0.8, 1.0, vProf) * smoothstep(0.45, 0.6, vPh);
-            float foam = clamp(crest * (0.6 + 0.6 * n) + vBrk * smoothstep(0.35, 0.75, n), 0.0, 1.0);
-            vec3 c = mix(face, uFoam, foam);
-            float a = smoothstep(0.0, 0.18, vS) * (vBrk > 0.0 ? 1.0 : smoothstep(0.0, 0.08, 1.0 - vS));
-            a *= (1.0 - smoothstep(0.86, 1.0, vPh)) * smoothstep(0.0, 0.08, vPh);
-            a *= smoothstep(32.0, 18.0, abs(vX));
-            a *= mix(0.35, 0.9, foam) * (1.0 - 0.55 * vBrk);   // parete d'acqua trasparente; la schiuma rotta si dissolve
-            float fd = length(vW - cameraPosition);
-            c = mix(c, uHor, smoothstep(60.0, 200.0, fd) * 0.8);
-            gl_FragColor = vec4(c, a);
-            #include <tonemapping_fragment>
-            #include <colorspace_fragment>
-          }`,
-      });
-      const mesh = new THREE.Mesh(geo, m); mesh.frustumCulled = false; mesh.renderOrder = 2;
-      this.group.add(mesh);
-      this.waves.push({ mesh, u, t: k * 2.9, T: 8.7, H: 0.45 + 0.4 * Math.random(), splashed: false });
-    }
   }
 
   // palme ai lati del ring, tutte in due soli oggetti (tronchi e foglie)
@@ -495,27 +302,9 @@ export class Beach {
   update(dt, onBreak) {
     this.t += dt;
     const t = this.t;
-    this.seaU.uTime.value = t; this.swashU.uTime.value = t;
-    // frangenti: ciclo di T secondi da lontano fino alla riva
-    let reach = -8.0, swashA = 0;
-    for (const w of this.waves) {
-      w.t += dt;
-      if (w.t > w.T) { w.t -= w.T; w.H = 0.45 + Math.random() * 0.4; w.splashed = false; }
-      const ph = w.t / w.T;
-      w.u.uPh.value = ph; w.u.uH.value = w.H; w.u.uTime.value = t;
-      w.u.uZ.value = -22 + 14.5 * (1 - Math.pow(1 - ph, 1.4));
-      // si rompe: suono dell'onda (gli schizzi da questa distanza non si vedrebbero: resta la schiuma)
-      if (ph > 0.62 && !w.splashed) { w.splashed = true; if (onBreak) onBreak(w.H); }
-      // risacca: la schiuma sale sulla sabbia e torna indietro
-      if (ph > 0.78) {
-        const k = (ph - 0.78) / 0.22;
-        const r = -7.9 + 2.6 * Math.sin(Math.min(1, k) * Math.PI * 0.85);
-        if (r > reach) reach = r;
-        swashA = Math.max(swashA, Math.sin(Math.min(1, k) * Math.PI));
-      }
-    }
-    this.swashU.uReach.value += (reach - this.swashU.uReach.value) * Math.min(1, dt * 3);
-    this.swashU.uAlpha.value += (Math.max(0.1, swashA) - this.swashU.uAlpha.value) * Math.min(1, dt * 2);
+    // il mare e' lontano: ogni tanto il rumore di un'onda che si infrange
+    this.nextWave = (this.nextWave ?? 3) - dt;
+    if (this.nextWave <= 0) { this.nextWave = 5 + Math.random() * 7; if (onBreak) onBreak(0.5 + Math.random() * 0.6); }
     // gabbiani, bandiera
     for (const b of this.birds) {
       const p = b.userData.p; p.a += p.w * dt;

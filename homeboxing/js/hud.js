@@ -1,6 +1,59 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261003123527';
+import { t as tr } from './i18n.js?v=20261003130016';
+
+// ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
+let RAYS = [];
+export function setRays(r) { RAYS = r; }
+const _ro = new THREE.Vector3(), _rd = new THREE.Vector3(), _inv = new THREE.Matrix4();
+// raggio contro il pannello (piano locale z = zf): punto locale colpito o null
+function rayLocal(group, o, d, zf) {
+  _inv.copy(group.matrixWorld).invert();
+  _ro.copy(o).applyMatrix4(_inv);
+  _rd.copy(o).add(d).applyMatrix4(_inv).sub(_ro);
+  if (Math.abs(_rd.z) < 1e-6) return null;
+  const t = (zf - _ro.z) / _rd.z;
+  if (t <= 0) return null;
+  return _ro.clone().addScaledVector(_rd, t);
+}
+// quali pulsanti sono puntati (e dove: il punto colpito per disegnare il puntino)
+function pointed(group, buttons, zf, size, bounds) {
+  const set = new Set();
+  for (const r of RAYS) {
+    const p = rayLocal(group, r.o, r.d, zf);
+    if (!p || Math.abs(p.x) > bounds[0] || Math.abs(p.y) > bounds[1]) continue;
+    const w = p.clone().applyMatrix4(group.matrixWorld);
+    if (!r.hit || r.o.distanceTo(w) < r.o.distanceTo(r.hit)) r.hit = w;
+    for (const b of buttons) {
+      const [cx, cy, hw, hh] = size(b);
+      if (Math.abs(p.x - cx) < hw && Math.abs(p.y - cy) < hh) set.add(b);
+    }
+  }
+  return set;
+}
+// il raggio con il puntino, visibile solo quando c'e' un menu aperto
+export class RayPointers {
+  constructor(scene) {
+    this.items = [0, 1].map(() => {
+      const line = new THREE.Mesh(new THREE.CylinderGeometry(0.0015, 0.0015, 1, 6, 1, true).translate(0, 0.5, 0).rotateX(Math.PI / 2),
+        new THREE.MeshBasicMaterial({ color: 0xffd34d, transparent: true, opacity: 0.55, depthTest: false }));
+      const dot = new THREE.Mesh(new THREE.SphereGeometry(0.008, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false }));
+      line.renderOrder = dot.renderOrder = 1200; line.visible = dot.visible = false;
+      scene.add(line, dot);
+      return { line, dot };
+    });
+  }
+  update(rays, show) {
+    this.items.forEach((it, i) => {
+      const r = show && rays[i];
+      it.line.visible = !!r; it.dot.visible = !!(r && r.hit);
+      if (!r) return;
+      const end = r.hit || r.o.clone().addScaledVector(r.d, 1.2);
+      it.line.position.copy(r.o); it.line.lookAt(end); it.line.scale.set(1, 1, r.o.distanceTo(end));
+      if (r.hit) it.dot.position.copy(r.hit);
+    });
+  }
+}
 
 export class Scoreboard {
   constructor() {
@@ -152,10 +205,11 @@ export class PauseMenu {
   update(dt, gloves) {
     if (!this.group.visible) return null;
     this.group.updateMatrixWorld(true);
+    const aimed = pointed(this.group, this.buttons.filter(b => b.group.visible), 0.04, b => [b.x, -0.06, 0.125, 0.11], [0.45, 0.31]);
     for (const b of this.buttons) {
       if (!b.group.visible) continue;
       const p = b.group.getWorldPosition(new THREE.Vector3());
-      const on = gloves.some(g => g.mesh.visible && g.center.distanceTo(p) < 0.14);
+      const on = aimed.has(b) || gloves.some(g => g.mesh.visible && g.center.distanceTo(p) < 0.14);
       b.hold = on ? b.hold + dt : Math.max(0, b.hold - dt * 2);
       b.fill.scale.y = Math.max(0.001, Math.min(1, b.hold / 1.5));
       b.fill.position.y = -0.11 + 0.11 * b.fill.scale.y;
@@ -172,6 +226,7 @@ export class MenuPanel {
     this.hold = holdTime;
     this.group = new THREE.Group(); this.group.name = 'menu'; this.group.visible = false;
     const W = spec.width || 0.95, H = spec.height || 0.7;
+    this.W = W; this.H = H;
     // fondo scuro con angoli arrotondati e cornice dorata; dietro, un bagliore dorato che pulsa piano
     const M = 0.05, CW = 1024, CH = Math.round(1024 * (H + 2 * M) / (W + 2 * M)), sc = CW / (W + 2 * M);
     const frame = (glowOnly) => {
@@ -240,7 +295,7 @@ export class MenuPanel {
           t = lab(b.text, 0, 0, b.w - 0.01, h * 0.6, '#ffffff', px); t.position.z = 0.018; g.add(t);
         }
         this.group.add(g);
-        this.buttons.push({ ...b, w: b.w, g, sel, fill, t: 0, base, label: t, on: false, color0: b.color || 0x3a4254 });
+        this.buttons.push({ ...b, w: b.w, bh: h, g, sel, fill, t: 0, base, label: t, on: false, color0: b.color || 0x3a4254 });
       }
     }
   }
@@ -281,9 +336,10 @@ export class MenuPanel {
     this.time += dt;
     this.glow.material.opacity = 0.55 + 0.45 * Math.sin(this.time * 2.2);    // bagliore che pulsa
     this.group.updateMatrixWorld(true);
+    const aimed = pointed(this.group, this.buttons, 0.035, b => [b.g.position.x, b.g.position.y, b.w / 2, b.bh / 2], [this.W / 2 + 0.05, this.H / 2 + 0.05]);
     for (const b of this.buttons) {
       const p = b.g.getWorldPosition(new THREE.Vector3());
-      const on = gloves.some(g => g.mesh.visible && g.center.distanceTo(p) < Math.max(0.09, b.w / 2));
+      const on = aimed.has(b) || gloves.some(g => g.mesh.visible && g.center.distanceTo(p) < Math.max(0.09, b.w / 2));
       b.t = on ? b.t + dt : Math.max(0, b.t - dt * 3);
       b.fill.scale.x = Math.max(0.001, Math.min(1, b.t / this.hold));
       b.fill.position.x = -b.w / 2 * (1 - b.fill.scale.x);
