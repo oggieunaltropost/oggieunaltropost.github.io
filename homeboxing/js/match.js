@@ -1,6 +1,7 @@
 // Incontro vero: danno, atterramenti, conteggio dell'arbitro, KO e KO tecnico (regole del pugilato),
 // e la prova per rialzarsi quando vai a terra tu.
 import * as THREE from 'three';
+import { t as tr } from './i18n.js?v=20261003114012';
 
 export const ROUNDS = 3, ROUND_S = 180, REST_S = 30;
 
@@ -63,9 +64,9 @@ export class GetUpChallenge {
     g.fillStyle = 'rgba(10,12,18,0.85)'; g.fillRect(0, 0, W, H);
     g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillStyle = '#ffd34d'; g.font = '900 64px system-ui, sans-serif';
-    g.fillText(`COLPISCI ${this.n} VOLTE PER RIALZARTI`, W / 2, 80);
+    g.fillText(tr('getup_title', { n: this.n }), W / 2, 80);
     g.fillStyle = '#ffffff'; g.font = '800 92px system-ui, sans-serif';
-    g.fillText(`ancora ${this.left}`, W / 2, 182);
+    g.fillText(tr('getup_left', { n: this.left }), W / 2, 182);
     this.tex.needsUpdate = true;
   }
 

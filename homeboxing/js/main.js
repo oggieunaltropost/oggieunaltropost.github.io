@@ -2,17 +2,19 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003112745';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003112745';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003112745';
-import { Player, SimInput } from './player.js?v=20261003112745';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD } from './hud.js?v=20261003112745';
-import { Room } from './room.js?v=20261003112745';
-import { Arena } from './arena.js?v=20261003112745';
-import { Beach } from './beach.js?v=20261003112745';
-import { RingGirl } from './ringgirl.js?v=20261003112745';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003112745';
-import * as sfx from './sfx.js?v=20261003112745';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003114012';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003114012';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003114012';
+import { Player, SimInput } from './player.js?v=20261003114012';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD } from './hud.js?v=20261003114012';
+import { Room } from './room.js?v=20261003114012';
+import { Arena } from './arena.js?v=20261003114012';
+import { Beach } from './beach.js?v=20261003114012';
+import { RingGirl } from './ringgirl.js?v=20261003114012';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003114012';
+import * as sfx from './sfx.js?v=20261003114012';
+import { t, lang, setLang, onLang } from './i18n.js?v=20261003114012';
+sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
 const status = t => { $('status').textContent = t; };
@@ -160,24 +162,25 @@ function roomPreview() {
   g.strokeStyle = '#e8412c'; g.lineWidth = 4; g.strokeRect(70, 108, 180, 34);
   g.strokeStyle = '#ffffff'; g.lineWidth = 3; g.strokeRect(70, 118, 180, 24);
   g.fillStyle = '#eeeeee'; for (const x of [70, 250]) g.fillRect(x - 4, 100, 8, 70);
-  // fascia con la scritta: nella stanza vedi la tua casa vera (realta' aumentata / passthrough)
-  g.fillStyle = 'rgba(10,12,18,0.72)'; g.fillRect(0, 74, 320, 52);
-  g.fillStyle = '#ffd34d'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.font = '900 34px system-ui, sans-serif'; g.fillText('REALTÀ AUMENTATA', 160, 100, 300);
+  // bollino "AR" (realta' aumentata: vedi la tua casa vera) nell'angolo in alto a destra
+  g.fillStyle = '#ffd34d'; g.beginPath(); g.roundRect(244, 10, 66, 40, 9); g.fill();
+  g.fillStyle = '#111111'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = '900 30px system-ui, sans-serif'; g.fillText('AR', 277, 32);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003112745`); t.colorSpace = THREE.SRGBColorSpace; return t; };
-const mainMenu = new MenuPanel({ title: 'HOME BOXING', subtitle: 'tieni un guantone sul pulsante', width: 1.0, height: 1.36, rows: [
-  { label: 'DOVE', y: 0.33, h: 0.22, buttons: [{ id: 'm:stanza', text: 'La tua stanza', w: 0.29, img: roomPreview() },
-    { id: 'm:arena', text: 'Nell\'arena', w: 0.29, img: stageImg('arena') }, { id: 'm:spiaggia', text: 'In spiaggia', w: 0.29, img: stageImg('spiaggia') }] },
-  { label: 'LIVELLO', y: 0.11, buttons: [{ id: 'l:facile', text: 'Facile', w: 0.205 }, { id: 'l:normale', text: 'Normale', w: 0.205 },
-    { id: 'l:difficile', text: 'Difficile', w: 0.205 }, { id: 'l:impossibile', text: 'Impossibile', w: 0.205 }] },
-  { label: 'ROUND', y: -0.05, buttons: [{ id: 'r:1', text: '1', w: 0.15 }, { id: 'r:3', text: '3', w: 0.15 }, { id: 'r:6', text: '6', w: 0.15 }, { id: 'r:12', text: '12', w: 0.15 }] },
-  { label: 'DURATA DI UN ROUND', y: -0.21, buttons: [{ id: 'd:60', text: '1 min', w: 0.2 }, { id: 'd:120', text: '2 min', w: 0.2 }, { id: 'd:180', text: '3 min', w: 0.2 }] },
-  { label: 'REGOLA DEI 3 ATTERRAMENTI', y: -0.37, buttons: [{ id: 'k:si', text: 'Sì', w: 0.2 }, { id: 'k:no', text: 'No', w: 0.2 }] },
-  { y: -0.55, h: 0.12, buttons: [{ id: 'start', text: 'INIZIA INCONTRO', w: 0.52, color: 0x1f8a4c }, { id: 'quit', text: 'ESCI DAL GIOCO', w: 0.34, color: 0xc4161f }] },
-] });
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003114012`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const mainMenu = new MenuPanel({ title: 'HOME BOXING', subtitle: t('menu_sub'), subtitleTk: 'menu_sub', width: 1.0, height: 1.5, rows: [
+  { label: t('where'), tk: 'where', y: 0.41, h: 0.22, buttons: [{ id: 'm:stanza', tk: 'm_stanza', w: 0.29, img: roomPreview() },
+    { id: 'm:arena', tk: 'm_arena', w: 0.29, img: stageImg('arena') }, { id: 'm:spiaggia', tk: 'm_spiaggia', w: 0.29, img: stageImg('spiaggia') }] },
+  { label: t('level'), tk: 'level', y: 0.19, buttons: [{ id: 'l:facile', tk: 'l_facile', w: 0.205 }, { id: 'l:normale', tk: 'l_normale', w: 0.205 },
+    { id: 'l:difficile', tk: 'l_difficile', w: 0.205 }, { id: 'l:impossibile', tk: 'l_impossibile', w: 0.205 }] },
+  { label: t('rounds'), tk: 'rounds', y: 0.03, buttons: [{ id: 'r:1', text: '1', w: 0.15 }, { id: 'r:3', text: '3', w: 0.15 }, { id: 'r:6', text: '6', w: 0.15 }, { id: 'r:12', text: '12', w: 0.15 }] },
+  { label: t('duration'), tk: 'duration', y: -0.13, buttons: [{ id: 'd:60', text: '1 min', w: 0.2 }, { id: 'd:120', text: '2 min', w: 0.2 }, { id: 'd:180', text: '3 min', w: 0.2 }] },
+  { label: t('rule3'), tk: 'rule3', y: -0.29, buttons: [{ id: 'k:si', tk: 'yes', w: 0.2 }, { id: 'k:no', tk: 'no', w: 0.2 }] },
+  { label: t('language'), tk: 'language', y: -0.45, buttons: [{ id: 'g:it', text: 'Italiano', w: 0.26 }, { id: 'g:en', text: 'English', w: 0.26 }] },
+  { y: -0.63, h: 0.12, buttons: [{ id: 'start', tk: 'start', w: 0.52, color: 0x1f8a4c }, { id: 'quit', tk: 'quit', w: 0.34, color: 0xc4161f }] },
+].map(r => ({ ...r, buttons: r.buttons.map(b => ({ ...b, text: b.tk ? t(b.tk) : b.text })) })) });
 scene.add(mainMenu.group);
 let armsUpT = 0, prevButtons = false;
 
@@ -244,8 +247,8 @@ const KD_REFILL = [75, 50, 25];
 const getUp = new GetUpChallenge(scene);
 getUp.attachDark(camera);
 const countdown = new CountdownHUD(camera);
-const nextMenu = new MenuPanel({ title: 'PROSSIMO ROUND TRA 30 s', titleH: 0.045, width: 0.36, height: 0.15, rows: [
-  { y: -0.025, h: 0.06, buttons: [{ id: 'next', text: 'VAI AL PROSSIMO ROUND', w: 0.32, color: 0x1f8a4c }] },
+const nextMenu = new MenuPanel({ title: t('next_title', { n: 2, s: 30 }), titleH: 0.045, width: 0.36, height: 0.15, rows: [
+  { y: -0.025, h: 0.06, buttons: [{ id: 'next', tk: 'next_btn', text: t('next_btn'), w: 0.32, color: 0x1f8a4c }] },
 ] });
 scene.add(nextMenu.group);
 const fighter = () => ({ points: 0, hits: 0, blocks: 0, dodges: 0, dmg: 0, kd: 0, kdRound: 0, penalties: 0 });
@@ -274,7 +277,7 @@ function startRound() {
   game.time = roundSecs; game.phase = 'ready'; game.phaseT = 0; game.paused = false; game.kd = null; game.foul = null;
   game.announced = false; game.lastCount = 0; game.girlStarted = false;
   game.player.kdRound = 0; game.mike.kdRound = 0;
-  game.message = `Round ${game.round} di ${rounds}`;
+  game.message = t('round_of', { r: game.round, n: rounds });
   if (mike) mike.enabled = false;
 }
 const resetRound = newMatch;          // (nomi usati dal resto del codice)
@@ -301,35 +304,35 @@ function knockdown(who, power) {
   if (who === 'mike') {
     mike.knockdown();
     kd.getUpAt = kd.final || kd.tko ? 99 : 4 + Math.floor(Math.random() * 5);      // si rialza tra il 4 e l'8
-    game.message = 'MIKE E\' A TERRA!';
+    game.message = t('mike_down');
   } else {
     const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
     const e = new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ');
     const n = [10, 20, 30][f.kd - 1] || 30;
     if (!kd.final && !kd.tko) {
       getUp.start(n, 0.11, player.head, e.y);
-      game.message = `SEI A TERRA! Colpisci ${n} volte il bottone per rialzarti`;
-    } else game.message = 'SEI A TERRA… non hai piu\' energia';
+      game.message = t('you_down_hit', { n });
+    } else game.message = t('you_down_out');
     mike.holdDist = 1.7;                     // Mike va all'angolo neutro
   }
-  if (kd.tko) game.message = (who === 'mike' ? 'Mike' : 'Tu') + ': terzo atterramento, l\'arbitro ferma l\'incontro!';
+  if (kd.tko) game.message = t('third_kd', { who: t(who === 'mike' ? 'who_mike' : 'who_you') });
   game.kd = kd;
 }
 
 function updateKnockdown(dt) {
   const kd = game.kd, f = game[kd.who];
   kd.t += dt;
-  if (kd.tko && kd.t > 1.5) return endMatch(kd.who === 'mike' ? 'player' : 'mike', 'KO tecnico');
+  if (kd.tko && kd.t > 1.5) return endMatch(kd.who === 'mike' ? 'player' : 'mike', 'TKO');
   if (kd.tko) return;
   const c = Math.floor(kd.t / 1.0);                     // conteggio: un numero al secondo
   if (c > kd.count && c <= 10) {
     kd.count = c;
     sfx.voiceNow('count_' + c);
-    if (c <= 8) game.message = `${kd.who === 'mike' ? 'Mike' : 'Tu'} ${kd.up ? 'in piedi' : 'a terra'}… ${c}` + (kd.who === 'player' && !kd.up && !kd.final ? ` · colpisci il bottone! (${getUp.left})` : '');
+    if (c <= 8) game.message = `${t(kd.who === 'mike' ? 'who_mike' : 'who_you')} ${t(kd.up ? 'is_up' : 'is_down')}… ${c}` + (kd.who === 'player' && !kd.up && !kd.final ? t('hit_button', { n: getUp.left }) : '');
   }
   if (kd.who === 'mike' && !kd.up && kd.count >= kd.getUpAt) { kd.up = true; mike.getUp(); }
   if (kd.who === 'player' && !kd.up && !kd.final && getUp.update(dt, Object.values(player.gloves))) {
-    kd.up = true; game.message = 'In piedi! Si riprende dopo l\'8';
+    kd.up = true; game.message = t('up_after8');
   }
   if (!kd.up && kd.count >= 10) return endMatch(kd.who === 'mike' ? 'player' : 'mike', 'KO');
   // conteggio obbligatorio fino a 8, poi si riprende: l'energia risale (animazione sulla barra)
@@ -349,15 +352,15 @@ function endMatch(winner, how) {
   if (mode === 'arena') { sfx.cheer('boato', 1); setTimeout(() => sfx.cheer('applauso', 0.9), 2500); }
   game.result = { winner, how };
   const pts = `${game.player.points}-${game.mike.points}`;
-  game.message = winner === 'player' ? `HAI VINTO per ${how}!` : winner === 'mike' ? `Vince Mike per ${how}` : `Pareggio ai punti (${pts})`;
-  if (how.includes('punti') && winner !== 'pari') game.message += ` (${pts})`;
+  game.message = winner === 'player' ? t('win_you', { how: t('how_' + how) }) : winner === 'mike' ? t('win_mike', { how: t('how_' + how) }) : t('draw', { pts });
+  if (how === 'PTS' && winner !== 'pari') game.message += ` (${pts})`;
   if (winner === 'mike' && !mike.down) mike.celebrate();          // Mike esulta a braccia alzate
   // festa per il vincitore: coriandoli e fuochi d'artificio nei suoi colori
   const c = new THREE.Vector3().setFromMatrixPosition(arena.matrixWorld);
   party.start(c, winner === 'player' ? [0xd81e2c, 0xff7a7a, 0xffffff] : winner === 'mike' ? [0x1d4fc4, 0x7aa8ff, 0xffffff] : [0xd81e2c, 0x1d4fc4]);
   sfx.cheer('applauso', 1); sfx.cheer('boato', 0.9);
   // verdetto dell'annunciatore, come nei veri incontri
-  const kind = how === 'KO' ? 'ko' : how === 'KO tecnico' ? 'tko' : how === 'squalifica' ? 'dq' : 'points';
+  const kind = how === 'KO' ? 'ko' : how === 'TKO' ? 'tko' : how === 'DQ' ? 'dq' : 'points';
   const who = winner === 'player' ? 'you' : 'mike';
   setTimeout(() => sfx.announce(winner === 'pari' ? ['scorecards', 'draw']
     : kind === 'points' ? ['scorecards', 'winner_intro', `win_${who}_points`]
@@ -373,11 +376,11 @@ function lowBlow() {
   if (arenaEnv) arenaEnv.cheer(0.4);
   if (mode === 'arena') sfx.cheer('ooh', 1);
   if (p >= 3) {
-    game.message = 'Terzo colpo basso: SQUALIFICATO!';
+    game.message = t('dq3');
     sfx.voiceNow('dq');
     game.foul = { t: 0, dq: true };
   } else {
-    game.message = `Colpo basso! Penalità ${p} di 3`;
+    game.message = t('lowblow', { p });
     sfx.voiceNow('lowblow_' + p);
     game.foul = { t: 0 };
   }
@@ -387,7 +390,7 @@ function updateFoul(dt) {
   f.t += dt;
   // Mike prima si riprende e si rimette in guardia; con la terza penalita' poi gli danno la vittoria (ed esulta)
   if (f.t > 5.5 && !f.recovered) { f.recovered = true; mike.resetPose(); }
-  if (f.dq) { if (f.t > 7) endMatch('mike', 'squalifica'); return; }
+  if (f.dq) { if (f.t > 7) endMatch('mike', 'DQ'); return; }
   if (f.t > 7) { game.foul = null; sfx.announce('box'); sfx.bell(1); mike.enabled = true; game.message = 'BOX!'; }
 }
 
@@ -401,7 +404,7 @@ function handleEvents() {
       case 'playerHit': {
         const pts = e.zone === 'head' ? 2 : 1;
         game.player.points += pts; game.player.hits++;
-        game.message = e.zone === 'head' ? 'Tu: colpo alla testa +2' : 'Tu: colpo al corpo +1';
+        game.message = t(e.zone === 'head' ? 'you_head' : 'you_body');
         sfx.punchHit(Math.min(1.3, 0.6 + e.speed / 6));
         if (mode === 'arena') { if (e.speed > 4 || e.zone === 'head') sfx.cheer('boato', Math.min(1, 0.4 + e.speed / 10)); }
         else sfx.crowd(0.08);
@@ -420,12 +423,12 @@ function handleEvents() {
         break;
       }
       case 'mikeBlocked':
-        game.mike.blocks++; game.message = 'Mike para';
+        game.mike.blocks++; game.message = t('mike_blocks');
         if (mode === 'arena' && Math.random() < 0.35) sfx.cheer('ooh', 0.6);
         sfx.punchBlock(); player.pulse(e.side, 0.4, 40);
         break;
       case 'mikeDodged':
-        game.mike.dodges++; game.message = 'Mike schiva';
+        game.mike.dodges++; game.message = t('mike_dodges');
         if (mode === 'arena' && Math.random() < 0.5) sfx.cheer('ooh', 0.7);
         break;
       case 'mikeThrows':
@@ -433,7 +436,7 @@ function handleEvents() {
         break;
       case 'mikeHit':
         game.mike.points += e.zone === 'body' ? 1 : 2; game.mike.hits++;
-        game.message = e.zone === 'body' ? 'Mike: colpo al corpo +1' : 'Mike: colpo alla testa +2';
+        game.message = t(e.zone === 'body' ? 'mike_body' : 'mike_head');
         sfx.punchHit(e.zone === 'body' ? 0.9 : 1.2); flash.hit(e.zone === 'body' ? 0.5 : 1);
         if (arenaEnv) arenaEnv.cheer(0.6);
         if (mode === 'arena' && e.zone === 'head') sfx.cheer('boato', 0.6);
@@ -441,11 +444,11 @@ function handleEvents() {
         landed('player', e.zone, POWER[level] * (0.85 + Math.random() * 0.3));
         break;
       case 'playerBlocked':
-        game.player.blocks++; game.message = 'Parata!';
+        game.player.blocks++; game.message = t('blocked');
         sfx.punchBlock(); player.pulse(e.side, 0.6, 50);
         break;
       case 'playerDodged':
-        game.player.dodges++; game.message = 'Schivata!';
+        game.player.dodges++; game.message = t('dodged');
         break;
     }
   }
@@ -478,15 +481,18 @@ function updateGame(dt) {
     if (k >= 1) game.fill = null;
   }
   if (game.phase === 'menu') {
-    game.message = 'Scegli dal menu davanti a te';
+    game.message = t('choose_menu');
     flash.setBase(0);
   } else if (game.paused) {
-    game.message = 'PAUSA';
+    game.message = t('pause');
+  } else if (game.phase === 'presentazione') {
+    game.message = t('presenting');
+    if (game.phaseT >= game.presT) { game.phase = 'ready'; game.phaseT = 0; }
   } else if (game.phase === 'ready') {
     const left = Math.ceil(READY_S - game.phaseT);
-    game.message = left > 0 ? `Round ${game.round} di ${rounds} · si comincia tra ${left}…` : 'BOX!';
-    if (left > 0 && renderer.xr.isPresenting && floorSource !== 'stanza' && floorSource !== 'mano') game.message = `Ring basso? Accovacciati e tieni una mano a terra 2 s · ${left}`;
-    else if (left > 3 && game.round === 1) game.message = `Pausa: alza le due mani all'altezza della fronte · ${left}`;
+    game.message = left > 0 ? t('starts_in', { r: game.round, n: rounds, s: left }) : 'BOX!';
+    if (left > 0 && renderer.xr.isPresenting && floorSource !== 'stanza' && floorSource !== 'mano') game.message = t('low_ring', { s: left });
+    else if (left > 3 && game.round === 1) game.message = t('pause_hint', { s: left });
     if (!game.announced && game.phaseT >= READY_S - 1.6) {      // "Round one... Fight!" che finisce sul gong
       game.announced = true;
       sfx.announce(rounds > 1 && game.round === rounds ? 'final_round' : `round_${game.round}`);
@@ -505,14 +511,14 @@ function updateGame(dt) {
         sfx.bell(3); mike.enabled = false; countdown.hide();
         if (game.round >= rounds) {
           const a = game.player.points, b = game.mike.points;
-          endMatch(a > b ? 'player' : a < b ? 'mike' : 'pari', 'decisione ai punti');
+          endMatch(a > b ? 'player' : a < b ? 'mike' : 'pari', 'PTS');
         } else startRest();
       }
     }
   } else if (game.phase === 'rest') {
     const left = Math.ceil(REST_S - game.phaseT);
-    game.message = `Riposo all'angolo · round ${game.round + 1} tra ${left} s`;
-    nextMenu.setTitle(`ROUND ${game.round + 1} TRA ${left} s`);
+    game.message = t('rest', { r: game.round + 1, s: left });
+    nextMenu.setTitle(t('next_title', { n: game.round + 1, s: left }));
     flash.setBase(0);
     if (!game.girlStarted && mike.atGoal) { game.girlStarted = true; girl.start(arena, ringSize, game.round + 1, player.head); }
     if (nextMenu.update(dt, Object.values(player.gloves)) === 'next') { sfx.punchBlock(); game.phaseT = REST_S; }
@@ -523,9 +529,9 @@ function updateGame(dt) {
   }
   const xr = renderer.xr.getSession && renderer.xr.getSession();
   const feats = xr && xr.enabledFeatures ? (xr.enabledFeatures.includes('plane-detection') ? 'piani sì' : 'piani no') : '';
-  board.draw({ round: game.round, rounds: rounds, level: LEVELS[level].label, time: game.phase === 'rest' ? Math.max(0, REST_S - game.phaseT) : game.time,
+  board.draw({ round: game.round, rounds: rounds, level: t('l_' + level), time: game.phase === 'rest' ? Math.max(0, REST_S - game.phaseT) : game.time,
     running: game.phase === 'fight', player: game.player, mike: game.mike, message: game.message,
-    diag: `ring ${ringSize.toFixed(1)} m · pavimento: ${floorSource} · occhi a ${(player.head.y + 0.06 - floorY).toFixed(1)} m da terra ${feats ? '· ' + feats : ''}` });
+    diag: t('diag', { m: ringSize.toFixed(1), f: floorSource, e: (player.head.y + 0.06 - floorY).toFixed(1) }) + (feats ? ' · ' + feats : '') });
 }
 
 // ---------------------------------------------------------------- ciclo
@@ -533,6 +539,30 @@ let lastT = performance.now();
 let placed = false, xrFrames = 0, roomCaptureAsked = false, headMax = 0;
 const floorTouch = { left: 0, right: 0 };
 renderer.setAnimationLoop((t, frame) => { if (window.pauseLoop) return; const now = performance.now(); const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now; tick(dt, frame); });
+// ---------------------------------------------------------------- presentazione dei pugili (speaker)
+// "Signore e signori, benvenuti… nell'angolo rosso, lo sfidante! … nell'angolo blu… MIKE!", poi il primo round.
+function startPresentation() {
+  const parts = ['intro_1', 'intro_red', 'intro_blue'];
+  const d = parts.map(n => sfx.voiceDur(n));
+  if (d.some(x => !x)) return;                         // voci non ancora caricate: si parte e basta
+  sfx.announce(parts);
+  game.phase = 'presentazione'; game.phaseT = 0; game.presT = d.reduce((a, b) => a + b + 0.2, 0) + 0.8;
+  game.message = t('presenting');
+  // il pubblico applaude ai nomi
+  const crowd = (ms, k, g) => setTimeout(() => { if (game.phase !== 'presentazione') return;
+    if (mode === 'arena') { sfx.cheer(k, g); if (arenaEnv) arenaEnv.cheer(1.2); } }, ms);
+  crowd((d[0] + d[1] + 0.3) * 1000, 'applauso', 0.8);
+  crowd((d[0] + d[1] + d[2] + 0.5) * 1000, 'boato', 0.9);
+}
+// cambio lingua dal menu: scritte e voci
+onLang(l => {
+  sfx.setVoiceLang(l);
+  mainMenu.relabel(); nextMenu.relabel(); pause.relabel();
+  mainMenu.select(menuChoices());
+  if (game.phase === 'menu') game.message = t('menu');
+  showMode();
+});
+
 // ---------------------------------------------------------------- presentazione dell'incontro (arena e spiaggia)
 // La vista parte in alto sopra il ring e scende facendo un giro completo attorno, fino al tuo angolo; solo allora
 // compaiono i guantoni. Nel visore non si puo' muovere la testa: si sposta il riferimento della scena
@@ -679,13 +709,14 @@ function closePause() {
   game.paused = false; pause.close();
   mike.enabled = game.phase === 'fight' && !game.kd;
 }
+const menuChoices = () => ['m:' + mode, 'l:' + level, 'r:' + rounds, 'd:' + roundSecs, threeKO ? 'k:si' : 'k:no', 'g:' + lang];
 function showMainMenu() {
-  newMatch(); game.phase = 'menu'; game.message = 'Menu';
+  newMatch(); game.phase = 'menu'; game.message = t('menu');
   setPeople(false);
   mike.enabled = false; pause.close();
   const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
   const e = new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ');
-  mainMenu.select(['m:' + mode, 'l:' + level, 'r:' + rounds, 'd:' + roundSecs, threeKO ? 'k:si' : 'k:no']);
+  mainMenu.select(menuChoices());
   mainMenu.open(player.head, e.y);
 }
 function updateMainMenu(dt, gloves) {
@@ -697,9 +728,10 @@ function updateMainMenu(dt, gloves) {
   else if (id.startsWith('d:')) { roundSecs = parseInt(id.slice(2)); try { localStorage.setItem('hb-roundsec', roundSecs); } catch (e) {} }
   else if (id.startsWith('k:')) { threeKO = id === 'k:si'; try { localStorage.setItem('hb-3ko', threeKO ? 'si' : 'no'); } catch (e) {} }
   else if (id.startsWith('r:')) { rounds = parseInt(id.slice(2)); try { localStorage.setItem('hb-rounds', rounds); } catch (e) {} }
-  else if (id === 'start') { mainMenu.close(); newMatch(); return; }   // (startIntro: volo iniziale, sospeso: fa girare la testa)
+  else if (id.startsWith('g:')) setLang(id.slice(2));
+  else if (id === 'start') { mainMenu.close(); newMatch(); startPresentation(); return; }   // (startIntro: volo iniziale, sospeso: fa girare la testa)
   else if (id === 'quit') { mainMenu.close(); const s = renderer.xr.getSession(); if (s) s.end(); return; }
-  mainMenu.select(['m:' + mode, 'l:' + level, 'r:' + rounds, 'd:' + roundSecs, threeKO ? 'k:si' : 'k:no']);
+  mainMenu.select(menuChoices());
 }
 
 function updatePause(dt) {
@@ -734,26 +766,26 @@ function calibrateByHand(dt) {
       floorTouch[g.side] = -3;                                    // pausa prima di poterlo rifare
       setFloor(g.center.y - 0.035, 'mano');
       sfx.bell(1);
-      game.message = 'Pavimento sistemato!';
+      game.message = t('floor_fixed');
     }
   }
 }
 
 // ---------------------------------------------------------------- avvio
-loadMikeGLTF('assets/mike.glb?v=20261003112745', f => status(`Caricamento gioco… ${Math.min(100, Math.round(f * 100))}%`)).then(gltf => {
+loadMikeGLTF('assets/mike.glb?v=20261003114012', f => status(t('loading', { p: Math.min(100, Math.round(f * 100)) }))).then(gltf => {
   mike = new Mike(gltf, scene, level);
   girl.load().catch(e => console.warn('ragazza del ring', e));
   bruises = new Bruises(mike.model);
   mike.bounds = keepInRing;
   placeArena(new THREE.Vector3(0, 1.65, 0), 0);
-  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.getUpFx = getUp; window.gameApi = { newMatch, showMainMenu, startIntro, girl: () => girl, arena: () => arena, ringSize: () => ringSize }; window.sweatFx = sweat;   // per le prove
+  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.getUpFx = getUp; window.gameApi = { newMatch, showMainMenu, startIntro, startPresentation, girl: () => girl, arena: () => arena, ringSize: () => ringSize }; window.sweatFx = sweat;   // per le prove
   status('');
   $('enter').disabled = !navigator.xr;
   if (navigator.xr) navigator.xr.isSessionSupported('immersive-ar').then(ok => {
-    if (!ok) { $('enter').disabled = true; status('Questo browser non supporta la realtà mista: usa il browser del Quest 3 (oppure prova l\'anteprima su PC).'); }
+    if (!ok) { $('enter').disabled = true; status(t('no_xr')); }
   });
   if (new URLSearchParams(location.search).has('sim')) startSim();
-}).catch(e => { console.error(e); status('Errore nel caricamento di Mike: ' + e.message); });
+}).catch(e => { console.error(e); status(t('load_err', { e: e.message })); });
 
 $('enter').onclick = async () => {
   sfx.initAudio();
@@ -778,7 +810,7 @@ $('enter').onclick = async () => {
       if (mike) mike.enabled = false;
       sfx.stopAll();                                // niente suoni dopo l'uscita
     });
-  } catch (e) { status('Impossibile entrare in realtà mista: ' + e.message); }
+  } catch (e) { status(t('xr_err', { e: e.message })); }
 };
 
 // pagina nascosta (visore tolto, browser chiuso): silenzio
@@ -818,7 +850,11 @@ showLevel();
 
 function showMode() {
   for (const b of document.querySelectorAll('#modes button')) b.classList.toggle('on', b.dataset.mode === mode);
-  $('enter').textContent = 'Gioca';
+  $('enter').textContent = t('play');
+  for (const el of document.querySelectorAll('.lang-it')) el.hidden = lang !== 'it';
+  for (const el of document.querySelectorAll('.lang-en')) el.hidden = lang !== 'en';
+  $('sim').textContent = lang === 'it' ? 'Anteprima su PC' : 'PC preview';
+  document.documentElement.lang = lang;
 }
 for (const b of document.querySelectorAll('#modes button')) b.onclick = () => {
   mode = b.dataset.mode;

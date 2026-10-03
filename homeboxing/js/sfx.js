@@ -33,17 +33,23 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
-// Voce dell'annunciatore (in inglese, tools/gen_announcer.py): frasi in coda, una dopo l'altra
+// Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
   'final_round', 'ten_seconds', 'knockdown', 'winner_intro', 'scorecards', 'win_you_ko', 'win_you_tko', 'win_you_points',
-  'win_mike_ko', 'win_mike_tko', 'win_mike_points', 'draw', 'box', 'lowblow_1', 'lowblow_2', 'dq', 'win_mike_dq', 'win_you_dq'];
-const vbuf = {};
+  'win_mike_ko', 'win_mike_tko', 'win_mike_points', 'draw', 'box', 'lowblow_1', 'lowblow_2', 'dq', 'win_mike_dq', 'win_you_dq',
+  'intro_1', 'intro_red', 'intro_blue'];
+let vbuf = {}, vLang = 'it';
 let vEnd = 0;
 function loadVoices() {
-  for (const n of VOICES) fetch(`assets/voce/${n}.ogg?v=20261003112745`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
-    .then(b => { vbuf[n] = b; }).catch(() => {});
+  const mine = vbuf = {}, l = vLang;
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261003114012`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+    .then(b => { mine[n] = b; }).catch(() => {});
 }
+// lingua delle voci ('it' o 'en'): al cambio si ricaricano
+export function setVoiceLang(l) { if (l === vLang) return; vLang = l; if (ctx) loadVoices(); }
+// durata di una frase (s), 0 se non ancora caricata
+export function voiceDur(n) { return vbuf[n] ? vbuf[n].duration : 0; }
 export function announce(names, gain = 1.0) {
   if (!ctx) return;
   let t = Math.max(ctx.currentTime + 0.02, vEnd);
@@ -115,7 +121,7 @@ const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261003112745`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261003114012`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
   loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); });
   return loading;

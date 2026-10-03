@@ -1,5 +1,6 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
+import { t as tr } from './i18n.js?v=20261003114012';
 
 export class Scoreboard {
   constructor() {
@@ -21,7 +22,7 @@ export class Scoreboard {
   }
 
   draw(s) {
-    const key = JSON.stringify(s);
+    const key = JSON.stringify(s) + tr('you');
     if (key === this.last) return;
     this.last = key;
     const g = this.canvas.getContext('2d'), W = 1024, H = 560;
@@ -45,11 +46,11 @@ export class Scoreboard {
       g.fillStyle = '#2a2f3a'; g.fillRect(x - 200, 338, 400, 20);
       g.fillStyle = e > 0.5 ? '#3cc46b' : e > 0.25 ? '#f0b429' : '#e5484d'; g.fillRect(x - 200, 338, 400 * e, 20);
       g.font = '500 28px system-ui, sans-serif'; g.fillStyle = '#c9ced8';
-      g.fillText(`Colpi ${p.hits} · Parate ${p.blocks} · Schivate ${p.dodges}`, x, 392);
-      const extra = [p.kd ? `A terra ${p.kd} ${p.kd === 1 ? 'volta' : 'volte'}` : '', p.penalties ? `Penalità ${p.penalties}/3` : ''].filter(Boolean).join(' · ');
+      g.fillText(tr('stats', { h: p.hits, b: p.blocks, d: p.dodges }), x, 392);
+      const extra = [p.kd ? tr('down_times', { n: p.kd, v: tr(p.kd === 1 ? 'once' : 'times') }) : '', p.penalties ? tr('penalties', { n: p.penalties }) : ''].filter(Boolean).join(' · ');
       if (extra) { g.fillStyle = p.penalties ? '#ffd34d' : '#ff8a8a'; g.fillText(extra, x, 428); }
     };
-    col(W * 0.27, 'TU', '#c4161f', s.player);
+    col(W * 0.27, tr('you'), '#c4161f', s.player);
     col(W * 0.73, 'MIKE', '#1a49b8', s.mike);
     g.fillStyle = '#2a2f3a'; g.fillRect(W / 2 - 2, 110, 4, 300);
     g.fillStyle = '#ffffff'; g.font = '700 34px system-ui, sans-serif';
@@ -86,13 +87,13 @@ export class PauseMenu {
     const panel = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.62),
       new THREE.MeshBasicMaterial({ color: 0x0b0d12, transparent: true, opacity: 0.88, depthTest: false }));
     panel.renderOrder = 1100; this.group.add(panel);
-    this.title = this._label('PAUSA', 0, 0.23, 0.6, 0.1, '#ffd34d', 72);
+    this.title = this._label(tr('pause'), 0, 0.23, 0.6, 0.1, '#ffd34d', 72);
     this.group.add(this.title);
-    this.group.add(this._label('tieni un guantone sul pulsante', 0, 0.15, 0.8, 0.05, '#c9ced8', 30));
+    this.hint = this._label(tr('menu_sub'), 0, 0.15, 0.8, 0.05, '#c9ced8', 30); this.group.add(this.hint);
     this.buttons = [
-      { id: 'resume', text: 'RIPRENDI', color: 0x1f8a4c, x: -0.29 },
-      { id: 'restart', text: 'RICOMINCIA', color: 0x1d4fc4, x: 0 },
-      { id: 'exit', text: 'MENU', color: 0xc4161f, x: 0.29 },
+      { id: 'resume', tk: 'resume', color: 0x1f8a4c, x: -0.29 },
+      { id: 'restart', tk: 'restart', color: 0x1d4fc4, x: 0 },
+      { id: 'exit', tk: 'menu_btn', color: 0xc4161f, x: 0.29 },
     ].map(b => {
       const g = new THREE.Group(); g.position.set(b.x, -0.06, 0.02);
       const base = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.22, 0.04),
@@ -101,9 +102,9 @@ export class PauseMenu {
       const fill = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 0.22),
         new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthTest: false }));
       fill.position.z = 0.021; fill.renderOrder = 1102; fill.scale.y = 0.001; g.add(fill);
-      const t = this._label(b.text, 0, 0, 0.24, 0.06, '#ffffff', 40); t.position.z = 0.023; g.add(t);
+      const t = this._label(tr(b.tk), 0, 0, 0.24, 0.06, '#ffffff', 40); t.position.z = 0.023; g.add(t);
       this.group.add(g);
-      return { ...b, group: g, fill, hold: 0 };
+      return { ...b, group: g, fill, hold: 0, label: t };
     });
   }
 
@@ -131,8 +132,14 @@ export class PauseMenu {
     g.fillText(text, c.width / 2, c.height / 2); tex.needsUpdate = true;
   }
 
+  // cambio lingua: si ridisegnano le scritte
+  relabel() {
+    const paint = (m, text) => MenuPanel.prototype._paint(m, text, m.userData.color);
+    paint(this.hint, tr('menu_sub'));
+    for (const b of this.buttons) paint(b.label, tr(b.tk));
+  }
   open(head, yaw, end = false) {
-    this.setTitle(end ? 'FINE INCONTRO' : 'PAUSA');
+    this.setTitle(tr(end ? 'fight_over' : 'pause'));
     this.buttons[0].group.visible = !end;
     this.buttons[1].group.children[2].visible = true;
     this.group.position.set(head.x - Math.sin(yaw) * 0.55, head.y - 0.1, head.z - Math.cos(yaw) * 0.55);
@@ -198,10 +205,14 @@ export class MenuPanel {
     const lab = PauseMenu.prototype._label;
     this.title = lab(spec.title, 0, H / 2 - (spec.titleH || 0.09) / 2 - 0.04, W - 0.06, spec.titleH || 0.09, '#ffd34d', 64);
     this.group.add(this.title);
-    if (spec.subtitle) this.group.add(lab(spec.subtitle, 0, H / 2 - 0.13, W - 0.1, 0.045, '#c9ced8', 30));
+    this.spec = spec; this.rowLabels = [];
+    if (spec.subtitle) { this.sub = lab(spec.subtitle, 0, H / 2 - 0.155, W - 0.1, 0.045, '#c9ced8', 30); this.group.add(this.sub); }
     this.buttons = [];
     for (const row of spec.rows) {
-      if (row.label) this.group.add(lab(row.label, 0, row.y + (row.h || 0.09) / 2 + 0.03, W - 0.1, 0.04, '#9aa3b6', 28));
+      if (row.label) {
+        const m = lab(row.label, 0, row.y + (row.h || 0.09) / 2 + 0.03, W - 0.1, 0.04, '#9aa3b6', 28);
+        this.group.add(m); this.rowLabels.push({ m, tk: row.tk });
+      }
       const gap = 0.02, total = row.buttons.reduce((a, b) => a + b.w, 0) + gap * (row.buttons.length - 1);
       let x = -total / 2;
       for (const b of row.buttons) {
@@ -249,6 +260,13 @@ export class MenuPanel {
     do { g.font = `800 ${size}px system-ui, sans-serif`; size -= 2; } while (g.measureText(text).width > c.width * 0.94 && size > 10);
     g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText(text, c.width / 2, c.height / 2); tex.needsUpdate = true;
+  }
+  // cambio lingua: tr(chiave) per sottotitolo, etichette delle righe e pulsanti che hanno una chiave (tk)
+  relabel() {
+    if (this.sub && this.spec.subtitleTk) this._paint(this.sub, tr(this.spec.subtitleTk), this.sub.userData.color);
+    for (const r of this.rowLabels) if (r.tk) this._paint(r.m, tr(r.tk), r.m.userData.color);
+    for (const b of this.buttons) if (b.tk) { b.text = tr(b.tk); this._paint(b.label, b.text, b.on ? '#111111' : '#ffffff'); }
+    this.titleText = null;
   }
   setTitle(text) { if (text !== this.titleText) { this.titleText = text; this._paint(this.title, text, this.title.userData.color); } }
   open(head, yaw, dist = 0.55, drop = 0.2) {

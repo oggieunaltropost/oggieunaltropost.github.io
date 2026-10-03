@@ -87,7 +87,7 @@ export class Beach {
 
   // cielo e sfondo: il panorama a 360 gradi della spiaggia vera (proiezione equirettangolare)
   _sky() {
-    const tex = new THREE.TextureLoader().load('assets/spiaggia_cielo.jpg?v=20261003112745', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load('assets/spiaggia_cielo.jpg?v=20261003114012', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -214,7 +214,7 @@ export class Beach {
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     g.setIndex(idx); g.computeVertexNormals();
     const L = new THREE.TextureLoader();
-    const tex = L.load('assets/sabbia_colore.jpg?v=20261003112745'), nrm = L.load('assets/sabbia_rilievo.jpg?v=20261003112745');
+    const tex = L.load('assets/sabbia_colore.jpg?v=20261003114012'), nrm = L.load('assets/sabbia_rilievo.jpg?v=20261003114012');
     tex.colorSpace = THREE.SRGBColorSpace;
     for (const t of [tex, nrm]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; }
     const m = new THREE.MeshStandardMaterial({ map: tex, normalMap: nrm, normalScale: new THREE.Vector2(1.4, 1.4), vertexColors: true, roughness: 1 });
