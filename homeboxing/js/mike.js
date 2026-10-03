@@ -134,6 +134,7 @@ export class Mike {
       if (m.envMapIntensity !== undefined) m.envMapIntensity = 0.8;
     });
     this.brandShorts();
+    if (this.cfg0.hairTint) this.model.traverse(o => { if (o.isMesh && o.material.name === 'Capelli folti') this.tintHair(o.material, this.cfg0.hairTint); });
     if (this.cfg0.noStubble) this.model.traverse(o => { if (o.isMesh && o.material.name === 'Capelli') o.visible = false; });
     if (this.cfg0.glow) this.model.traverse(o => { if (o.isMesh && this.cfg0.glow.includes(o.material.name)) { o.material.emissive.copy(o.material.color); o.material.emissiveIntensity = o.material.name === 'Cresta' ? 1.4 : 0.6; o.material.toneMapped = false; } });
     if (this.cfg0.evenSkin !== false) this.evenSkin();
@@ -273,6 +274,25 @@ export class Mike {
     const o = body.material.map;
     t.flipY = o.flipY; t.colorSpace = o.colorSpace; t.wrapS = o.wrapS; t.wrapT = o.wrapT; t.anisotropy = 4;
     body.material.map = t; body.material.needsUpdate = true;
+  }
+
+  // capelli chiari (biondo): la texture MakeHuman e' scura; si tiene solo il chiaroscuro delle ciocche e si ricolora
+  tintHair(m, hex) {
+    const img = m.map && m.map.image; if (!img || !img.width) return;
+    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+    const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, c.width, c.height), p = d.data, col = new THREE.Color(hex);
+    let sum = 0, n = 0;
+    for (let i = 0; i < p.length; i += 4) if (p[i + 3] > 128) { sum += p[i] + p[i + 1] + p[i + 2]; n++; }
+    const mean = Math.max(1, sum / Math.max(1, n));
+    for (let i = 0; i < p.length; i += 4) {
+      const k = Math.min(1.35, (p[i] + p[i + 1] + p[i + 2]) / mean) * 255;
+      p[i] = Math.min(255, col.r * k); p[i + 1] = Math.min(255, col.g * k); p[i + 2] = Math.min(255, col.b * k);
+    }
+    g.putImageData(d, 0, 0);
+    const t = new THREE.CanvasTexture(c); const o = m.map;
+    t.flipY = o.flipY; t.colorSpace = o.colorSpace; t.wrapS = o.wrapS; t.wrapT = o.wrapT;
+    m.map = t; m.color.set(0xffffff); m.needsUpdate = true;
   }
 
   brandShorts() {
