@@ -1,22 +1,23 @@
 // Stage "Nel deserto": il ring sulla sabbia rossa del Namaqualand. Sfondo = foto vera a 360 gradi "Goegap"
 // (Poly Haven, CC0) a piena risoluzione; davanti, in 3D, solo la sabbia sotto e attorno al ring (texture
-// fotografica red_sand portata al colore della foto, sfuma nella foto entro pochi metri) e ogni tanto un
-// rotolacampo spinto dal vento. Le rocce e i cespugli sono quelli veri della foto.
+// fotografica red_sand portata al colore della foto, sfuma nella foto entro pochi metri) e ogni tanto uno
+// scorpione che esce dalla sabbia, cammina un po' e si risotterra. Le rocce e i cespugli sono quelli veri della foto.
 import * as THREE from 'three';
 
 const PANO_U = 0.0;
 const SUN = new THREE.Vector3(0.522, 0.744, 0.417).normalize();      // il sole della foto
-const WIND = new THREE.Vector3(0.8, 0, 0.6).normalize();
+
+const _gw = new THREE.Vector3();
 
 export class Desert {
   constructor() {
     this.group = new THREE.Group(); this.group.name = 'deserto';
     this.sunDir = SUN.clone();
-    this._sky(); this._sand(); this._tumble();
+    this._sky(); this._sand(); this._scorpion();
     this.t = 0;
   }
   _sky() {
-    const tex = new THREE.TextureLoader().load('assets/deserto_panorama.jpg?v=20261003213645', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load('assets/deserto_panorama.jpg?v=20261003224237', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -36,49 +37,154 @@ export class Desert {
   // sabbia vicina: foto di sabbia rossa (colore = quello del terreno della foto), il bordo sfuma tra 5 e 9 m
   _sand() {
     const L = new THREE.TextureLoader();
-    const tex = L.load('assets/sabbia_rossa_colore.jpg?v=20261003213645'); tex.colorSpace = THREE.SRGBColorSpace;
+    const tex = L.load('assets/sabbia_rossa_colore.jpg?v=20261003224237'); tex.colorSpace = THREE.SRGBColorSpace;
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(6, 6); tex.anisotropy = 8;
     const a = document.createElement('canvas'); a.width = a.height = 256; const ga = a.getContext('2d');
     const gr = ga.createRadialGradient(128, 128, 128 * 5 / 9, 128, 128, 128); gr.addColorStop(0, '#fff'); gr.addColorStop(1, '#000');
     ga.fillStyle = gr; ga.fillRect(0, 0, 256, 256);
-    const sand = new THREE.Mesh(new THREE.CircleGeometry(9, 64), new THREE.MeshBasicMaterial({ map: tex, alphaMap: new THREE.CanvasTexture(a), transparent: true, depthWrite: false, toneMapped: false }));
+    const sand = new THREE.Mesh(new THREE.CircleGeometry(9, 64), new THREE.MeshBasicMaterial({ map: tex, alphaMap: new THREE.CanvasTexture(a), transparent: true, depthWrite: true, toneMapped: false }));   // (scrive la profondita': lo scorpione sotto la sabbia non si vede)
     sand.rotation.x = -Math.PI / 2; sand.position.y = -0.005; sand.renderOrder = -5; this.group.add(sand);
     // sotto il ring: opaca e illuminata (riceve le ombre dei pugili)
-    const nor = L.load('assets/sabbia_rossa_rilievo.jpg?v=20261003213645'); nor.wrapS = nor.wrapT = THREE.RepeatWrapping; nor.repeat.set(3, 3);
+    const nor = L.load('assets/sabbia_rossa_rilievo.jpg?v=20261003224237'); nor.wrapS = nor.wrapT = THREE.RepeatWrapping; nor.repeat.set(3, 3);
     const t2 = tex.clone(); t2.repeat.set(3, 3); t2.needsUpdate = true;
     const under = new THREE.Mesh(new THREE.CircleGeometry(4.5, 48), new THREE.MeshStandardMaterial({ map: t2, normalMap: nor, roughness: 0.95 }));
     under.rotation.x = -Math.PI / 2; under.position.y = -0.003; under.receiveShadow = true; this.group.add(under);
   }
-  // rotolacampo: palla di rametti che rotola col vento, saltellando
-  _tumble() {
-    const pts = [];
-    for (let k = 0; k < 160; k++) {
-      const u = new THREE.Vector3().randomDirection().multiplyScalar(0.25 + Math.random() * 0.12);
-      const v = u.clone().add(new THREE.Vector3().randomDirection().multiplyScalar(0.18));
-      pts.push(u, v.setLength(Math.min(0.4, v.length())));
+  // scorpione: ogni tanto esce dalla sabbia (con uno spruzzo), cammina un po' attorno al ring e si risotterra.
+  // Solo sulla sabbia 3D vicina (non nella foto). Lungo ~20 cm, corazza bruno-ambra lucida. Muso verso +Z.
+  _scorpion() {
+    const S = new THREE.Group(); S.visible = false;
+    const shell = new THREE.MeshStandardMaterial({ color: 0x6b4318, roughness: 0.35, metalness: 0.1 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x3a220b, roughness: 0.4 });
+    const sting = new THREE.MeshStandardMaterial({ color: 0x1c1006, roughness: 0.3 });
+    const seg = (r, l, m = shell) => { const o = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), m); o.scale.set(r, r * 0.4, l); o.castShadow = true; return o; };
+    const body = new THREE.Group(); body.position.y = 0.018; S.add(body);
+    const head = seg(0.022, 0.026); head.position.z = 0.035; body.add(head);
+    for (let k = 0; k < 5; k++) { const a = seg(0.024 - k * 0.0012, 0.013, k % 2 ? shell : dark); a.position.z = 0.012 - k * 0.017; body.add(a); }
+    // coda: 5 segmenti a catena che salgono e si piegano sopra la schiena, poi il pungiglione
+    let parent = new THREE.Group(); parent.position.set(0, 0.002, -0.07); body.add(parent);
+    this.tail = [];
+    for (let k = 0; k < 5; k++) {
+      const j = new THREE.Group(); parent.add(j);
+      const sg = seg(0.009, 0.011, k % 2 ? shell : dark); sg.position.z = -0.009; j.add(sg);
+      const nxt = new THREE.Group(); nxt.position.z = -0.019; j.add(nxt);
+      this.tail.push(j); parent = nxt;
     }
-    this.tw = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x8a6a42 }));
-    this.tw.visible = false; this.group.add(this.tw);
-    this.nextTw = 6 + Math.random() * 10; this.twF = null;
+    const bulb = seg(0.008, 0.01, dark); bulb.position.z = -0.006; parent.add(bulb);
+    const st = new THREE.Mesh(new THREE.ConeGeometry(0.0035, 0.016, 8), sting); st.position.set(0, -0.004, -0.016); st.rotation.x = -Math.PI / 2 - 0.9; parent.add(st);
+    // chele: braccio, avambraccio e pinza (un dito mobile che si apre e chiude)
+    this.claws = [];
+    for (const s of [-1, 1]) {
+      const sh = new THREE.Group(); sh.position.set(s * 0.016, 0, 0.05); sh.rotation.y = s * 0.55; body.add(sh);
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.004, 0.035, 6), shell); arm.rotation.x = Math.PI / 2; arm.position.z = 0.017; sh.add(arm);
+      const el = new THREE.Group(); el.position.z = 0.034; el.rotation.y = -s * 1.0; sh.add(el);
+      const arm2 = new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0035, 0.025, 6), shell); arm2.rotation.x = Math.PI / 2; arm2.position.z = 0.012; el.add(arm2);
+      const hand = seg(0.008, 0.012); hand.position.z = 0.03; el.add(hand);
+      const f1 = new THREE.Mesh(new THREE.ConeGeometry(0.0035, 0.02, 6), dark); f1.rotation.x = Math.PI / 2; f1.position.set(s * 0.003, 0, 0.048); el.add(f1);
+      const f2g = new THREE.Group(); f2g.position.set(-s * 0.003, 0, 0.04); el.add(f2g);
+      const f2 = new THREE.Mesh(new THREE.ConeGeometry(0.003, 0.018, 6), dark); f2.rotation.x = Math.PI / 2; f2.position.z = 0.008; f2g.add(f2);
+      this.claws.push({ sh, f2g, s });
+    }
+    // 8 zampe: coscia che sale al ginocchio, tibia che scende a terra
+    this.legs = [];
+    for (const s of [-1, 1]) for (let k = 0; k < 4; k++) {
+      const hip = new THREE.Group(); hip.position.set(s * 0.016, 0, 0.022 - k * 0.014);
+      hip.rotation.y = s * (Math.PI / 2 - 0.35 + k * 0.25); body.add(hip);
+      const thigh = new THREE.Group(); thigh.rotation.x = -0.6; hip.add(thigh);
+      const up = new THREE.Mesh(new THREE.CylinderGeometry(0.0018, 0.0022, 0.028, 5), shell); up.rotation.x = Math.PI / 2; up.position.z = 0.014; thigh.add(up);
+      const knee = new THREE.Group(); knee.position.z = 0.028; knee.rotation.x = 1.5; thigh.add(knee);
+      const low = new THREE.Mesh(new THREE.CylinderGeometry(0.0011, 0.0018, 0.046, 5), dark); low.rotation.x = Math.PI / 2; low.position.z = 0.023; knee.add(low);
+      this.legs.push({ hip, thigh, ph: (k % 2) * Math.PI + (s > 0 ? Math.PI : 0), base: hip.rotation.y, s });
+    }
+    S.scale.setScalar(1.3);
+    // sotto la sabbia non si vede (la sabbia 3D verso il bordo e' semitrasparente): taglio a filo del terreno
+    this.clip = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    S.traverse(o => { if (o.isMesh) o.material.clippingPlanes = [this.clip]; });
+    this.scorp = S; this.scBody = body; this.group.add(S);
+    // spruzzi di sabbia
+    const N = 140, geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
+    this.sprayV = new Float32Array(N * 3);
+    this.spray = new THREE.Points(geo, new THREE.PointsMaterial({ map: this._grain(), alphaTest: 0.3, color: 0xc29a6e, size: 0.009, transparent: true, opacity: 0.9, depthWrite: false }));
+    this.spray.visible = false; this.spray.frustumCulled = false; this.group.add(this.spray);
+    this.nextSc = 8 + Math.random() * 10; this.sc = null;
+  }
+  _grain() {                                              // granello tondo (non quadrato)
+    const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d');
+    const gr = g.createRadialGradient(16, 16, 2, 16, 16, 15); gr.addColorStop(0, '#fff'); gr.addColorStop(0.6, 'rgba(255,255,255,0.8)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
+    return new THREE.CanvasTexture(c);
+  }
+  _burst(p, n = 1) {
+    const pos = this.spray.geometry.attributes.position.array, v = this.sprayV;
+    for (let i = 0; i < pos.length / 3; i++) {
+      const a = Math.random() * Math.PI * 2, r = Math.random() * 0.06, up = 0.6 + Math.random() * 1.1, h = 0.2 + Math.random() * 0.6;
+      pos[i * 3] = p.x + Math.cos(a) * r; pos[i * 3 + 1] = 0.005; pos[i * 3 + 2] = p.z + Math.sin(a) * r;
+      v[i * 3] = Math.cos(a) * h * n; v[i * 3 + 1] = up * n; v[i * 3 + 2] = Math.sin(a) * h * n;
+    }
+    this.spray.geometry.attributes.position.needsUpdate = true;
+    this.spray.visible = true; this.sprayT = 0; this.spray.material.opacity = 0.9;
+  }
+  _updSpray(dt) {
+    if (!this.spray.visible) return;
+    this.sprayT += dt;
+    const pos = this.spray.geometry.attributes.position.array, v = this.sprayV;
+    for (let i = 0; i < pos.length / 3; i++) {
+      if (pos[i * 3 + 1] <= 0.003 && v[i * 3 + 1] <= 0) continue;          // gia' ricaduto
+      v[i * 3 + 1] -= 9.8 * dt;
+      pos[i * 3] += v[i * 3] * dt; pos[i * 3 + 1] = Math.max(0.003, pos[i * 3 + 1] + v[i * 3 + 1] * dt); pos[i * 3 + 2] += v[i * 3 + 2] * dt;
+    }
+    this.spray.geometry.attributes.position.needsUpdate = true;
+    this.spray.material.opacity = Math.max(0, 0.9 - Math.max(0, this.sprayT - 0.5) * 1.2);
+    if (this.sprayT > 1.3) this.spray.visible = false;
   }
   update(dt) {
     this.t += dt;
-    if (!this.twF) {
-      this.nextTw -= dt;
-      if (this.nextTw <= 0) {                             // entra da lontano controvento, passa a 5-20 m da te
-        const side = new THREE.Vector3(-WIND.z, 0, WIND.x), off = (Math.random() < 0.5 ? -1 : 1) * (5 + Math.random() * 15);
-        this.twF = { p: side.clone().multiplyScalar(off).addScaledVector(WIND, -35), v: 2.5 + Math.random() * 2.5, phase: 0, life: 0 };
-        this.tw.visible = true;
-      }
+    this._updSpray(dt);
+    const S = this.scorp;
+    this.clip.constant = -this.group.getWorldPosition(_gw).y - 0.001;
+    if (!this.sc) {
+      if ((this.nextSc -= dt) > 0) return;
+      // dove: sulla sabbia 3D attorno al ring (fuori dal quadrato del ring, entro 6,5 m)
+      let x, z;
+      do { const a = Math.random() * Math.PI * 2, r = 3.4 + Math.random() * 3; x = Math.cos(a) * r; z = Math.sin(a) * r; } while (Math.max(Math.abs(x), Math.abs(z)) < 3.1);
+      this.sc = { phase: 'su', t: 0, x, z, yaw: Math.random() * Math.PI * 2, turn: 0, walk: 4 + Math.random() * 5 };
+      S.position.set(x, -0.06, z); S.rotation.set(-0.5, this.sc.yaw, 0); S.visible = true;
+      this._burst(S.position, 1);
       return;
     }
-    const F = this.twF; F.life += dt;
-    const gust = 1 + 0.4 * Math.sin(this.t * 1.3);
-    F.p.addScaledVector(WIND, F.v * gust * dt);
-    F.phase += dt * F.v * 2.2;
-    const hop = Math.abs(Math.sin(F.phase)) * 0.35;      // saltelli
-    this.tw.position.set(F.p.x, 0.35 + hop, F.p.z);
-    this.tw.rotateOnWorldAxis(new THREE.Vector3(WIND.z, 0, -WIND.x), -F.v * gust * dt / 0.35);   // rotola
-    if (F.life > 75 / F.v) { this.twF = null; this.tw.visible = false; this.nextTw = 15 + Math.random() * 20; }
+    const C = this.sc; C.t += dt;
+    let speed = 0;
+    if (C.phase === 'su') {                                  // esce dalla sabbia, muso in su
+      const k = Math.min(1, C.t / 0.9), e = k * k * (3 - 2 * k);
+      S.position.y = -0.06 + 0.06 * e; S.rotation.set(-0.5 * (1 - e), C.yaw, 0);
+      if (k >= 1) { C.phase = 'cammina'; C.t = 0; }
+    } else if (C.phase === 'cammina') {                    // cammina a scatti, curvando
+      const go = Math.sin(C.t * 1.7) > -0.35;              // brevi soste
+      speed = go ? 0.13 : 0;
+      if (Math.random() < dt * 0.8) C.turn = (Math.random() - 0.5) * 1.6;
+      C.yaw += C.turn * dt * (go ? 1 : 0.3);
+      // resta sulla sabbia 3D e fuori dal ring
+      const r = Math.hypot(C.x, C.z);
+      if (r > 6.6) C.yaw = Math.atan2(-C.x, -C.z);
+      else if (Math.max(Math.abs(C.x), Math.abs(C.z)) < 3.0) C.yaw = Math.atan2(C.x, C.z);
+      C.x += Math.sin(C.yaw) * speed * dt; C.z += Math.cos(C.yaw) * speed * dt;
+      S.position.set(C.x, 0, C.z); S.rotation.set(0, C.yaw, 0);
+      if (C.t > C.walk && go) { C.phase = 'giu'; C.t = 0; this._burst(S.position, 0.8); }
+    } else {                                               // si risotterra scavando (scende tremando)
+      const k = Math.min(1, C.t / 1.1);
+      S.position.y = -0.07 * k; S.rotation.set(0.35 * k, C.yaw + Math.sin(C.t * 30) * 0.08 * (1 - k), 0);
+      speed = 0.05;
+      if (k >= 1) { S.visible = false; this.sc = null; this.nextSc = 18 + Math.random() * 25; }
+    }
+    // zampe a passo alternato, chele che si aprono, coda che ondeggia
+    const w = this.t * (speed > 0.06 ? 14 : 4);
+    for (const L of this.legs) {
+      L.hip.rotation.y = L.base + Math.sin(w + L.ph) * (speed > 0 ? 0.28 : 0.05) * L.s;
+      L.thigh.rotation.x = -0.6 - Math.max(0, Math.cos(w + L.ph)) * (speed > 0 ? 0.35 : 0.05);
+    }
+    for (const c of this.claws) { c.f2g.rotation.y = -c.s * (0.15 + 0.15 * Math.sin(this.t * 3 + c.s)); c.sh.rotation.x = Math.sin(this.t * 1.3 + c.s) * 0.08; }
+    this.tail.forEach((j, k) => { j.rotation.x = 0.55 + k * 0.08 + Math.sin(this.t * 2 + k * 0.5) * 0.05; j.rotation.y = Math.sin(this.t * 1.1 + k) * 0.04; });
+    this.scBody.position.y = 0.018 + Math.abs(Math.sin(w)) * 0.002 * (speed > 0 ? 1 : 0);
   }
 }

@@ -1,6 +1,6 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261003213645';
+import { t as tr } from './i18n.js?v=20261003224237';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
 let RAYS = [];
@@ -187,6 +187,9 @@ export class PauseMenu {
     this.drag = makeDragBar(this.group, -0.31 - 0.06);
     this.title = this._label(tr('pause'), 0, 0.23, 0.6, 0.1, '#ffd34d', 72);
     this.group.add(this.title);
+    // fine incontro: com'e' finita (sotto il titolo) e la medaglia sopra il pannello se hai vinto
+    this.sub = this._label(' ', 0, 0.135, 0.56, 0.05, '#c9cfdb', 40); this.group.add(this.sub);
+    this.medal = this._medal(); this.medal.position.set(0, 0.47, 0.01); this.group.add(this.medal);
 
     this.buttons = [
       { id: 'resume', tk: 'resume', color: 0x1f8a4c, x: -0.29 },
@@ -220,9 +223,33 @@ export class PauseMenu {
     return m;
   }
 
+  // medaglia d'oro col nastro tricolore e la stella
+  _medal() {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 340; const g = c.getContext('2d');
+    const stripes = ['#1f8a4c', '#f4f4f4', '#c4161f'];
+    for (const s of [-1, 1]) {                                      // nastro a V
+      g.save(); g.translate(128 + s * 34, 0); g.rotate(-s * 0.32);
+      stripes.forEach((col, i) => { g.fillStyle = col; g.fillRect(-36 + i * 24, -10, 24, 190); });
+      g.restore();
+    }
+    const cx = 128, cy = 228, r = 96;
+    const gr = g.createRadialGradient(cx - 30, cy - 34, 10, cx, cy, r);
+    gr.addColorStop(0, '#fff6c2'); gr.addColorStop(0.45, '#f2c230'); gr.addColorStop(1, '#a8740c');
+    g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+    g.lineWidth = 7; g.strokeStyle = '#8a5d06'; g.beginPath(); g.arc(cx, cy, r - 14, 0, Math.PI * 2); g.stroke();
+    g.fillStyle = '#c8900e'; g.beginPath();                          // stella
+    for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? 24 : 56; g.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); }
+    g.closePath(); g.fill(); g.lineWidth = 3; g.strokeStyle = '#fff1a8'; g.stroke();
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.2 * 340 / 256), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthTest: false }));
+    m.renderOrder = 1104; m.visible = false;
+    return m;
+  }
+
   // davanti alla testa, a 55 cm, girato verso di te
-  setTitle(text) {
-    const { canvas: c, tex, color, px } = this.title.userData, g = c.getContext('2d');
+  setTitle(text, colorOverride) {
+    const { canvas: c, tex, px } = this.title.userData, g = c.getContext('2d');
+    const color = colorOverride || this.title.userData.color;
     g.clearRect(0, 0, c.width, c.height);
     let size = Math.min(px, Math.floor(c.height * 0.78));          // mai piu' alta del suo riquadro (non si taglia)
     do { g.font = `800 ${size}px system-ui, sans-serif`; size -= 2; } while (g.measureText(text).width > c.width * 0.94 && size > 10);
@@ -235,8 +262,14 @@ export class PauseMenu {
     const paint = (m, text) => MenuPanel.prototype._paint(m, text, m.userData.color);
     for (const b of this.buttons) paint(b.label, tr(b.tk));
   }
-  open(head, yaw, end = false) {
-    this.setTitle(tr(end ? 'fight_over' : 'pause'));
+  // result (solo a fine incontro): { win: true/false/null (pari), how: 'KO'... }
+  open(head, yaw, end = false, result = null) {
+    if (end && result) {
+      this.setTitle(tr(result.win === true ? 'res_win' : result.win === false ? 'res_lose' : 'res_draw'),
+        result.win === true ? '#ffd34d' : result.win === false ? '#ff5a5a' : '#ffffff');
+      MenuPanel.prototype._paint(this.sub, tr('fight_over') + (result.how ? ' · ' + tr('how_' + result.how) : ''), '#c9cfdb');
+    } else { this.setTitle(tr(end ? 'fight_over' : 'pause')); MenuPanel.prototype._paint(this.sub, ' ', '#c9cfdb'); }
+    this.medal.visible = !!(end && result && result.win === true); this.medalT = 0;
     this.buttons[0].group.visible = !end;
     // fine incontro: solo due pulsanti, centrati
     const xs = end ? { restart: -0.145, exit: 0.145 } : { resume: -0.29, restart: 0, exit: 0.29 };
@@ -256,6 +289,7 @@ export class PauseMenu {
   // restituisce l'id del pulsante premuto (o null)
   update(dt, gloves) {
     if (!this.group.visible) return null;
+    if (this.medal.visible) { this.medalT += dt; this.medal.rotation.y = Math.sin(this.medalT * 1.6) * 0.35; }   // la medaglia oscilla
     this.group.updateMatrixWorld(true);
     if (updateDragBar(this.drag, this.group, dt, gloves)) return null;      // lo stai spostando
     const aimed = pointed(this.group, this.buttons.filter(b => b.group.visible), 0.04, b => [b.x, -0.06, 0.125, 0.11], [0.45, 0.31]);

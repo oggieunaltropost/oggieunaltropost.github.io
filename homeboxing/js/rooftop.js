@@ -1,9 +1,10 @@
 // Stage "In cima al grattacielo": il ring sul tetto di una torre a 260 m, poco piu' largo del ring.
 // Tutto intorno la citta' in una bella giornata di sole (foto a 360 gradi fatta in Blender: blender/create_city.py), davanti
 // in 3D il tetto, il parapetto di vetro, le luci rosse e le facciate della torre che scendono fino alla citta'.
-// Ogni tanto passa un elicottero (il suono lo fa sfx.heli, spaziale: piu' forte quando e' vicino).
+// La citta' si muove (city_life.js): auto, battelli, navi, uccelli, aerei. Ogni tanto passa un elicottero (il suono lo fa sfx.heli, spaziale: piu' forte quando e' vicino).
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
 import * as THREE from 'three';
+import { CityLife } from './city_life.js?v=20261003224237';
 
 const PANO_U = 0.0;               // rotazione del panorama (il sole della foto a sinistra, un po' dietro)
 const TOWER_H = 260;              // dal tetto alla strada
@@ -15,11 +16,12 @@ export class Rooftop {
     this.sunDir = SUN.clone();
     this.S = ringSize + 1.5;                       // lato del tetto: poco piu' del ring
     this._sky(); this._roof(); this._tower(); this._heli();
+    this.life = new CityLife(this.group, PANO_U);       // auto, battelli, navi, uccelli, aereo
     this.t = 0;
   }
 
   _sky() {
-    const tex = new THREE.TextureLoader().load('assets/citta_panorama.jpg?v=20261003213645', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load('assets/citta_panorama.jpg?v=20261003224237', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -173,6 +175,7 @@ export class Rooftop {
   // ritorna la posizione (nel mondo) dell'elicottero se sta volando, per il suono
   update(dt) {
     this.t += dt;
+    this.life.update(dt);
     const blink = (this.t % 1.4) < 0.25;
     for (const b of this.beacons) b.visible = blink;
     if (!this.flight) {

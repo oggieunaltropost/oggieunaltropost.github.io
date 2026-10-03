@@ -1,6 +1,7 @@
 // Mike: modello animato + intelligenza artificiale (si muove, para, schiva, attacca).
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const _lq = new THREE.Quaternion(), _lr = new THREE.Quaternion(), _qI = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ld = new THREE.Vector3();
 
 // Caratteristiche dell'avversario: per i prossimi pugili bastera' cambiare questi numeri.
 export const MIKE = {
@@ -198,6 +199,7 @@ export class Mike {
       sk.bones[hi].add(cav);
     }
     this.blinkT = 2; this.pain = 0; this.breath = 0;
+    this._setupEyes();
     this.impact = this.measureImpacts();
   }
 
@@ -504,6 +506,71 @@ export class Mike {
     this.mixer.update(dt);
     this.updateFace(dt);
     this.root.updateMatrixWorld(true);
+    this.lookAtEyes(dt);
+  }
+
+  // occhi mobili: i bulbi (mesh "high-poly", legati alla testa) passano a due ossa nuove, una per occhio, con il
+  // perno al centro del bulbo; ruotandole lo sguardo segue l'avversario
+  _setupEyes() {
+    const head = this.bones.head; if (!head) return;
+    let eyes = null; this.model.traverse(o => { if (o.isSkinnedMesh && (o.material.name || '').includes('high-poly')) eyes = o; });
+    const toHead = (sk, hi, m) => new THREE.Matrix4().multiplyMatrices(sk.boneInverses[hi], m.bindMatrix);
+    // dove guarda il viso, nello spazio dell'osso della testa (il modello in posa guarda verso +Z)
+    const skin = eyes || this.face;
+    if (!skin) return;
+    const sk0 = skin.skeleton, hi0 = sk0.bones.findIndex(b => b.name === 'head');
+    if (hi0 < 0) return;
+    this.faceLocal = new THREE.Vector3(0, 0, 1).transformDirection(toHead(sk0, hi0, skin));
+    this.lookW = 0; this._lookBase = new THREE.Quaternion(); this._lookOut = null;
+    if (!eyes) return;
+    const g = eyes.geometry, pos = g.attributes.position, si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
+    const sum = [new THREE.Vector3(), new THREE.Vector3()], cnt = [0, 0];
+    for (let i = 0; i < pos.count; i++) { const k = pos.getX(i) < 0 ? 0 : 1; sum[k].x += pos.getX(i); sum[k].y += pos.getY(i); sum[k].z += pos.getZ(i); cnt[k]++; }
+    if (!cnt[0] || !cnt[1]) return;
+    const M = toHead(sk0, hi0, eyes), bones = sk0.bones.slice(), inv = sk0.boneInverses.map(m => m.clone());
+    this.eyeBones = [0, 1].map(k => {
+      const c = sum[k].divideScalar(cnt[k]).applyMatrix4(M);          // centro del bulbo, nello spazio della testa
+      const b = new THREE.Bone(); b.name = 'occhio_' + k; b.position.copy(c); head.add(b);
+      bones.push(b); inv.push(new THREE.Matrix4().makeTranslation(-c.x, -c.y, -c.z).multiply(sk0.boneInverses[hi0]));
+      return b;
+    });
+    const n0 = bones.length - 2;
+    for (let i = 0; i < pos.count; i++) { si.setXYZW(i, n0 + (pos.getX(i) < 0 ? 0 : 1), 0, 0, 0); sw.setXYZW(i, 1, 0, 0, 0); }
+    si.needsUpdate = sw.needsUpdate = true;
+    eyes.bind(new THREE.Skeleton(bones, inv), eyes.bindMatrix);
+  }
+  // ti guarda negli occhi: la testa si gira un po' verso i tuoi occhi (al massimo ~20 gradi), gli occhi fanno il resto
+  lookAtEyes(dt) {
+    const head = this.bones.head;
+    if (!head || !this.faceLocal) return;
+    const P = this.lastPlayer && this.lastPlayer.head;
+    const on = P && !this.down && !this.getupLayer && !this.goal ? 1 : 0;
+    this.lookW += (on - this.lookW) * Math.min(1, dt * 3);
+    // se l'animazione non ha riscritto la testa, si riparte dalla posa di prima (niente rotazioni che si sommano)
+    if (this._lookOut && head.quaternion.equals(this._lookOut)) head.quaternion.copy(this._lookBase);
+    this._lookBase.copy(head.quaternion);
+    if (this.lookW < 0.01) { this._lookOut = null; if (this.eyeBones) for (const e of this.eyeBones) e.quaternion.identity(); return; }
+    // testa: t = frazione della rotazione che si applica (limitata a maxAng), il resto lo fanno gli occhi
+    head.updateWorldMatrix(true, false);
+    {
+      const q = head.getWorldQuaternion(_lq).invert();
+      const d = _ld.copy(P).sub(head.getWorldPosition(_lp)).normalize().applyQuaternion(q);
+      _lr.setFromUnitVectors(this.faceLocal, d);
+      const ang = 2 * Math.acos(Math.min(1, Math.abs(_lr.w)));
+      const t = Math.min(0.6, 0.35 / Math.max(ang, 1e-4)) * this.lookW;
+      _lr.copy(_qI.identity().slerp(_lr, t));
+      head.quaternion.multiply(_lr);
+      this._lookOut = (this._lookOut || new THREE.Quaternion()).copy(head.quaternion);
+      head.updateMatrixWorld(true);
+    }
+    if (this.eyeBones) for (const e of this.eyeBones) {
+      const q = head.getWorldQuaternion(_lq).invert();
+      const d = _ld.copy(P).sub(e.getWorldPosition(_lp)).normalize().applyQuaternion(q);
+      _lr.setFromUnitVectors(this.faceLocal, d);
+      const ang = 2 * Math.acos(Math.min(1, Math.abs(_lr.w)));
+      _lr.copy(_qI.identity().slerp(_lr, Math.min(1, 0.42 / Math.max(ang, 1e-4)) * this.lookW));   // occhi: al massimo ~24 gradi
+      e.quaternion.copy(_lr); e.updateMatrixWorld(true);
+    }
   }
 
   // --------------------------------------------------------------- punti del corpo nel mondo

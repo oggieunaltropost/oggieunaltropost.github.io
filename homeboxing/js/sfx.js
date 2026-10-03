@@ -33,7 +33,7 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
-import { FIGHTER_IDS } from './fighters.js?v=20261003213645';
+import { FIGHTER_IDS } from './fighters.js?v=20261003224237';
 // Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
@@ -48,7 +48,7 @@ let vbuf = {}, vLang = 'it';
 let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261003213645`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261003224237`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
@@ -97,11 +97,21 @@ export function firework() {
 }
 
 // colpo pieno: tonfo sordo + schiocco del cuoio
-export function punchHit(strength = 1) {
+//  mio (vai a segno tu): schiocco secco e brillante del guantone sulla pelle, tonfo piu' corto
+//  suo (ti colpisce):    piu' cupo e ovattato, lo senti "dentro la testa", con un rimbombo basso
+export function punchHit(strength = 1, mine = true) {
   if (!ctx) return; const t = ctx.currentTime;
-  tone(t, 0.18, 120, 0.9 * strength, 'sine', 45);
-  noise(t, 0.09, 1800, 0.8, 0.7 * strength);
-  noise(t, 0.25, 400, 0.5, 0.4 * strength);
+  if (mine) {
+    tone(t, 0.14, 150, 0.8 * strength, 'sine', 55);
+    noise(t, 0.07, 2600, 0.8, 0.75 * strength);
+    noise(t, 0.05, 3400, 1.4, 0.35 * strength, 'bandpass');         // schiocco del cuoio
+    noise(t, 0.18, 500, 0.5, 0.3 * strength);
+  } else {
+    tone(t, 0.26, 95, 1.0 * strength, 'sine', 32);
+    tone(t + 0.01, 0.35, 55, 0.5 * strength, 'sine', 28);           // rimbombo
+    noise(t, 0.12, 900, 0.7, 0.75 * strength);                      // ovattato: niente alti
+    noise(t, 0.3, 300, 0.5, 0.45 * strength);
+  }
 }
 
 // parata: colpo su guantone, piu' secco e meno profondo
@@ -157,7 +167,7 @@ const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261003213645`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261003224237`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
   loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (windWanted && (!wind || wind.synth)) { if (wind) { wind.s.stop(); wind = null; } windAmbient(true); } });   // vento vero appena caricato
   return loading;

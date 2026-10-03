@@ -2,24 +2,24 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003213645';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003213645';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003213645';
-import { Player, SimInput } from './player.js?v=20261003213645';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003213645';
-import { Room } from './room.js?v=20261003213645';
-import { Arena } from './arena.js?v=20261003213645';
-import { Beach } from './beach.js?v=20261003213645';
-import { Rooftop } from './rooftop.js?v=20261003213645';
-import { Desert } from './desert.js?v=20261003213645';
-import { RingGirl } from './ringgirl.js?v=20261003213645';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003213645';
-import * as sfx from './sfx.js?v=20261003213645';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003213645';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003213645';
-import { Tournament, BracketView } from './tournament.js?v=20261003213645';
-import { CpuMatch } from './cpu_match.js?v=20261003213645';
-import { TowerView } from './tower.js?v=20261003213645';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003224237';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003224237';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003224237';
+import { Player, SimInput } from './player.js?v=20261003224237';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003224237';
+import { Room } from './room.js?v=20261003224237';
+import { Arena } from './arena.js?v=20261003224237';
+import { Beach } from './beach.js?v=20261003224237';
+import { Rooftop } from './rooftop.js?v=20261003224237';
+import { Desert } from './desert.js?v=20261003224237';
+import { RingGirl } from './ringgirl.js?v=20261003224237';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003224237';
+import * as sfx from './sfx.js?v=20261003224237';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003224237';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003224237';
+import { Tournament, BracketView } from './tournament.js?v=20261003224237';
+import { CpuMatch } from './cpu_match.js?v=20261003224237';
+import { TowerView } from './tower.js?v=20261003224237';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -32,6 +32,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.localClippingEnabled = true;           // (lo scorpione del deserto tagliato a filo della sabbia)
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.enabled = true;
@@ -259,7 +260,7 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003213645`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003224237`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -395,6 +396,34 @@ function placeArena(headPos, yaw) {
   }
 }
 
+// Riallinea: ti rimette nel tuo angolo, girato verso l'avversario. Non si sposta il ring (Mike, tabellone, pubblico
+// restano dove sono): si sposta il riferimento del visore. Serve quando togli e rimetti il visore (il Quest puo'
+// cambiare il suo "centro") o quando ti ritrovi lontano dal ring. Nella stanza (realta' mista) invece si rimette il
+// ring attorno a te, perche' deve restare allineato alla stanza vera.
+let needRecenter = 0, recenterAlways = false;
+function recenterPlayer() {
+  if (!renderer.xr.isPresenting || intro) return;
+  const cam = renderer.xr.getCamera();
+  const H = new THREE.Vector3(); cam.getWorldPosition(H);
+  const yaw = new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ').y;
+  if (mode === 'stanza') { if (game.phase === 'menu') placeArena(H, yaw); return; }
+  arena.updateMatrixWorld(true);
+  const T = new THREE.Vector3(0, 0, playerZ).applyMatrix4(arena.matrixWorld); T.y = H.y;
+  const R = new THREE.Matrix4().makeTranslation(T.x, T.y, T.z)
+    .multiply(new THREE.Matrix4().makeRotationY(arena.rotation.y - yaw))
+    .multiply(new THREE.Matrix4().makeTranslation(-H.x, -H.y, -H.z));
+  const p = new THREE.Vector3(), q = new THREE.Quaternion(), sc = new THREE.Vector3();
+  R.invert().decompose(p, q, sc);
+  const ref = renderer.xr.getReferenceSpace();
+  renderer.xr.setReferenceSpace(ref.getOffsetReferenceSpace(new XRRigidTransform({ x: p.x, y: p.y, z: p.z }, { x: q.x, y: q.y, z: q.z, w: q.w })));
+  console.log('riallineato nel tuo angolo');
+}
+function headOutOfRing(margin = 0.15) {
+  if (!ringSize) return false;
+  const p = arena.worldToLocal(player.head.clone()), half = ringSize / 2;
+  return Math.abs(p.x) > half + margin || Math.abs(p.z) > half + margin;
+}
+
 // ---------------------------------------------------------------- incontro: round, punti, danno, atterramenti
 const POWER = { facile: 0.65, normale: 0.95, difficile: 1.3, impossibile: 1.8 };   // forza dei pugni di Mike
 // Atterramenti: si va giu' solo a energia zero. Rialzandosi l'energia risale sempre meno; quando non ce n'e'
@@ -460,7 +489,7 @@ function knockdown(who, power) {
   f.kdLvl = (f.kdLvl || 0) + 1;
   const lvl = Math.max(1, Math.round(f.kdLvl));
   mike.enabled = false;
-  sfx.punchHit(1.4);
+  sfx.punchHit(1.4, who === 'mike');               // atterrato lui: il tuo colpo; atterrato tu: il suo
   sfx.voiceNow('knockdown');
   if (arenaEnv) arenaEnv.cheer(2);
   if (mode === 'arena') sfx.cheer('boato', 1);
@@ -605,7 +634,7 @@ function handleEvents() {
       case 'mikeHit':
         game.mike.points += e.zone === 'body' ? 1 : 2; game.mike.hits++;
         game.message = t(e.zone === 'body' ? 'mike_body' : 'mike_head');
-        sfx.punchHit(e.zone === 'body' ? 0.9 : 1.2); flash.hit(e.zone === 'body' ? 0.5 : 1);
+        sfx.punchHit(e.zone === 'body' ? 0.9 : 1.2, false); flash.hit(e.zone === 'body' ? 0.5 : 1);
         if (arenaEnv) arenaEnv.cheer(0.6);
         if (mode === 'arena' && e.zone === 'head') sfx.cheer('boato', 0.6);
         player.pulse('left', 0.7, 90); player.pulse('right', 0.7, 90);
@@ -855,6 +884,7 @@ function tick(dt, frame) {
     if (ax && ax.length >= 4 && Math.abs(ax[3]) > 0.5) setFloor(floorY - ax[3] * dt * 0.3, 'manuale');
   }
   if (renderer.xr.isPresenting) xrFrames++;
+  if (needRecenter > 0 && renderer.xr.isPresenting && placed && --needRecenter === 0 && (recenterAlways || headOutOfRing())) recenterPlayer();
   if (orbit) orbit.update();
   player.update(dt);
   // puntatori: raggi da mani e controller quando c'e' il menu aperto (puntare = toccare col guantone)
@@ -916,10 +946,12 @@ function openPause(end = false) {
   game.paused = !end; mike.enabled = false;
   const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
   const e = new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ');
-  pause.open(player.head, e.y, end);
+  const r = game.result;
+  pause.open(player.head, e.y, end, end && r ? { win: r.winner === 'player' ? true : r.winner === 'mike' ? false : null, how: r.how } : null);
   if (!end) sfx.suspend(true);                    // tutto l'audio si ferma (anche lo speaker a meta' frase)
 }
 function closePause() {
+  if (headOutOfRing()) recenterPlayer();          // ripresa da fuori dal ring: torni nel tuo angolo
   game.paused = false; pause.close(); game.outRing = false;
   sfx.suspend(false);
   mike.enabled = game.phase === 'fight' && !game.kd;
@@ -966,7 +998,9 @@ async function startFight(opponentId) {
   girl.pick().catch(e => console.warn('ragazza del ring', e));   // una ragazza a caso, la stessa per tutto l'incontro
   fightStarting = false; closeMenus();
   mike.setRamp(rampNow());
-  newMatch(); startPresentation();
+  newMatch();
+  if (headOutOfRing(0)) recenterPlayer();
+  startPresentation();
 }
 // quanto e' cresciuta la difficolta': 0 = il livello scelto, 1 = il livello sopra (non lo raggiunge mai del tutto)
 function rampNow() {
@@ -1225,7 +1259,7 @@ loadMikeGLTF(FIGHTERS[fighterId].glb, f => statusT('loading', { p: Math.min(100,
   bruises = new Bruises(mike.model);
   mike.bounds = keepInRing;
   placeArena(new THREE.Vector3(0, 1.65, 0), 0);
-  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.getUpFx = getUp; window.gameApi = { newMatch, showMainMenu, startIntro, startPresentation, girl: () => girl, arena: () => arena, ringSize: () => ringSize }; window.sweatFx = sweat;   // per le prove
+  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.getUpFx = getUp; window.gameApi = { newMatch, showMainMenu, openPause, pause, envs: () => ({ roofEnv, desertEnv }), startIntro, startPresentation, girl: () => girl, arena: () => arena, ringSize: () => ringSize }; window.sweatFx = sweat;   // per le prove
   window.tourApi = { MENUS, bracket, tourBtns, show: () => showMainMenu(), open: m => openMenu(MENUS[m]), start: () => { tour = new Tournament(FIGHTERS); showBracketNext(); },
     after: win => { game.result = { winner: win ? 'player' : 'mike' }; showBracketAfter(); }, fight: () => startFight(tour.opponent()), setStageChoice: c => { stageChoice = c; }, get mode() { return mode; }, get tour() { return tour; }, get cpu() { return cpu; }, skipBtn, tower, startSurvival, get surv() { return surv; }, survAfter: win => { game.result = { winner: win ? 'player' : 'mike' }; showTowerAfter(); } };   // (prove)
   status('');
@@ -1251,6 +1285,9 @@ $('enter').onclick = async () => {
     placed = false; xrFrames = 0; floorSource = 'visore'; floorY = 0; roomCaptureAsked = false; headMax = 0; greetPending = true;
     newMatch(); game.phase = 'menu'; setPeople(false);       // si entra nello stage con il menu, la partita non parte
     $('overlay').hidden = true;
+    // visore tolto e rimesso (la sessione torna visibile) o "centro" del Quest cambiato: riallinea appena il tracciamento riparte
+    session.addEventListener('visibilitychange', () => { if (session.visibilityState === 'visible') { needRecenter = 20; recenterAlways = false; } });   // (solo se sei fuori dal ring)
+    try { renderer.xr.getReferenceSpace().addEventListener('reset', () => { needRecenter = 20; recenterAlways = true; }); } catch (e) {}
     session.addEventListener('end', () => {
       intro = null; baseRef = null;
       $('overlay').hidden = false; placed = false;
