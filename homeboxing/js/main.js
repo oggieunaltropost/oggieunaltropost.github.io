@@ -2,17 +2,17 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003110527';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003110527';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003110527';
-import { Player, SimInput } from './player.js?v=20261003110527';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD } from './hud.js?v=20261003110527';
-import { Room } from './room.js?v=20261003110527';
-import { Arena } from './arena.js?v=20261003110527';
-import { Beach } from './beach.js?v=20261003110527';
-import { RingGirl } from './ringgirl.js?v=20261003110527';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003110527';
-import * as sfx from './sfx.js?v=20261003110527';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003111236';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003111236';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003111236';
+import { Player, SimInput } from './player.js?v=20261003111236';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD } from './hud.js?v=20261003111236';
+import { Room } from './room.js?v=20261003111236';
+import { Arena } from './arena.js?v=20261003111236';
+import { Beach } from './beach.js?v=20261003111236';
+import { RingGirl } from './ringgirl.js?v=20261003111236';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003111236';
+import * as sfx from './sfx.js?v=20261003111236';
 
 const $ = id => document.getElementById(id);
 const status = t => { $('status').textContent = t; };
@@ -155,7 +155,7 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003110527`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003111236`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const mainMenu = new MenuPanel({ title: 'HOME BOXING', subtitle: 'tieni un guantone sul pulsante', width: 1.0, height: 1.36, rows: [
   { label: 'DOVE', y: 0.33, h: 0.22, buttons: [{ id: 'm:stanza', text: 'Nella stanza', w: 0.29, img: roomPreview() },
     { id: 'm:arena', text: 'Nell\'arena', w: 0.29, img: stageImg('arena') }, { id: 'm:spiaggia', text: 'In spiaggia', w: 0.29, img: stageImg('spiaggia') }] },
@@ -521,6 +521,60 @@ let lastT = performance.now();
 let placed = false, xrFrames = 0, roomCaptureAsked = false, headMax = 0;
 const floorTouch = { left: 0, right: 0 };
 renderer.setAnimationLoop((t, frame) => { if (window.pauseLoop) return; const now = performance.now(); const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now; tick(dt, frame); });
+// ---------------------------------------------------------------- presentazione dell'incontro (arena e spiaggia)
+// La vista parte in alto sopra il ring e scende facendo un giro completo attorno, fino al tuo angolo; solo allora
+// compaiono i guantoni. Nel visore non si puo' muovere la testa: si sposta il riferimento della scena
+// (spazio di riferimento con uno scostamento), cosi' sei tu a "volare" e il ring resta sempre davanti a te.
+const INTRO_S = 11;
+let intro = null, baseRef = null;
+const _iR = new THREE.Matrix4(), _iT = new THREE.Matrix4(), _iRot = new THREE.Matrix4();
+function startIntro() {
+  if (mode === 'stanza' || !mike) return;
+  const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
+  const H0 = new THREE.Vector3(); cam.getWorldPosition(H0);
+  if (renderer.xr.isPresenting) baseRef = renderer.xr.getReferenceSpace();
+  intro = { t: 0, H0, C: new THREE.Vector3().setFromMatrixPosition(arena.matrixWorld), p0: camera.position.clone(), q0: camera.quaternion.clone() };
+  game.phase = 'intro'; game.phaseT = 0; game.message = '';
+  if (mode === 'arena') { sfx.cheer('applauso', 0.9); if (arenaEnv) arenaEnv.cheer(1); }
+}
+function introRig(t) {
+  const k = Math.min(1, t / INTRO_S), e = k * k * k * (k * (k * 6 - 15) + 10);       // parte e arriva dolcemente
+  const d = new THREE.Vector3(intro.H0.x - intro.C.x, 0, intro.H0.z - intro.C.z);
+  const rEnd = d.length(); d.normalize();
+  const rad = rEnd + (7 - rEnd) * Math.pow(1 - e, 1.2);       // da 7 m di distanza al tuo angolo
+  const hgt = 8 * Math.pow(1 - e, 1.5);                       // da 8 m d'altezza ai tuoi occhi
+  const phi = -2 * Math.PI * (1 - e);                         // un giro completo attorno al ring
+  _iRot.makeRotationY(phi);
+  const target = d.multiplyScalar(rad).applyMatrix4(_iRot).add(intro.C); target.y = intro.H0.y + hgt;
+  return _iR.makeTranslation(target.x, target.y, target.z).multiply(_iRot)
+    .multiply(_iT.makeTranslation(-intro.H0.x, -intro.H0.y, -intro.H0.z));
+}
+function updateIntro(dt) {
+  intro.t += dt;
+  const done = intro.t >= INTRO_S;
+  const R = done ? _iR.identity() : introRig(intro.t);
+  if (renderer.xr.isPresenting && baseRef) {
+    if (done) renderer.xr.setReferenceSpace(baseRef);
+    else {
+      const p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
+      R.clone().invert().decompose(p, q, s);
+      renderer.xr.setReferenceSpace(baseRef.getOffsetReferenceSpace(
+        new XRRigidTransform({ x: p.x, y: p.y, z: p.z }, { x: q.x, y: q.y, z: q.z, w: q.w })));
+    }
+  } else if (sim) {
+    if (done) { camera.position.copy(intro.p0); camera.quaternion.copy(intro.q0); }
+    else {
+      camera.position.copy(intro.H0).applyMatrix4(R);
+      camera.quaternion.copy(intro.q0).premultiply(new THREE.Quaternion().setFromRotationMatrix(R));
+    }
+    camera.updateMatrixWorld(true);
+  }
+  // durante il volo: niente guantoni e Mike guarda il punto dove sei davvero
+  for (const g of Object.values(player.gloves)) g.mesh.visible = false;
+  player.head.copy(intro.H0);
+  if (done) { intro = null; game.phase = 'ready'; game.phaseT = 2; }
+}
+
 // per le prove senza visore: window.stepGame(n, dt) fa avanzare il gioco di n fotogrammi
 window.stepGame = (n = 1, dt = 1 / 60) => { for (let i = 0; i < n; i++) tick(dt, null); };
 
@@ -576,8 +630,11 @@ function tick(dt, frame) {
   if (renderer.xr.isPresenting) xrFrames++;
   if (orbit) orbit.update();
   player.update(dt);
-  if (renderer.xr.isPresenting || sim) calibrateByHand(dt);
-  if (mike) updatePause(dt);
+  if (intro) updateIntro(dt);
+  else {
+    if (renderer.xr.isPresenting || sim) calibrateByHand(dt);
+    if (mike) updatePause(dt);
+  }
   if (mike) {
     mike.update(dt, player);
     handleEvents();
@@ -628,7 +685,7 @@ function updateMainMenu(dt, gloves) {
   else if (id.startsWith('d:')) { roundSecs = parseInt(id.slice(2)); try { localStorage.setItem('hb-roundsec', roundSecs); } catch (e) {} }
   else if (id.startsWith('k:')) { threeKO = id === 'k:si'; try { localStorage.setItem('hb-3ko', threeKO ? 'si' : 'no'); } catch (e) {} }
   else if (id.startsWith('r:')) { rounds = parseInt(id.slice(2)); try { localStorage.setItem('hb-rounds', rounds); } catch (e) {} }
-  else if (id === 'start') { mainMenu.close(); newMatch(); return; }
+  else if (id === 'start') { mainMenu.close(); newMatch(); startIntro(); return; }
   else if (id === 'quit') { mainMenu.close(); const s = renderer.xr.getSession(); if (s) s.end(); return; }
   mainMenu.select(['m:' + mode, 'l:' + level, 'r:' + rounds, 'd:' + roundSecs, threeKO ? 'k:si' : 'k:no']);
 }
@@ -671,13 +728,13 @@ function calibrateByHand(dt) {
 }
 
 // ---------------------------------------------------------------- avvio
-loadMikeGLTF('assets/mike.glb?v=20261003110527', f => status(`Caricamento gioco… ${Math.min(100, Math.round(f * 100))}%`)).then(gltf => {
+loadMikeGLTF('assets/mike.glb?v=20261003111236', f => status(`Caricamento gioco… ${Math.min(100, Math.round(f * 100))}%`)).then(gltf => {
   mike = new Mike(gltf, scene, level);
   girl.load().catch(e => console.warn('ragazza del ring', e));
   bruises = new Bruises(mike.model);
   mike.bounds = keepInRing;
   placeArena(new THREE.Vector3(0, 1.65, 0), 0);
-  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.getUpFx = getUp; window.gameApi = { newMatch, showMainMenu, girl: () => girl, arena: () => arena, ringSize: () => ringSize }; window.sweatFx = sweat;   // per le prove
+  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.getUpFx = getUp; window.gameApi = { newMatch, showMainMenu, startIntro, girl: () => girl, arena: () => arena, ringSize: () => ringSize }; window.sweatFx = sweat;   // per le prove
   status('');
   $('enter').disabled = !navigator.xr;
   if (navigator.xr) navigator.xr.isSessionSupported('immersive-ar').then(ok => {
@@ -702,6 +759,7 @@ $('enter').onclick = async () => {
     newMatch(); game.phase = 'menu'; setPeople(false);       // si entra nello stage con il menu, la partita non parte
     $('overlay').hidden = true;
     session.addEventListener('end', () => {
+      intro = null; baseRef = null;
       $('overlay').hidden = false; placed = false;
       if (game.paused) closePause();
       mainMenu.close();
