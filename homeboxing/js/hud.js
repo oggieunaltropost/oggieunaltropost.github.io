@@ -1,6 +1,6 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261003120554';
+import { t as tr } from './i18n.js?v=20261003121046';
 
 export class Scoreboard {
   constructor() {

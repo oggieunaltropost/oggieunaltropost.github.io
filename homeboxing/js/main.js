@@ -2,22 +2,24 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003120554';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003120554';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003120554';
-import { Player, SimInput } from './player.js?v=20261003120554';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD } from './hud.js?v=20261003120554';
-import { Room } from './room.js?v=20261003120554';
-import { Arena } from './arena.js?v=20261003120554';
-import { Beach } from './beach.js?v=20261003120554';
-import { RingGirl } from './ringgirl.js?v=20261003120554';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003120554';
-import * as sfx from './sfx.js?v=20261003120554';
-import { t, lang, setLang, onLang } from './i18n.js?v=20261003120554';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003121046';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003121046';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003121046';
+import { Player, SimInput } from './player.js?v=20261003121046';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD } from './hud.js?v=20261003121046';
+import { Room } from './room.js?v=20261003121046';
+import { Arena } from './arena.js?v=20261003121046';
+import { Beach } from './beach.js?v=20261003121046';
+import { RingGirl } from './ringgirl.js?v=20261003121046';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003121046';
+import * as sfx from './sfx.js?v=20261003121046';
+import { t, lang, setLang, onLang } from './i18n.js?v=20261003121046';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
-const status = t => { $('status').textContent = t; };
+const status = t => { $('status').textContent = t; statusK = null; };
+let statusK = null, statusV = null;            // ultimo messaggio tradotto: si riscrive al cambio lingua
+const statusT = (k, v) => { status(t(k, v)); statusK = k; statusV = v; };
 
 // ---------------------------------------------------------------- scena
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -169,7 +171,7 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003120554`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003121046`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const mainMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.0, height: 1.5, rows: [
   { label: t('where'), tk: 'where', y: 0.41, h: 0.22, buttons: [{ id: 'm:stanza', tk: 'm_stanza', w: 0.29, img: roomPreview() },
     { id: 'm:arena', tk: 'm_arena', w: 0.29, img: stageImg('arena') }, { id: 'm:spiaggia', tk: 'm_spiaggia', w: 0.29, img: stageImg('spiaggia') }] },
@@ -247,13 +249,13 @@ const KD_REFILL = [75, 50, 25];
 const getUp = new GetUpChallenge(scene);
 getUp.attachDark(camera);
 const countdown = new CountdownHUD(camera);
-const nextMenu = new MenuPanel({ title: t('next_title', { n: 2, s: 30 }), titleH: 0.045, titleW: 0.32, width: 0.36, height: 0.18, rows: [
-  { y: -0.045, h: 0.06, buttons: [{ id: 'next', tk: 'next_btn', text: t('next_btn'), w: 0.32, color: 0x1f8a4c }] },
+const nextMenu = new MenuPanel({ title: t('next_title', { n: 2, s: 30 }), titleH: 0.045, titleW: 0.3, width: 0.38, height: 0.2, rows: [
+  { y: -0.04, h: 0.06, buttons: [{ id: 'next', tk: 'next_btn', text: t('next_btn'), w: 0.29, color: 0x1f8a4c }] },
 ] });
 scene.add(nextMenu.group);
 // durante la presentazione dello speaker: conto alla rovescia e pulsante per iniziare subito
-const introMenu = new MenuPanel({ title: t('intro_title', { s: 20 }), titleH: 0.045, titleW: 0.32, width: 0.36, height: 0.18, rows: [
-  { y: -0.045, h: 0.06, buttons: [{ id: 'skip', tk: 'skip_intro', text: t('skip_intro'), w: 0.32, color: 0x1f8a4c }] },
+const introMenu = new MenuPanel({ title: t('intro_title', { s: 20 }), titleH: 0.045, titleW: 0.3, width: 0.38, height: 0.2, rows: [
+  { y: -0.04, h: 0.06, buttons: [{ id: 'skip', tk: 'skip_intro', text: t('skip_intro'), w: 0.29, color: 0x1f8a4c }] },
 ] });
 scene.add(introMenu.group);
 const fighter = () => ({ points: 0, hits: 0, blocks: 0, dodges: 0, dmg: 0, kd: 0, kdRound: 0, penalties: 0 });
@@ -575,6 +577,7 @@ onLang(l => {
   mainMenu.select(menuChoices());
   if (game.phase === 'menu') game.message = t('menu');
   showMode();
+  if (statusK) statusT(statusK, statusV);
 });
 
 // ---------------------------------------------------------------- presentazione dell'incontro (arena e spiaggia)
@@ -787,7 +790,7 @@ function calibrateByHand(dt) {
 }
 
 // ---------------------------------------------------------------- avvio
-loadMikeGLTF('assets/mike.glb?v=20261003120554', f => status(t('loading', { p: Math.min(100, Math.round(f * 100)) }))).then(gltf => {
+loadMikeGLTF('assets/mike.glb?v=20261003121046', f => statusT('loading', { p: Math.min(100, Math.round(f * 100)) })).then(gltf => {
   mike = new Mike(gltf, scene, level);
   girl.load().catch(e => console.warn('ragazza del ring', e));
   bruises = new Bruises(mike.model);
@@ -797,10 +800,10 @@ loadMikeGLTF('assets/mike.glb?v=20261003120554', f => status(t('loading', { p: M
   status('');
   $('enter').disabled = !navigator.xr;
   if (navigator.xr) navigator.xr.isSessionSupported('immersive-ar').then(ok => {
-    if (!ok) { $('enter').disabled = true; status(t('no_xr')); }
+    if (!ok) { $('enter').disabled = true; statusT('no_xr'); }
   });
   if (new URLSearchParams(location.search).has('sim')) startSim();
-}).catch(e => { console.error(e); status(t('load_err', { e: e.message })); });
+}).catch(e => { console.error(e); statusT('load_err', { e: e.message }); });
 
 $('enter').onclick = async () => {
   sfx.initAudio();
@@ -826,7 +829,7 @@ $('enter').onclick = async () => {
       newMatch(); game.phase = 'menu';              // fuori dal gioco l'incontro non va avanti da solo
       sfx.stopAll();                                // niente suoni dopo l'uscita
     });
-  } catch (e) { status(t('xr_err', { e: e.message })); }
+  } catch (e) { statusT('xr_err', { e: e.message }); }
 };
 
 // pagina nascosta (visore tolto, browser chiuso): silenzio
@@ -867,11 +870,13 @@ showLevel();
 function showMode() {
   for (const b of document.querySelectorAll('#modes button')) b.classList.toggle('on', b.dataset.mode === mode);
   $('enter').textContent = t('play');
+  for (const b of document.querySelectorAll('#langs button')) b.classList.toggle('on', b.dataset.lang === lang);
   for (const el of document.querySelectorAll('.lang-it')) el.hidden = lang !== 'it';
   for (const el of document.querySelectorAll('.lang-en')) el.hidden = lang !== 'en';
   $('sim').textContent = lang === 'it' ? 'Anteprima su PC' : 'PC preview';
   document.documentElement.lang = lang;
 }
+for (const b of document.querySelectorAll('#langs button')) b.onclick = () => setLang(b.dataset.lang);   // bandierine: lingua gia' dalla pagina
 for (const b of document.querySelectorAll('#modes button')) b.onclick = () => {
   mode = b.dataset.mode;
   try { localStorage.setItem('hb-mode', mode); } catch (e) {}
