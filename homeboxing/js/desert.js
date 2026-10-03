@@ -1,21 +1,22 @@
-// Stage "Nel deserto": il ring sulla sabbia, dune tutto intorno e altopiani di roccia rossa all'orizzonte
-// (foto a 360 gradi fatta in Blender: blender/create_desert.py). Davanti, in 3D: la sabbia vicina con le
-// increspature del vento (sfuma nella foto), sassi, cespugli secchi e ogni tanto un rotolacampo che passa.
+// Stage "Nel deserto": il ring sulla sabbia rossa del Namaqualand. Sfondo = foto vera a 360 gradi "Goegap"
+// (Poly Haven, CC0) a piena risoluzione; davanti, in 3D, solo la sabbia sotto e attorno al ring (texture
+// fotografica red_sand portata al colore della foto, sfuma nella foto entro pochi metri) e ogni tanto un
+// rotolacampo spinto dal vento. Le rocce e i cespugli sono quelli veri della foto.
 import * as THREE from 'three';
 
 const PANO_U = 0.0;
-const SUN = new THREE.Vector3(-0.338, 0.12, -0.941).normalize();      // il sole della foto (u = 0,195)
+const SUN = new THREE.Vector3(0.522, 0.744, 0.417).normalize();      // il sole della foto
 const WIND = new THREE.Vector3(0.8, 0, 0.6).normalize();
 
 export class Desert {
   constructor() {
     this.group = new THREE.Group(); this.group.name = 'deserto';
     this.sunDir = SUN.clone();
-    this._sky(); this._sand(); this._props(); this._tumble();
+    this._sky(); this._sand(); this._tumble();
     this.t = 0;
   }
   _sky() {
-    const tex = new THREE.TextureLoader().load('assets/deserto_panorama.jpg?v=20261003213105', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load('assets/deserto_panorama.jpg?v=20261003213645', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -32,54 +33,21 @@ export class Desert {
     const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 64, 32), m);
     sky.renderOrder = -10; sky.frustumCulled = false; this.group.add(sky);
   }
-  // sabbia vicina: increspature ondulate; il bordo sfuma (alpha) e lascia vedere la sabbia della foto
+  // sabbia vicina: foto di sabbia rossa (colore = quello del terreno della foto), il bordo sfuma tra 5 e 9 m
   _sand() {
-    const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d');
-    g.fillStyle = '#e8e8e8'; g.fillRect(0, 0, 512, 512);          // grigio chiaro: il colore lo da' il materiale (= quello della foto)
-    for (let i = 0; i < 9000; i++) { const v = Math.random(); g.fillStyle = `rgba(${v < 0.5 ? '170,170,170' : '255,255,255'},0.15)`; g.fillRect(Math.random() * 512, Math.random() * 512, 2, 2); }
-    for (let y = 0; y < 512; y += 16) {                    // creste delle increspature (ombra + luce)
-      for (const [dy, col] of [[0, 'rgba(150,150,150,0.35)'], [4, 'rgba(255,255,255,0.4)']]) {
-        g.strokeStyle = col; g.lineWidth = 3; g.beginPath();
-        for (let x = 0; x <= 512; x += 8) g.lineTo(x, y + dy + Math.sin(x / 512 * Math.PI * 4 + y * 0.3) * 4);
-        g.stroke();
-      }
-    }
-    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(30, 30); tex.anisotropy = 8; tex.rotation = Math.atan2(WIND.x, WIND.z);
+    const L = new THREE.TextureLoader();
+    const tex = L.load('assets/sabbia_rossa_colore.jpg?v=20261003213645'); tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(6, 6); tex.anisotropy = 8;
     const a = document.createElement('canvas'); a.width = a.height = 256; const ga = a.getContext('2d');
-    const gr = ga.createRadialGradient(128, 128, 70, 128, 128, 128); gr.addColorStop(0, '#fff'); gr.addColorStop(1, '#000');
+    const gr = ga.createRadialGradient(128, 128, 128 * 5 / 9, 128, 128, 128); gr.addColorStop(0, '#fff'); gr.addColorStop(1, '#000');
     ga.fillStyle = gr; ga.fillRect(0, 0, 256, 256);
-    const alpha = new THREE.CanvasTexture(a);
-    // stesso colore della sabbia nella foto (209,175,149), senza luci del gioco: il bordo non si vede
-    const SANDC = new THREE.Color().setRGB(209 / 255 / 0.91, 175 / 255 / 0.91, 149 / 255 / 0.91, THREE.SRGBColorSpace);
-    const sand = new THREE.Mesh(new THREE.CircleGeometry(40, 64), new THREE.MeshBasicMaterial({ map: tex, alphaMap: alpha, transparent: true, color: SANDC, depthWrite: false, toneMapped: false }));
-    sand.rotation.x = -Math.PI / 2; sand.position.y = -0.005; sand.receiveShadow = true; sand.renderOrder = -5;
-    this.group.add(sand);
-    // sotto il ring: sabbia opaca (riceve bene le ombre)
-    const under = new THREE.Mesh(new THREE.CircleGeometry(8, 48), new THREE.MeshBasicMaterial({ map: tex, color: SANDC, toneMapped: false }));
-    under.rotation.x = -Math.PI / 2; under.position.y = -0.002; under.receiveShadow = true; this.group.add(under);
-  }
-  // sassi di arenaria e cespugli secchi intorno (lontani dal ring)
-  _props() {
-    const rockM = new THREE.MeshStandardMaterial({ color: 0x9a5534, roughness: 0.9, flatShading: true });
-    for (let i = 0; i < 16; i++) {
-      const a = Math.random() * Math.PI * 2, d = 6 + Math.random() * 22, s = 0.15 + Math.random() * (d > 14 ? 0.9 : 0.4);
-      const geo = new THREE.IcosahedronGeometry(1, 1), p = geo.attributes.position;
-      for (let k = 0; k < p.count; k++) { const f = 0.75 + Math.random() * 0.5; p.setXYZ(k, p.getX(k) * f, p.getY(k) * f * 0.7, p.getZ(k) * f); }
-      geo.computeVertexNormals();
-      const r = new THREE.Mesh(geo, rockM); r.scale.setScalar(s); r.position.set(Math.cos(a) * d, s * 0.25, Math.sin(a) * d);
-      r.rotation.set(Math.random(), Math.random() * 6, Math.random()); r.castShadow = true; this.group.add(r);
-    }
-    const twig = new THREE.LineBasicMaterial({ color: 0x6b4a2c });
-    for (let i = 0; i < 22; i++) {
-      const a = Math.random() * Math.PI * 2, d = 5 + Math.random() * 25, pts = [];
-      for (let k = 0; k < 26; k++) {                      // rametti che partono dal centro verso l'alto e i lati
-        const th = Math.random() * Math.PI * 2, up = 0.15 + Math.random() * 0.35, l = 0.15 + Math.random() * 0.3;
-        pts.push(new THREE.Vector3(0, 0, 0), new THREE.Vector3(Math.cos(th) * l, up, Math.sin(th) * l));
-      }
-      const b = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), twig);
-      b.position.set(Math.cos(a) * d, 0, Math.sin(a) * d); b.scale.setScalar(0.7 + Math.random() * 0.8); this.group.add(b);
-    }
+    const sand = new THREE.Mesh(new THREE.CircleGeometry(9, 64), new THREE.MeshBasicMaterial({ map: tex, alphaMap: new THREE.CanvasTexture(a), transparent: true, depthWrite: false, toneMapped: false }));
+    sand.rotation.x = -Math.PI / 2; sand.position.y = -0.005; sand.renderOrder = -5; this.group.add(sand);
+    // sotto il ring: opaca e illuminata (riceve le ombre dei pugili)
+    const nor = L.load('assets/sabbia_rossa_rilievo.jpg?v=20261003213645'); nor.wrapS = nor.wrapT = THREE.RepeatWrapping; nor.repeat.set(3, 3);
+    const t2 = tex.clone(); t2.repeat.set(3, 3); t2.needsUpdate = true;
+    const under = new THREE.Mesh(new THREE.CircleGeometry(4.5, 48), new THREE.MeshStandardMaterial({ map: t2, normalMap: nor, roughness: 0.95 }));
+    under.rotation.x = -Math.PI / 2; under.position.y = -0.003; under.receiveShadow = true; this.group.add(under);
   }
   // rotolacampo: palla di rametti che rotola col vento, saltellando
   _tumble() {

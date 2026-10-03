@@ -7,6 +7,20 @@ const _hp = new THREE.Vector3(), _hd = new THREE.Vector3(), _hq = new THREE.Quat
 const SPEED = 0.62;          // m/s: un ciclo di camminata (1.33 s) = 83 cm (blender/create_ringgirl.py)
 // Materiali dei personaggi MakeHuman: niente trasparenza sulla pelle e sui vestiti (altrimenti si vede
 // "dentro" la testa e il viso sembra tagliato); capelli, sopracciglia e occhi con ritaglio netto.
+// capelli chiari (bionda): si tiene il chiaroscuro delle ciocche e si ricolora
+function tintHair(m, hex) {
+  const img = m.map && m.map.image; if (!img || !img.width) return;
+  const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  const d = g.getImageData(0, 0, c.width, c.height), p = d.data, col = new THREE.Color(hex);
+  let sum = 0, n = 0;
+  for (let i = 0; i < p.length; i += 4) if (p[i + 3] > 128) { sum += p[i] + p[i + 1] + p[i + 2]; n++; }
+  const mean = Math.max(1, sum / Math.max(1, n));
+  for (let i = 0; i < p.length; i += 4) { const k = Math.min(1.35, (p[i] + p[i + 1] + p[i + 2]) / mean) * 255; p[i] = Math.min(255, col.r * k); p[i + 1] = Math.min(255, col.g * k); p[i + 2] = Math.min(255, col.b * k); }
+  g.putImageData(d, 0, 0);
+  const t = new THREE.CanvasTexture(c), o = m.map; t.flipY = o.flipY; t.colorSpace = o.colorSpace; t.wrapS = o.wrapS; t.wrapT = o.wrapT;
+  m.map = t; m.color.set(0xffffff); m.needsUpdate = true;
+}
 export function fixHumanMaterial(o) {
   const m = o.material, n = (m.name || '').toLowerCase();
   if (/eyebrow|eyelash/.test(n)) { m.transparent = true; m.alphaTest = 0.04; m.depthWrite = false; m.opacity = 0.7; o.renderOrder = 2; }   // sopracciglia sottili e sfumate
@@ -16,6 +30,15 @@ export function fixHumanMaterial(o) {
   m.depthWrite = true; m.side = THREE.FrontSide; m.needsUpdate = true;
 }
 
+// cinque ragazze (blender/create_ringgirl.py var=0..4): stessa struttura e animazioni, cambiano pelle, capelli,
+// completo e colore del numero sul cartello. Una a caso per incontro, la stessa per tutto l'incontro.
+export const GIRLS = [
+  { glb: 'assets/ringgirl.glb?v=20261003213645', ink: '#c4161f', band: '#c4161f' },                          // mora, rosso e oro
+  { glb: 'assets/ringgirl_1.glb?v=20261003213645', ink: '#b8860b', band: '#111111' },                        // di colore, oro e nero
+  { glb: 'assets/ringgirl_2.glb?v=20261003213645', ink: '#c4161f', band: '#c4161f' },                        // cinese, bianco e rosso
+  { glb: 'assets/ringgirl_3.glb?v=20261003213645', ink: '#1d4fc4', band: '#1d4fc4', hair: '#e8c47c' },       // bionda, blu e argento
+  { glb: 'assets/ringgirl_4.glb?v=20261003213645', ink: '#8a2be2', band: '#d6407a' },                        // latina, viola e rosa
+];
 export class RingGirl {
   constructor(scene) {
     this.root = new THREE.Group(); this.root.name = 'ragazza del ring'; this.root.visible = false;
@@ -25,14 +48,29 @@ export class RingGirl {
     this.ready = false;
   }
 
-  async load(url = 'assets/ringgirl.glb?v=20261003213105') {
-    const g = await new GLTFLoader().loadAsync(url);
+  // sceglie la ragazza dell'incontro (indice in GIRLS, o a caso); la carica se serve e prende il posto della precedente
+  async pick(i = Math.floor(Math.random() * GIRLS.length)) {
+    if (this.variant === i && this.ready) return;
+    this.variant = i; this.ink = GIRLS[i].ink; this.bandC = GIRLS[i].band;
+    const tok = (this._tok = (this._tok || 0) + 1);
+    this.cache = this.cache || {};
+    const g = this.cache[i] || (this.cache[i] = await new GLTFLoader().loadAsync(GIRLS[i].glb));
+    if (tok !== this._tok) return;                                     // nel frattempo ne e' stata scelta un'altra
+    const wasVisible = this.root.visible;
+    if (this.model) this.root.remove(this.model);
+    this.ready = false;
+    this._setup(g, GIRLS[i]);
+    this.root.visible = wasVisible;
+  }
+  async load() { return this.pick(0); }
+  _setup(g, V) {
     this.model = g.scene; this.root.add(this.model);
     this.model.traverse(o => {
       if (!o.isMesh) return;
       o.frustumCulled = false; o.castShadow = true;
       const n = o.material.name || '';
-      if (n === 'Cartello') {
+      if (n === 'Cartello' || o.userData.isCard) {
+        o.userData.isCard = true;
         // mappatura piana: tutto il disegno (ROUND + numero) sulla faccia grande, davanti e dietro
         const g = o.geometry; g.computeBoundingBox();
         const bb = g.boundingBox, pos = g.attributes.position, uv = new Float32Array(pos.count * 2);
@@ -47,7 +85,10 @@ export class RingGirl {
         o.material = new THREE.MeshBasicMaterial({ map: this.tex, toneMapped: false });
         this.card = o;
       }
-      else { fixHumanMaterial(o); if (/body/i.test(o.name)) o.material.color.setScalar(0.8); }   // pelle meno sbiancata dai fari
+      else {
+        fixHumanMaterial(o); if (/body/i.test(o.name)) o.material.color.setScalar(0.8);   // pelle meno sbiancata dai fari
+        if (V.hair && /hair|long0|bob0|ponytail|braid|afro/i.test(o.material.name || '') && !o.userData.tinted) { o.userData.tinted = true; tintHair(o.material, V.hair); }
+      }
     });
     this.mixer = new THREE.AnimationMixer(this.model);
     this.walk = this.mixer.clipAction(g.animations.find(a => a.name === 'cammina'));
@@ -73,10 +114,10 @@ export class RingGirl {
   _draw(round) {
     const g = this.canvas.getContext('2d'), W = 512, H = 360;
     g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
-    g.fillStyle = '#c4161f'; g.fillRect(0, 0, W, 22); g.fillRect(0, H - 22, W, 22);
+    g.fillStyle = this.bandC || '#c4161f'; g.fillRect(0, 0, W, 22); g.fillRect(0, H - 22, W, 22);
     g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillStyle = '#111'; g.font = '900 78px system-ui, sans-serif'; g.fillText('ROUND', W / 2, 98);
-    g.fillStyle = '#c4161f'; g.font = '900 190px system-ui, sans-serif'; g.fillText(String(round), W / 2, 240);
+    g.fillStyle = this.ink || '#c4161f'; g.font = '900 190px system-ui, sans-serif'; g.fillText(String(round), W / 2, 240);
     this.tex.needsUpdate = true;
   }
 

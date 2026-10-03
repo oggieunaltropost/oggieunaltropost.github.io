@@ -2,24 +2,24 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003213105';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003213105';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003213105';
-import { Player, SimInput } from './player.js?v=20261003213105';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003213105';
-import { Room } from './room.js?v=20261003213105';
-import { Arena } from './arena.js?v=20261003213105';
-import { Beach } from './beach.js?v=20261003213105';
-import { Rooftop } from './rooftop.js?v=20261003213105';
-import { Desert } from './desert.js?v=20261003213105';
-import { RingGirl } from './ringgirl.js?v=20261003213105';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003213105';
-import * as sfx from './sfx.js?v=20261003213105';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003213105';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003213105';
-import { Tournament, BracketView } from './tournament.js?v=20261003213105';
-import { CpuMatch } from './cpu_match.js?v=20261003213105';
-import { TowerView } from './tower.js?v=20261003213105';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003213645';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003213645';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003213645';
+import { Player, SimInput } from './player.js?v=20261003213645';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003213645';
+import { Room } from './room.js?v=20261003213645';
+import { Arena } from './arena.js?v=20261003213645';
+import { Beach } from './beach.js?v=20261003213645';
+import { Rooftop } from './rooftop.js?v=20261003213645';
+import { Desert } from './desert.js?v=20261003213645';
+import { RingGirl } from './ringgirl.js?v=20261003213645';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003213645';
+import * as sfx from './sfx.js?v=20261003213645';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003213645';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003213645';
+import { Tournament, BracketView } from './tournament.js?v=20261003213645';
+import { CpuMatch } from './cpu_match.js?v=20261003213645';
+import { TowerView } from './tower.js?v=20261003213645';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -178,11 +178,11 @@ function applyMode() {
   if (arenaEnv) arenaEnv.group.visible = inArena;
   if (beachEnv) beachEnv.group.visible = onBeach;
   room.group.visible = mode === 'stanza';
-  if (onDesert) {                                      // deserto nel pomeriggio inoltrato: sole basso e dorato
-    hemi.color.set(0xa9c2e6); hemi.groundColor.set(0xc9905a); hemi.intensity = 0.8;
-    scene.environmentIntensity = 0.7; key.intensity = 2.8; fill.intensity = 0.45;
-    key.color.set(0xffd2a0); key.position.copy(desertEnv.sunDir).multiplyScalar(6).setY(2.4);
-    scene.background = new THREE.Color(0x9cb6d8); scene.fog = null;
+  if (onDesert) {                                      // deserto vero a mezzogiorno: sole alto e forte, cielo blu intenso
+    hemi.color.set(0x8fb0f0); hemi.groundColor.set(0xb8865a); hemi.intensity = 0.8;
+    scene.environmentIntensity = 0.75; key.intensity = 3.0; fill.intensity = 0.45;
+    key.color.set(0xfff4e2); key.position.copy(desertEnv.sunDir).multiplyScalar(6);
+    scene.background = new THREE.Color(0x3a63b0); scene.fog = null;
     const useSky = () => {
       if (!desertEnv.envMap) desertEnv.envMap = pmrem.fromEquirectangular(desertEnv.skyTex).texture;
       if (mode === 'deserto') { scene.environment = desertEnv.envMap; scene.environmentRotation.set(0, -Math.PI / 2, 0); }
@@ -259,7 +259,7 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003213105`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003213645`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -963,6 +963,7 @@ async function startFight(opponentId) {
   closeMenus(); fightStarting = true;
   setStage(pickStage());
   await setFighter(opponentId);
+  girl.pick().catch(e => console.warn('ragazza del ring', e));   // una ragazza a caso, la stessa per tutto l'incontro
   fightStarting = false; closeMenus();
   mike.setRamp(rampNow());
   newMatch(); startPresentation();
