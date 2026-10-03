@@ -134,6 +134,8 @@ export class Mike {
       if (m.envMapIntensity !== undefined) m.envMapIntensity = 0.8;
     });
     this.brandShorts();
+    if (this.cfg0.noStubble) this.model.traverse(o => { if (o.isMesh && o.material.name === 'Capelli') o.visible = false; });
+    if (this.cfg0.glow) this.model.traverse(o => { if (o.isMesh && this.cfg0.glow.includes(o.material.name)) { o.material.emissive.copy(o.material.color); o.material.emissiveIntensity = o.material.name === 'Cresta' ? 1.4 : 0.6; o.material.toneMapped = false; } });
     if (this.cfg0.evenSkin !== false) this.evenSkin();
     if (this.cfg0.skinTint) this.model.traverse(o => { if (o.isMesh && o.material.name === 'Pelle') o.material.color.setHex(this.cfg0.skinTint); });
     const bone = n => this.model.getObjectByName(n);
@@ -184,7 +186,12 @@ export class Mike {
       const sk = this.face.skeleton, hi = sk.bones.findIndex(b => b.name === 'head');
       const cav = new THREE.Mesh(new THREE.SphereGeometry(0.024, 16, 12), new THREE.MeshBasicMaterial({ color: 0x1a0806 }));
       cav.scale.set(1.5, 1.1, 0.8);
-      cav.position.set(0, 1.612, 0.118).applyMatrix4(this.face.bindMatrix).applyMatrix4(sk.boneInverses[hi]);
+      // dietro ai denti (cosi' va bene per ogni pugile, alto o basso)
+      let teeth = null; this.model.traverse(o => { if (o.isMesh && /teeth/i.test(o.material.name || o.name)) teeth = o; });
+      if (teeth) {
+        teeth.geometry.computeBoundingBox(); const c = teeth.geometry.boundingBox.getCenter(new THREE.Vector3());
+        cav.position.copy(c).applyMatrix4(teeth.bindMatrix).applyMatrix4(sk.boneInverses[hi]);
+      } else cav.position.set(0, 1.612, 0.118).applyMatrix4(this.face.bindMatrix).applyMatrix4(sk.boneInverses[hi]);
       sk.bones[hi].add(cav);
     }
     this.blinkT = 2; this.pain = 0; this.breath = 0;
@@ -363,6 +370,9 @@ export class Mike {
   applyRound(round) {
     this.round = round;
     const t = Math.min(0.25, 0.025 * (round - 1)), b = { ...MIKE, ...LEVELS[this.levelName] };
+    const md = this.cfg0.mods;                           // stile del pugile (es. Eddy agile)
+    if (md) { b.moveSpeed *= md.moveSpeed || 1; b.defenseSpeed *= md.defenseSpeed || 1; b.evade = Math.min(0.95, (b.evade ?? 0) + (md.evade || 0));
+      b.attackEvery = b.attackEvery.map(v => v * (md.attackEvery || 1)); }
     this.cfg = { ...b,
       punchSpeed: b.punchSpeed * (1 - 0.6 * t), moveSpeed: b.moveSpeed * (1 - 0.6 * t), defenseSpeed: b.defenseSpeed * (1 - 0.8 * t),
       reactChance: b.reactChance * (1 - 0.6 * t), reactDelay: b.reactDelay.map(v => v + 0.12 * t),
