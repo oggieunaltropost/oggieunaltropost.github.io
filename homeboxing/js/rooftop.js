@@ -1,0 +1,153 @@
+// Stage "In cima al grattacielo": il ring sul tetto di una torre a 260 m, poco piu' largo del ring.
+// Tutto intorno la citta' al tramonto (foto a 360 gradi fatta in Blender: blender/create_city.py), davanti
+// in 3D il tetto, il parapetto di vetro, le luci rosse e le facciate della torre che scendono fino alla citta'.
+// Ogni tanto passa un elicottero (il suono lo fa sfx.heli, spaziale: piu' forte quando e' vicino).
+// Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
+import * as THREE from 'three';
+
+const PANO_U = 0.0;               // rotazione del panorama (il sole della foto a sinistra, un po' dietro)
+const TOWER_H = 260;              // dal tetto alla strada
+const SUN = new THREE.Vector3(-0.575, 0.05, -0.818).normalize();   // dove sta il sole nella foto (u = 0,152 con PANO_U = 0)
+
+export class Rooftop {
+  constructor(ringSize) {
+    this.group = new THREE.Group(); this.group.name = 'grattacielo';
+    this.sunDir = SUN.clone();
+    this.S = ringSize + 1.5;                       // lato del tetto: poco piu' del ring
+    this._sky(); this._roof(); this._tower(); this._heli();
+    this.t = 0;
+  }
+
+  _sky() {
+    const tex = new THREE.TextureLoader().load('assets/citta_panorama.jpg?v=20261003211235', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
+    this.skyTex = tex;
+    const m = new THREE.ShaderMaterial({
+      side: THREE.BackSide, depthWrite: false, fog: false,
+      uniforms: { uPano: { value: tex }, uU: { value: PANO_U } },
+      vertexShader: `varying vec3 vD; void main(){ vD = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      fragmentShader: `uniform sampler2D uPano; uniform float uU; varying vec3 vD;
+        void main(){ vec3 d = normalize(vD);
+          vec2 uv = vec2(fract(atan(d.z, d.x) * 0.15915494 + 0.5 + uU), asin(clamp(d.y, -1.0, 1.0)) * 0.31830989 + 0.5);
+          gl_FragColor = vec4(texture2D(uPano, uv).rgb, 1.0);
+          #include <colorspace_fragment>
+        }`,
+    });
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 64, 32), m);
+    sky.renderOrder = -10; sky.frustumCulled = false;
+    this.group.add(sky);
+  }
+
+  // tetto: pavimento di lastre, cordolo, parapetto di vetro con corrimano, luci rosse agli angoli
+  _roof() {
+    const S = this.S, h = S / 2;
+    const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d');
+    g.fillStyle = '#6f7177'; g.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 2600; i++) { const v = 95 + Math.random() * 40 | 0; g.fillStyle = `rgba(${v},${v},${v + 4},0.25)`; g.fillRect(Math.random() * 512, Math.random() * 512, 2, 2); }
+    g.strokeStyle = 'rgba(30,32,36,0.8)'; g.lineWidth = 3;
+    for (let k = 0; k <= 512; k += 128) { g.beginPath(); g.moveTo(k, 0); g.lineTo(k, 512); g.moveTo(0, k); g.lineTo(512, k); g.stroke(); }
+    const ft = new THREE.CanvasTexture(c); ft.colorSpace = THREE.SRGBColorSpace; ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(S / 2.4, S / 2.4); ft.anisotropy = 4;
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(S, 0.3, S), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.9 }));
+    floor.position.y = -0.16; floor.receiveShadow = true; this.group.add(floor);
+    const metal = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: 0.85, roughness: 0.3 });
+    const curbM = new THREE.MeshStandardMaterial({ color: 0x3a3d43, roughness: 0.7 });
+    const glass = new THREE.MeshPhysicalMaterial({ color: 0xbfd6e6, metalness: 0, roughness: 0.05, transmission: 0, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
+    for (let k = 0; k < 4; k++) {
+      const a = k * Math.PI / 2, side = new THREE.Group(); side.rotation.y = a;
+      const curb = new THREE.Mesh(new THREE.BoxGeometry(S + 0.3, 0.25, 0.3), curbM); curb.position.set(0, 0.1, h); side.add(curb);
+      const pane = new THREE.Mesh(new THREE.PlaneGeometry(S, 1.0), glass); pane.position.set(0, 0.73, h + 0.02); pane.renderOrder = 5; side.add(pane);
+      const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, S + 0.1, 10), metal); rail.rotation.z = Math.PI / 2; rail.position.set(0, 1.25, h + 0.02); side.add(rail);
+      for (let p = -2; p <= 2; p++) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.05, 0.05), metal); post.position.set(p * S / 4.2, 0.75, h + 0.02); side.add(post);
+      }
+      this.group.add(side);
+    }
+    // luci rosse di segnalazione sugli angoli (lampeggiano)
+    this.beacons = [];
+    for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 1.6, 8), metal); pole.position.set(sx * (h + 0.05), 0.8, sz * (h + 0.05)); this.group.add(pole);
+      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 8), new THREE.MeshBasicMaterial({ color: 0xff2010, toneMapped: false }));
+      lamp.position.set(sx * (h + 0.05), 1.65, sz * (h + 0.05)); this.group.add(lamp); this.beacons.push(lamp);
+    }
+  }
+
+  // le facciate: vetro scuro con le righe dei piani e qualche finestra accesa; scendono fino alla citta'
+  _tower() {
+    const S = this.S, w = S + 0.3;
+    const c = document.createElement('canvas'); c.width = 256; c.height = 1024; const g = c.getContext('2d');
+    g.fillStyle = '#1a2230'; g.fillRect(0, 0, 256, 1024);
+    const floors = 64, cols = 6, fh = 1024 / floors, cw = 256 / cols;
+    for (let f = 0; f < floors; f++) for (let k = 0; k < cols; k++) {
+      const on = Math.random() < 0.07;
+      g.fillStyle = on ? (Math.random() < 0.5 ? '#ffcf86' : '#ffe2b0') : (Math.random() < 0.5 ? '#26324a' : '#2e3a52');
+      g.fillRect(k * cw + 3, f * fh + 3, cw - 6, fh - 5);
+    }
+    g.fillStyle = '#5b6372'; for (let f = 0; f < floors; f++) g.fillRect(0, f * fh, 256, 2);   // marcapiani
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(1, TOWER_H / (floors * 3.6)); tex.anisotropy = 8;
+    const em = tex.clone(); em.needsUpdate = true;
+    const mat = new THREE.MeshStandardMaterial({ map: tex, emissiveMap: em, emissive: 0xffffff, emissiveIntensity: 0.55, metalness: 0.4, roughness: 0.25 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(w, TOWER_H, w), mat);
+    body.position.y = -0.3 - TOWER_H / 2; this.group.add(body);
+    this.towerMat = mat;
+  }
+
+  // elicottero: fusoliera, coda, rotori, pattini, luci
+  _heli() {
+    const H = new THREE.Group(); H.visible = false;
+    const paint = new THREE.MeshStandardMaterial({ color: 0x1d2b4a, metalness: 0.5, roughness: 0.35 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x111316, roughness: 0.6 });
+    const glassM = new THREE.MeshStandardMaterial({ color: 0x0a1018, metalness: 0.8, roughness: 0.1 });
+    const body = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), paint); body.scale.set(1.3, 1.25, 2.6); H.add(body);
+    const cab = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), glassM); cab.scale.set(1.15, 1.0, 1.4); cab.position.set(0, 0.25, -1.5); H.add(cab);
+    const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.4, 6, 10), paint); tail.rotation.x = Math.PI / 2; tail.position.set(0, 0.35, 4.8); H.add(tail);
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.4, 0.9), paint); fin.position.set(0, 1.0, 7.6); H.add(fin);
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.6, 8), dark); mast.position.set(0, 1.45, -0.2); H.add(mast);
+    const rotor = new THREE.Group(); rotor.position.set(0, 1.75, -0.2);
+    for (let k = 0; k < 4; k++) { const b = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.04, 0.32), dark); b.position.x = 2.8; const arm = new THREE.Group(); arm.rotation.y = k * Math.PI / 2; arm.add(b); rotor.add(arm); }
+    H.add(rotor);
+    const trot = new THREE.Group(); trot.position.set(0.25, 1.1, 7.7);
+    for (let k = 0; k < 2; k++) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.3, 0.14), dark); b.rotation.x = k * Math.PI / 2; trot.add(b); }
+    H.add(trot);
+    for (const sx of [-1, 1]) {
+      const skid = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 4.2, 8), dark); skid.rotation.x = Math.PI / 2; skid.position.set(sx * 1.05, -1.45, -0.4); H.add(skid);
+      for (const z of [-1.6, 0.6]) { const st = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.6, 6), dark); st.position.set(sx * 0.95, -1.15, z); H.add(st); }
+    }
+    this.heliLights = [[0xff2010, [-1.3, 0, -0.4]], [0x20ff40, [1.3, 0, -0.4]], [0xffffff, [0, -1.2, 0]]].map(([col, p]) => {
+      const l = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), new THREE.MeshBasicMaterial({ color: col, toneMapped: false }));
+      l.position.set(...p); H.add(l); return l;
+    });
+    this.heli = H; this.rotor = rotor; this.trot = trot;
+    this.group.add(H);
+    this.nextHeli = 12 + Math.random() * 15;
+    this.flight = null;
+  }
+  // nuovo passaggio: una retta che passa a 70-220 m da te, all'altezza del tetto (+-50 m), a 30-45 m/s
+  _newFlight() {
+    const a = Math.random() * Math.PI * 2, dist = 70 + Math.random() * 150, dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+    const side = new THREE.Vector3(-dir.z, 0, dir.x), y = -30 + Math.random() * 80, L = 700;
+    const mid = side.clone().multiplyScalar(dist).setY(y);
+    this.flight = { from: mid.clone().addScaledVector(dir, -L / 2), to: mid.clone().addScaledVector(dir, L / 2), t: 0, dur: L / (30 + Math.random() * 15), dir };
+    this.heli.visible = true;
+  }
+  // ritorna la posizione (nel mondo) dell'elicottero se sta volando, per il suono
+  update(dt) {
+    this.t += dt;
+    const blink = (this.t % 1.4) < 0.25;
+    for (const b of this.beacons) b.visible = blink;
+    if (!this.flight) {
+      this.nextHeli -= dt;
+      if (this.nextHeli <= 0) this._newFlight();
+      return null;
+    }
+    const F = this.flight; F.t += dt;
+    const k = F.t / F.dur;
+    if (k >= 1) { this.flight = null; this.heli.visible = false; this.nextHeli = 35 + Math.random() * 50; return null; }
+    this.heli.position.lerpVectors(F.from, F.to, k);
+    this.heli.position.y += Math.sin(this.t * 0.7) * 1.5;
+    this.heli.rotation.set(0.12, Math.atan2(-F.dir.x, -F.dir.z), Math.sin(this.t * 0.5) * 0.05);   // muso avanti, un po' inclinato
+    this.rotor.rotation.y += dt * 38; this.trot.rotation.x += dt * 60;
+    this.heliLights[0].visible = this.heliLights[1].visible = true; this.heliLights[2].visible = (this.t % 1.1) < 0.12;
+    return this.heli.getWorldPosition(new THREE.Vector3());
+  }
+}

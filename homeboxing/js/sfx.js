@@ -33,7 +33,7 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
-import { FIGHTER_IDS } from './fighters.js?v=20261003210134';
+import { FIGHTER_IDS } from './fighters.js?v=20261003211235';
 // Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
@@ -48,7 +48,7 @@ let vbuf = {}, vLang = 'it';
 let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261003210134`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261003211235`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
@@ -84,7 +84,7 @@ export function voiceRate(name, rate = 1, gain = 1.0) {
 
 // uscendo dal gioco: silenzio totale (si riaccende con initAudio)
 export function stopAll() {
-  crowdAmbient(false); seaAmbient(false);
+  crowdAmbient(false); seaAmbient(false); windAmbient(false); heliStop();
   if (ctx && ctx.state === 'running') ctx.suspend();
 }
 
@@ -157,9 +157,9 @@ const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261003210134`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261003211235`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
-  loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); });
+  loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (windWanted && !wind) windAmbient(true); });
   return loading;
 }
 function loopSrc(b, gain) {
@@ -212,6 +212,69 @@ export function gull(pos, cam) {
   s.playbackRate.value = 0.9 + Math.random() * 0.25;
   const g = ctx.createGain(); g.gain.value = 0.55;
   s.connect(g); g.connect(p); p.connect(master); s.start();
+}
+// ascoltatore (orecchie) dove sta la testa: per i suoni spaziali (gabbiani, elicottero)
+function setListener(cam) {
+  const L = ctx.listener, cp = cam.getWorldPosition(new cam.position.constructor()), f = cam.getWorldDirection(new cam.position.constructor());
+  const up = new cam.position.constructor(0, 1, 0).applyQuaternion(cam.getWorldQuaternion(new cam.quaternion.constructor()));
+  if (L.positionX) { L.positionX.value = cp.x; L.positionY.value = cp.y; L.positionZ.value = cp.z;
+    L.forwardX.value = f.x; L.forwardY.value = f.y; L.forwardZ.value = f.z; L.upX.value = up.x; L.upY.value = up.y; L.upZ.value = up.z; }
+  else { L.setPosition(cp.x, cp.y, cp.z); L.setOrientation(f.x, f.y, f.z, up.x, up.y, up.z); }
+}
+// suoni sintetizzati in un buffer (nessun file): vento d'alta quota ed elicottero
+function synthBuffer(secs, fn) {
+  const n = Math.floor(ctx.sampleRate * secs), b = ctx.createBuffer(1, n, ctx.sampleRate), d = b.getChannelData(0);
+  fn(d, ctx.sampleRate); return b;
+}
+let wind = null, windWanted = false, heliSrc = null, heliBuf = null;
+export function windAmbient(on) {
+  windWanted = on;
+  if (!ctx) return;
+  if (on && !wind) {
+    const buf = synthBuffer(8, (d, sr) => {                // rumore "rosa" morbido che sale e scende (raffiche)
+      let b0 = 0, b1 = 0, b2 = 0;
+      for (let i = 0; i < d.length; i++) {
+        const w = Math.random() * 2 - 1;
+        b0 = 0.997 * b0 + w * 0.029; b1 = 0.985 * b1 + w * 0.032; b2 = 0.95 * b2 + w * 0.048;
+        const t = i / sr, gust = 0.55 + 0.45 * Math.sin(t * Math.PI * 2 / 8) * Math.sin(t * Math.PI * 2 / 2.67 + 1);
+        d[i] = (b0 + b1 + b2) * gust;
+      }
+      const f = Math.floor(sr * 0.5); for (let i = 0; i < f; i++) { const k = i / f; d[i] = d[i] * k + d[d.length - f + i] * (1 - k); }   // giro chiuso
+    });
+    const s = ctx.createBufferSource(); s.buffer = buf; s.loop = true;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
+    const g = ctx.createGain(); g.gain.value = 0.32;
+    s.connect(lp); lp.connect(g); g.connect(master); s.start();
+    wind = { s, g };
+  } else if (!on && wind) { wind.s.stop(); wind = null; heliStop(); }
+}
+// elicottero: colpi delle pale (~5,5 al secondo) + turbina; suono spaziale, piu' forte quando e' vicino (mai troppo)
+export function heli(pos, cam) {
+  if (!ctx || ctx.state !== 'running') return;
+  if (!heliSrc) {
+    if (!heliBuf) heliBuf = synthBuffer(2, (d, sr) => {
+      let lp = 0;
+      for (let i = 0; i < d.length; i++) {
+        const t = i / sr, ph = (t * 5.5) % 1;                // un colpo di pala ogni 1/5.5 s (2 s = 11 colpi: loop perfetto)
+        const slap = Math.exp(-ph * 18) * (Math.random() * 2 - 1) * 0.9 + Math.exp(-ph * 9) * Math.sin(2 * Math.PI * 68 * t) * 0.6;
+        lp = lp * 0.82 + (Math.random() * 2 - 1) * 0.18;     // rombo continuo
+        d[i] = slap + lp * 0.5 + Math.sin(2 * Math.PI * 1150 * t) * 0.025;   // + fischio della turbina
+      }
+    });
+    const s = ctx.createBufferSource(); s.buffer = heliBuf; s.loop = true;
+    const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 45; p.rolloffFactor = 1.3; p.maxDistance = 2000;
+    const g = ctx.createGain(); g.gain.value = 0.0; g.gain.setTargetAtTime(0.45, ctx.currentTime, 1.5);
+    s.connect(g); g.connect(p); p.connect(master); s.start();
+    heliSrc = { s, p, g };
+  }
+  setListener(cam);
+  const P = heliSrc.p;
+  if (P.positionX) { P.positionX.value = pos.x; P.positionY.value = pos.y; P.positionZ.value = pos.z; } else P.setPosition(pos.x, pos.y, pos.z);
+}
+export function heliStop() {
+  if (!heliSrc) return;
+  const h = heliSrc; heliSrc = null;
+  h.g.gain.setTargetAtTime(0, ctx.currentTime, 0.4); setTimeout(() => { try { h.s.stop(); } catch (e) {} }, 1500);
 }
 // x = eccitazione del pubblico (0..1): il brusio cresce e partono i cori
 export function crowdLevel(x) {
