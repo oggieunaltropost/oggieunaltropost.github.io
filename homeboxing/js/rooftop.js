@@ -19,7 +19,7 @@ export class Rooftop {
   }
 
   _sky() {
-    const tex = new THREE.TextureLoader().load('assets/citta_panorama.jpg?v=20261003211235', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load('assets/citta_panorama.jpg?v=20261003211950', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({

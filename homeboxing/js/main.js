@@ -2,23 +2,24 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003211235';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003211235';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003211235';
-import { Player, SimInput } from './player.js?v=20261003211235';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003211235';
-import { Room } from './room.js?v=20261003211235';
-import { Arena } from './arena.js?v=20261003211235';
-import { Beach } from './beach.js?v=20261003211235';
-import { Rooftop } from './rooftop.js?v=20261003211235';
-import { RingGirl } from './ringgirl.js?v=20261003211235';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003211235';
-import * as sfx from './sfx.js?v=20261003211235';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003211235';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003211235';
-import { Tournament, BracketView } from './tournament.js?v=20261003211235';
-import { CpuMatch } from './cpu_match.js?v=20261003211235';
-import { TowerView } from './tower.js?v=20261003211235';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003211950';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003211950';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003211950';
+import { Player, SimInput } from './player.js?v=20261003211950';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003211950';
+import { Room } from './room.js?v=20261003211950';
+import { Arena } from './arena.js?v=20261003211950';
+import { Beach } from './beach.js?v=20261003211950';
+import { Rooftop } from './rooftop.js?v=20261003211950';
+import { Desert } from './desert.js?v=20261003211950';
+import { RingGirl } from './ringgirl.js?v=20261003211950';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003211950';
+import * as sfx from './sfx.js?v=20261003211950';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003211950';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003211950';
+import { Tournament, BracketView } from './tournament.js?v=20261003211950';
+import { CpuMatch } from './cpu_match.js?v=20261003211950';
+import { TowerView } from './tower.js?v=20261003211950';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -153,7 +154,7 @@ try { level = localStorage.getItem('hb-level') || 'normale'; } catch (e) {}
 if (!LEVELS[level]) level = 'normale';
 // dove si gioca: 'stanza' = realta' mista nella tua stanza, 'arena' = palazzetto virtuale con il pubblico,
 // 'spiaggia' = ring sulla sabbia in riva al mare
-const MODES = ['stanza', 'arena', 'spiaggia', 'grattacielo'];
+const MODES = ['stanza', 'arena', 'spiaggia', 'grattacielo', 'deserto'];
 let mode = 'stanza';
 try { mode = localStorage.getItem('hb-mode') || 'stanza'; } catch (e) {}
 // stage scelto nel menu: uno dei tre oppure 'random' (estratto a ogni incontro tra gli stage virtuali)
@@ -164,17 +165,31 @@ try { gameMode = localStorage.getItem('hb-gamemode') || 'arcade'; } catch (e) {}
 let tour = null;                      // torneo in corso
 
 if (!MODES.includes(mode)) mode = 'stanza';
-let arenaEnv = null, beachEnv = null, roofEnv = null;
+let arenaEnv = null, beachEnv = null, roofEnv = null, desertEnv = null;
 function applyMode() {
   const inArena = mode === 'arena', onBeach = mode === 'spiaggia', onRoof = mode === 'grattacielo';
   if (onRoof && !roofEnv) { roofEnv = new Rooftop(RING_SIZE); arena.add(roofEnv.group); }
   if (roofEnv) roofEnv.group.visible = onRoof;
+  const onDesert = mode === 'deserto';
+  if (onDesert && !desertEnv) { desertEnv = new Desert(); arena.add(desertEnv.group); }
+  if (desertEnv) desertEnv.group.visible = onDesert;
   if (inArena && !arenaEnv) { arenaEnv = new Arena(RING_SIZE); arena.add(arenaEnv.group); }
   if (onBeach && !beachEnv) { beachEnv = new Beach(); arena.add(beachEnv.group); }
   if (arenaEnv) arenaEnv.group.visible = inArena;
   if (beachEnv) beachEnv.group.visible = onBeach;
   room.group.visible = mode === 'stanza';
-  if (onRoof) {                                        // tramonto in cima al grattacielo: sole basso e caldo, cielo dalla foto
+  if (onDesert) {                                      // deserto nel pomeriggio inoltrato: sole basso e dorato
+    hemi.color.set(0xa9c2e6); hemi.groundColor.set(0xc9905a); hemi.intensity = 0.8;
+    scene.environmentIntensity = 0.7; key.intensity = 2.8; fill.intensity = 0.45;
+    key.color.set(0xffd2a0); key.position.copy(desertEnv.sunDir).multiplyScalar(6).setY(2.4);
+    scene.background = new THREE.Color(0x9cb6d8); scene.fog = null;
+    const useSky = () => {
+      if (!desertEnv.envMap) desertEnv.envMap = pmrem.fromEquirectangular(desertEnv.skyTex).texture;
+      if (mode === 'deserto') { scene.environment = desertEnv.envMap; scene.environmentRotation.set(0, -Math.PI / 2, 0); }
+    };
+    if (desertEnv.skyLoaded) useSky(); else desertEnv.onSkyLoad = useSky;
+    camera.far = 1200;
+  } else if (onRoof) {                                 // tramonto in cima al grattacielo: sole basso e caldo, cielo dalla foto
     hemi.color.set(0xb8c4e0); hemi.groundColor.set(0x8a5a40); hemi.intensity = 0.75;
     scene.environmentIntensity = 0.7; key.intensity = 2.6; fill.intensity = 0.5;
     key.color.set(0xffc08a); key.position.copy(roofEnv.sunDir).multiplyScalar(6).setY(2.2);
@@ -211,7 +226,7 @@ function applyMode() {
   camera.updateProjectionMatrix();
   sfx.crowdAmbient(inArena);
   sfx.seaAmbient(onBeach);
-  sfx.windAmbient(onRoof);
+  sfx.windAmbient(onRoof || onDesert);
 }
 const READY_S = 6;                    // secondi prima del gong
 
@@ -244,7 +259,7 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003211235`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003211950`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -261,7 +276,8 @@ const withText = rows => rows.map(r => ({ ...r, buttons: r.buttons.map(b => ({ .
 const stageRow = y => ({ label: t('stage'), tk: 'stage', y, h: 0.2, carousel: true, buttons: [
   { id: 's:stanza', tk: 'm_stanza', w: 0.22, img: roomPreview() }, { id: 's:arena', tk: 'm_arena', w: 0.22, img: stageImg('arena') },
   { id: 's:spiaggia', tk: 'm_spiaggia', w: 0.22, img: stageImg('spiaggia') },
-  { id: 's:grattacielo', tk: 'm_grattacielo', w: 0.22, img: stageImg('grattacielo') }, { id: 's:random', tk: 'm_random', w: 0.22, img: randomPreview() }] });
+  { id: 's:grattacielo', tk: 'm_grattacielo', w: 0.22, img: stageImg('grattacielo') },
+  { id: 's:deserto', tk: 'm_deserto', w: 0.22, img: stageImg('deserto') }, { id: 's:random', tk: 'm_random', w: 0.22, img: randomPreview() }] });
 const optionRows = y0 => [
   { label: t('level'), tk: 'level', y: y0, buttons: [{ id: 'l:facile', tk: 'l_facile', w: 0.205 }, { id: 'l:normale', tk: 'l_normale', w: 0.205 },
     { id: 'l:difficile', tk: 'l_difficile', w: 0.205 }, { id: 'l:impossibile', tk: 'l_impossibile', w: 0.205 }] },
@@ -883,6 +899,7 @@ function tick(dt, frame) {
   }
   if (party.update(dt)) sfx.firework();
   if (arenaEnv && arenaEnv.group.visible) { arenaEnv.update(dt); sfx.crowdLevel(arenaEnv.excite); }
+  if (desertEnv && desertEnv.group.visible) desertEnv.update(dt);
   if (roofEnv && roofEnv.group.visible) {
     const hp = roofEnv.update(dt);
     if (hp) sfx.heli(hp, renderer.xr.isPresenting ? renderer.xr.getCamera() : camera); else sfx.heliStop();
@@ -923,7 +940,7 @@ function showMainMenu() {
   openMenu(rootMenu);
 }
 // stage dell'incontro: quello scelto, oppure a caso tra gli stage virtuali (nel torneo senza ripetere finche' si puo')
-const VIRTUAL = ['arena', 'spiaggia', 'grattacielo'];
+const VIRTUAL = ['arena', 'spiaggia', 'grattacielo', 'deserto'];
 function pickStage() {
   if (stageChoice !== 'random') return stageChoice;
   let pool = VIRTUAL;
