@@ -1,6 +1,6 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261003114012';
+import { t as tr } from './i18n.js?v=20261003115240';
 
 export class Scoreboard {
   constructor() {
@@ -89,7 +89,7 @@ export class PauseMenu {
     panel.renderOrder = 1100; this.group.add(panel);
     this.title = this._label(tr('pause'), 0, 0.23, 0.6, 0.1, '#ffd34d', 72);
     this.group.add(this.title);
-    this.hint = this._label(tr('menu_sub'), 0, 0.15, 0.8, 0.05, '#c9ced8', 30); this.group.add(this.hint);
+
     this.buttons = [
       { id: 'resume', tk: 'resume', color: 0x1f8a4c, x: -0.29 },
       { id: 'restart', tk: 'restart', color: 0x1d4fc4, x: 0 },
@@ -111,7 +111,7 @@ export class PauseMenu {
   _label(text, x, y, w, h, color, px) {
     const c = document.createElement('canvas'); c.width = 512; c.height = Math.round(512 * h / w);
     const g = c.getContext('2d');
-    let size = px;
+    let size = Math.min(px, Math.floor(c.height * 0.78));          // mai piu' alta del suo riquadro (non si taglia)
     do { g.font = `800 ${size}px system-ui, sans-serif`; size -= 2; } while (g.measureText(text).width > c.width * 0.94 && size > 10);
     g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText(text, c.width / 2, c.height / 2);
@@ -126,7 +126,7 @@ export class PauseMenu {
   setTitle(text) {
     const { canvas: c, tex, color, px } = this.title.userData, g = c.getContext('2d');
     g.clearRect(0, 0, c.width, c.height);
-    let size = px;
+    let size = Math.min(px, Math.floor(c.height * 0.78));          // mai piu' alta del suo riquadro (non si taglia)
     do { g.font = `800 ${size}px system-ui, sans-serif`; size -= 2; } while (g.measureText(text).width > c.width * 0.94 && size > 10);
     g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText(text, c.width / 2, c.height / 2); tex.needsUpdate = true;
@@ -135,7 +135,6 @@ export class PauseMenu {
   // cambio lingua: si ridisegnano le scritte
   relabel() {
     const paint = (m, text) => MenuPanel.prototype._paint(m, text, m.userData.color);
-    paint(this.hint, tr('menu_sub'));
     for (const b of this.buttons) paint(b.label, tr(b.tk));
   }
   open(head, yaw, end = false) {
@@ -203,7 +202,8 @@ export class MenuPanel {
     bg.renderOrder = 1100; this.group.add(bg);
     this.time = 0;
     const lab = PauseMenu.prototype._label;
-    this.title = lab(spec.title, 0, H / 2 - (spec.titleH || 0.09) / 2 - 0.04, W - 0.06, spec.titleH || 0.09, '#ffd34d', 64);
+    const tw = spec.titleW || Math.min(W - 0.06, 0.66);         // riquadro stretto attorno al testo: lettere grandi e intere
+    this.title = lab(spec.title, 0, H / 2 - (spec.titleH || 0.09) / 2 - 0.04, tw, spec.titleH || 0.09, '#ffd34d', 72);
     this.group.add(this.title);
     this.spec = spec; this.rowLabels = [];
     if (spec.subtitle) { this.sub = lab(spec.subtitle, 0, H / 2 - 0.155, W - 0.1, 0.045, '#c9ced8', 30); this.group.add(this.sub); }
@@ -256,7 +256,7 @@ export class MenuPanel {
   _paint(m, text, color) {
     const { canvas: c, tex, px } = m.userData, g = c.getContext('2d');
     g.clearRect(0, 0, c.width, c.height);
-    let size = px;
+    let size = Math.min(px, Math.floor(c.height * 0.78));          // mai piu' alta del suo riquadro (non si taglia)
     do { g.font = `800 ${size}px system-ui, sans-serif`; size -= 2; } while (g.measureText(text).width > c.width * 0.94 && size > 10);
     g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText(text, c.width / 2, c.height / 2); tex.needsUpdate = true;

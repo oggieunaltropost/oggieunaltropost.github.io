@@ -45,20 +45,20 @@ const MOVES = new Set(['slip_l', 'slip_r', 'duck']);
 // bodyBias = quanto va al corpo se tieni la guardia alta; feints = finte al secondo mentre ti studia;
 // lowGuard = quanto spesso abbassa la guardia mentre ti studia (e lascia la testa scoperta).
 export const LEVELS = {
-  facile: { label: 'Facile', guardReach: -0.03, stalkDist: 0.85, openFactor: 0.1, reactChance: 0.35, reactDelay: [0.14, 0.24],
+  facile: { label: 'Facile', readGuard: 0.35, guardReach: -0.03, stalkDist: 0.85, openFactor: 0.1, reactChance: 0.35, reactDelay: [0.14, 0.24],
     attackEvery: [2.2, 3.8], retreatTime: 0.8, punchSpeed: 0.8, moveSpeed: 0.6, defenseSpeed: 1.1, threatDist: 0.8,
     threatSpeed: 1.6, smart: false, chain: false, counterChance: 0.1, blockReach: 0.07, bodyBias: 0.15, feints: 0, lowGuard: 0.6,
     combos: combos('1', '2', '1-2', '1-1', '1-1-2', '2-3') },
-  normale: { label: 'Normale', guardReach: 0.0, stalkDist: 0.9, openFactor: 0.25, reactChance: 0.68, reactDelay: [0.05, 0.13],
+  normale: { label: 'Normale', readGuard: 0.65, guardReach: 0.0, stalkDist: 0.9, openFactor: 0.25, reactChance: 0.68, reactDelay: [0.05, 0.13],
     attackEvery: [0.9, 1.8], retreatTime: 0.5, punchSpeed: 1.0, moveSpeed: 0.9, defenseSpeed: 1.35, threatDist: 0.95,
     threatSpeed: 1.3, smart: false, chain: false, counterChance: 0.35, blockReach: 0.09, bodyBias: 0.45, feints: 0.08, lowGuard: 0.5,
     combos: combos('1', '1-2', '1-1-2', '1-2-3', '3-2', '2-3', '1-6', '1-2b', '1-schivata-2') },
-  difficile: { label: 'Difficile', guardReach: 0.03, stalkDist: 0.95, openFactor: 0.45, reactChance: 0.9, reactDelay: [0.02, 0.06],
+  difficile: { label: 'Difficile', readGuard: 0.85, guardReach: 0.03, stalkDist: 0.95, openFactor: 0.45, reactChance: 0.9, reactDelay: [0.02, 0.06],
     attackEvery: [0.5, 1.2], retreatTime: 0.35, punchSpeed: 1.15, moveSpeed: 1.1, defenseSpeed: 1.6, threatDist: 1.1,
     threatSpeed: 1.1, smart: true, chain: true, counterChance: 0.65, blockReach: 0.11, bodyBias: 0.65, feints: 0.15, lowGuard: 0.4,
     combos: combos('1-2', '1-1-2', '1-2-3', '1-2-3-2', '1-6-3-2', '3-2-3', '2-3-2', '1-2-5-2', '1-schivata-2',
       '1-2-schivata-2-3', '1-2-abbassata-3-2', 'abbassata-6-3', '1-3b-3') },
-  impossibile: { label: 'Impossibile', guardReach: 0.07, stalkDist: 1.0, openFactor: 0.95, reactChance: 1.0, reactDelay: [0.0, 0.0],
+  impossibile: { label: 'Impossibile', readGuard: 1.0, guardReach: 0.07, stalkDist: 1.0, openFactor: 0.95, reactChance: 1.0, reactDelay: [0.0, 0.0],
     attackEvery: [0.3, 0.8], retreatTime: 0.25, punchSpeed: 1.3, moveSpeed: 1.3, defenseSpeed: 2.0, threatDist: 1.3,
     threatSpeed: 0.9, smart: true, chain: true, counterChance: 0.85, blockReach: 0.15, bodyBias: 0.85, feints: 0.22, lowGuard: 0.3,
     combos: combos('1-2-3', '1-2-3-2', '1-6-3-2', '3-2-3', '2-3-2', '1-2-5-2', '1-2-schivata-2-3',
@@ -437,6 +437,7 @@ export class Mike {
     this.stateT += dt;
     if (this.stun > 0) this.stun -= dt;
     const head = player.head;
+    this.lastPlayer = player;
     if (this.goal) { this.updateGoal(dt); this.animate(dt); return; }   // va all'angolo
 
     // guarda sempre l'avversario
@@ -544,6 +545,7 @@ export class Mike {
           const high = Object.values(player.gloves).every(g => g.mesh.visible && g.center.distanceTo(player.head) < 0.42);
           const toBody = Math.random() < (high ? c.bodyBias : c.bodyBias * 0.3);
           this.combo = [...pick(toBody ? BODY_COMBOS : c.combos)];
+          this.readGuard(player);
           this.setState('approach');
         } else if (!this.defending && !this.layers.length && Math.random() < c.feints * dt) {
           this.play(pick(['slip_l', 'slip_r', 'duck', 'block']), c.defenseSpeed * 0.9);   // finta
@@ -610,7 +612,41 @@ export class Mike {
   }
   attackDist() { const a = this.aimPunch(); return a ? a.dist - 0.03 : this.cfg.attackDist; }
 
-  nextPunch() {
+  // ---- mira ai punti scoperti: da dove arriva ogni colpo e se un tuo guantone e' sulla traiettoria
+  punchPath(name, player) {
+    const f = this.forward(), side = _c.set(1, 0, 0).applyQuaternion(this.root.quaternion);   // +X = sinistra di Mike
+    const head = player.head.clone().add(_d.set(0, -0.05, 0)), body = player.head.clone().add(_d.set(0, -0.45, 0));
+    const spec = PUNCH[name], sx = spec.side === 'l' ? 1 : -1;
+    const target = spec.zone === 'body' ? body : head;
+    const shoulder = this.root.position.clone().add(_d.set(0, 1.45, 0)).addScaledVector(side, 0.2 * sx);
+    let start;
+    if (name === 'jab' || name === 'cross') start = shoulder;                                         // dritto, da davanti
+    else if (name.startsWith('hook')) start = target.clone().addScaledVector(side, 0.45 * sx).addScaledVector(f, -0.15);   // di lato
+    else if (name.startsWith('uppercut')) start = target.clone().add(_d.set(0, -0.45, 0)).addScaledVector(f, -0.25).addScaledVector(side, 0.1 * sx);
+    else start = target.clone().addScaledVector(side, 0.35 * sx).addScaledVector(f, -0.25).add(_d.set(0, -0.05, 0));   // al corpo, un po' di lato
+    return { a: start.lerp(target, 0.35), b: target };
+  }
+  // distanza minima fra i tuoi guantoni e la parte finale della traiettoria (sotto 0.16 m il colpo e' coperto)
+  pathClearance(name, player) {
+    const { a, b } = this.punchPath(name, player);
+    let best = 9;
+    for (const g of Object.values(player.gloves)) if (g.mesh.visible) best = Math.min(best, distPointSeg(g.center, a, b));
+    return best;
+  }
+  // se il prossimo colpo e' coperto, Mike (secondo il livello) lo cambia con uno che arriva dove sei scoperto
+  readGuard(player) {
+    const name = this.combo[0];
+    if (!name || !PUNCH[name] || !player || Math.random() >= (this.cfg.readGuard ?? 0.6)) return;
+    if (this.pathClearance(name, player) >= 0.16) return;
+    const open = Object.keys(PUNCH).filter(n => this.clips[n] && n !== name)
+      .map(n => ({ n, c: this.pathClearance(n, player) })).filter(o => o.c >= 0.16);
+    if (!open.length) return;                                  // tutto coperto: tira lo stesso (finira' sui guantoni)
+    const head = open.filter(o => PUNCH[o.n].zone === 'head');
+    this.combo[0] = pick(head.length && Math.random() < 0.7 ? head : open).n;
+  }
+
+  nextPunch(player = this.lastPlayer) {
+    this.readGuard(player);
     const name = this.combo.shift();
     if (!name || !this.clips[name]) { this.punch = null; this.setState('retreat'); return; }
     if (MOVES.has(name)) {                                   // movimento di difesa dentro la combinazione
@@ -658,7 +694,8 @@ export class Mike {
     const prevTip = p.prevTip || tip;
     p.prevTip = tip.clone();
     for (const g of Object.values(player.gloves)) {
-      if (g.mesh.visible && (distPointSeg(g.center, prevTip, tip) < 0.17 || g.center.distanceTo(center) < 0.15)) {
+      // contatto vero fra i due guantoni (raggi ~6-7 cm): un guantone basso non ferma un colpo che gli passa sopra
+      if (g.mesh.visible && (distPointSeg(g.center, prevTip, tip) < 0.13 || g.center.distanceTo(center) < 0.12)) {
         p.resolved = true; this.openUntil = this.time + 0.7; this.emit('playerBlocked', { side: g.side }); return;
       }
     }
@@ -701,6 +738,8 @@ export class Mike {
         this.emit('lowBlow', { side: g.side });
         continue;
       }
+      // sotto la cintura non si fanno mai punti (anche quando non scatta la penalita')
+      if (g.center.y < belt) { g.cooldown = 0.3; continue; }
       // in parata i guantoni coprono bene; nella guardia normale lasciano spazi
       const blocking = this.defending && this.defending.type === 'block';
       const blockLow = this.defending && this.defending.type === 'block_low';

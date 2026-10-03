@@ -2,18 +2,18 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003114012';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003114012';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003114012';
-import { Player, SimInput } from './player.js?v=20261003114012';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD } from './hud.js?v=20261003114012';
-import { Room } from './room.js?v=20261003114012';
-import { Arena } from './arena.js?v=20261003114012';
-import { Beach } from './beach.js?v=20261003114012';
-import { RingGirl } from './ringgirl.js?v=20261003114012';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003114012';
-import * as sfx from './sfx.js?v=20261003114012';
-import { t, lang, setLang, onLang } from './i18n.js?v=20261003114012';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003115240';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003115240';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003115240';
+import { Player, SimInput } from './player.js?v=20261003115240';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD } from './hud.js?v=20261003115240';
+import { Room } from './room.js?v=20261003115240';
+import { Arena } from './arena.js?v=20261003115240';
+import { Beach } from './beach.js?v=20261003115240';
+import { RingGirl } from './ringgirl.js?v=20261003115240';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003115240';
+import * as sfx from './sfx.js?v=20261003115240';
+import { t, lang, setLang, onLang } from './i18n.js?v=20261003115240';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -169,8 +169,8 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003114012`); t.colorSpace = THREE.SRGBColorSpace; return t; };
-const mainMenu = new MenuPanel({ title: 'HOME BOXING', subtitle: t('menu_sub'), subtitleTk: 'menu_sub', width: 1.0, height: 1.5, rows: [
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003115240`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const mainMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.0, height: 1.5, rows: [
   { label: t('where'), tk: 'where', y: 0.41, h: 0.22, buttons: [{ id: 'm:stanza', tk: 'm_stanza', w: 0.29, img: roomPreview() },
     { id: 'm:arena', tk: 'm_arena', w: 0.29, img: stageImg('arena') }, { id: 'm:spiaggia', tk: 'm_spiaggia', w: 0.29, img: stageImg('spiaggia') }] },
   { label: t('level'), tk: 'level', y: 0.19, buttons: [{ id: 'l:facile', tk: 'l_facile', w: 0.205 }, { id: 'l:normale', tk: 'l_normale', w: 0.205 },
@@ -247,7 +247,7 @@ const KD_REFILL = [75, 50, 25];
 const getUp = new GetUpChallenge(scene);
 getUp.attachDark(camera);
 const countdown = new CountdownHUD(camera);
-const nextMenu = new MenuPanel({ title: t('next_title', { n: 2, s: 30 }), titleH: 0.045, width: 0.36, height: 0.15, rows: [
+const nextMenu = new MenuPanel({ title: t('next_title', { n: 2, s: 30 }), titleH: 0.045, titleW: 0.32, width: 0.36, height: 0.15, rows: [
   { y: -0.025, h: 0.06, buttons: [{ id: 'next', tk: 'next_btn', text: t('next_btn'), w: 0.32, color: 0x1f8a4c }] },
 ] });
 scene.add(nextMenu.group);
@@ -772,7 +772,7 @@ function calibrateByHand(dt) {
 }
 
 // ---------------------------------------------------------------- avvio
-loadMikeGLTF('assets/mike.glb?v=20261003114012', f => status(t('loading', { p: Math.min(100, Math.round(f * 100)) }))).then(gltf => {
+loadMikeGLTF('assets/mike.glb?v=20261003115240', f => status(t('loading', { p: Math.min(100, Math.round(f * 100)) }))).then(gltf => {
   mike = new Mike(gltf, scene, level);
   girl.load().catch(e => console.warn('ragazza del ring', e));
   bruises = new Bruises(mike.model);

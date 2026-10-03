@@ -81,13 +81,14 @@ export class Beach {
     this.sunDir = SUN.clone();
     this.waves = [];
     this._sky(); this._sea(); this._sand(); this._breakers();
-    this._palms(); this._props(); this._promenade(); this._birds();
+    this.occ = [];                                     // spazi gia' occupati: niente oggetti uno dentro l'altro
+    this._props(); this._promenade(); this._palms(); this._birds();
     this.group.traverse(o => { if (o.isMesh || o.isPoints) o.frustumCulled = false; });
   }
 
   // cielo e sfondo: il panorama a 360 gradi della spiaggia vera (proiezione equirettangolare)
   _sky() {
-    const tex = new THREE.TextureLoader().load('assets/spiaggia_cielo.jpg?v=20261003114012', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load('assets/spiaggia_cielo.jpg?v=20261003115240', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -214,7 +215,7 @@ export class Beach {
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     g.setIndex(idx); g.computeVertexNormals();
     const L = new THREE.TextureLoader();
-    const tex = L.load('assets/sabbia_colore.jpg?v=20261003114012'), nrm = L.load('assets/sabbia_rilievo.jpg?v=20261003114012');
+    const tex = L.load('assets/sabbia_colore.jpg?v=20261003115240'), nrm = L.load('assets/sabbia_rilievo.jpg?v=20261003115240');
     tex.colorSpace = THREE.SRGBColorSpace;
     for (const t of [tex, nrm]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; }
     const m = new THREE.MeshStandardMaterial({ map: tex, normalMap: nrm, normalScale: new THREE.Vector2(1.4, 1.4), vertexColors: true, roughness: 1 });
@@ -310,6 +311,9 @@ export class Beach {
   }
 
   // palme ai lati del ring, tutte in due soli oggetti (tronchi e foglie)
+  _take(x, z, r) { this.occ.push([x, z, r]); }
+  _free(x, z, r) { return this.occ.every(([a, b, q]) => Math.hypot(x - a, z - b) > r + q); }
+
   _palms() {
     const trunks = [], fronds = [], nuts = [];
     const r = rnd(11);
@@ -317,12 +321,14 @@ export class Beach {
     for (let k = 0; k < 22; k++) {
       const side = k % 2 ? 1 : -1;
       const x = side * (8.5 + r() * 26), z = -5 + r() * 34;
-      if (Math.abs(x) < 9 && z < 10) continue;
       spots.push([x, z]);
     }
     spots.push([-7.5, 9], [8, 12], [-13, -3], [12.5, -4.5]);
     for (let k = 0; k < 9; k++) spots.push([-40 + k * 10 + r() * 3, 19 + r() * 1.5]);
     for (const [x, z] of spots) {
+      if (Math.abs(x) < 7.5 && z < 11) continue;               // lontano dal ring e dal giro della ragazza
+      if (!this._free(x, z, 1.6)) continue;                    // niente palme dentro ombrelloni, cabine, bar o altre palme
+      this._take(x, z, 1.6);
       const h = 6 + r() * 4.5, lean = (r() - 0.5) * 2.2, ang = r() * Math.PI * 2;
       const by = sandY(x, z);
       const top = new THREE.Vector3(x + Math.cos(ang) * lean, by + h, z + Math.sin(ang) * lean);
@@ -381,6 +387,7 @@ export class Beach {
     const towels = [0xe8412c, 0x1e66c9, 0xf5b700, 0x18a39a, 0x8a5bd6];
     const spots = [[-10, 3], [-14, 8], [-19, 1], [-24, 7], [11, 4], [15, 9], [20, 2], [26, 8], [-30, 13], [31, 14]];
     spots.forEach(([x, z], k) => {
+      this._take(x + 0.4, z + 0.3, 1.9);
       const y = sandY(x, z);
       const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.z = (r() - 0.5) * 0.15;
       const c = cols[k % cols.length];
@@ -403,7 +410,7 @@ export class Beach {
     });
     // torretta del bagnino (rossa e bianca) a destra, verso il mare
     const red = new THREE.MeshStandardMaterial({ color: 0xd8322a, roughness: 0.6 }), white = new THREE.MeshStandardMaterial({ color: 0xf4f4f0, roughness: 0.6 });
-    const tw = new THREE.Group(); tw.position.set(13.5, sandY(13.5, -5), -5); tw.rotation.y = -0.3;
+    const tw = new THREE.Group(); tw.position.set(13.5, sandY(13.5, -5), -5); tw.rotation.y = -0.3; this._take(13.5, -5, 2.2);
     for (const [lx, lz] of [[-0.8, -0.8], [0.8, -0.8], [-0.8, 0.8], [0.8, 0.8]]) {
       const leg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 2.2, 0.12), white); leg.position.set(lx, 1.1, lz); tw.add(leg);
     }
@@ -417,6 +424,7 @@ export class Beach {
     // tavole da surf piantate nella sabbia
     const boardCols = [0xf5b700, 0x18a39a, 0xffffff, 0xe8412c];
     [[-8.5, -2.5], [-9.2, -2.1], [9.5, 6.5]].forEach(([x, z], k) => {
+      this._take(x, z, 0.5);
       const b = new THREE.Mesh(new THREE.CapsuleGeometry(0.26, 1.7, 4, 12), new THREE.MeshStandardMaterial({ color: boardCols[k], roughness: 0.4 }));
       b.scale.set(1, 1, 0.18); b.position.set(x, sandY(x, z) + 0.9, z); b.rotation.set(0.1, k, 0.12 * (k - 1)); b.castShadow = true;
       this.group.add(b);
@@ -428,11 +436,12 @@ export class Beach {
     const wood = new THREE.MeshStandardMaterial({ color: 0x9a7650, roughness: 0.85 });
     const deck = new THREE.Mesh(new THREE.BoxGeometry(120, 0.25, 4), wood);
     deck.position.set(0, sandY(0, 24) + 0.3, 24); deck.receiveShadow = true;
+    for (let x = -60; x <= 60; x += 3) this._take(x, 24, 2.1);
     this.group.add(deck);
     const hutCols = ['#e8412c', '#1e66c9', '#f5b700', '#18a39a', '#e85d9a', '#ffffff'];
     for (let k = 0; k < 16; k++) {
-      const x = -44 + k * 6.2; if (Math.abs(x) < 6) continue;
-      const hut = new THREE.Group(); hut.position.set(x, sandY(x, 28) + 0.2, 28);
+      const x = -44 + k * 6.2; if (Math.abs(x) < 8.5) continue;   // niente cabine sotto la tettoia del bar
+      const hut = new THREE.Group(); hut.position.set(x, sandY(x, 28) + 0.2, 28); this._take(x, 28, 1.8);
       const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2.4, 2.2), new THREE.MeshStandardMaterial({ map: stripesTex(hutCols[k % hutCols.length], '#ffffff', 10), roughness: 0.8 }));
       body.position.y = 1.2; body.castShadow = true;
       const roof = new THREE.Mesh(new THREE.ConeGeometry(1.75, 0.8, 4), new THREE.MeshStandardMaterial({ color: 0xf4f4f0, roughness: 0.7 }));
@@ -440,7 +449,7 @@ export class Beach {
       hut.add(body, roof); this.group.add(hut);
     }
     // chiosco bar con tettoia di paglia e insegna
-    const bar = new THREE.Group(); bar.position.set(0, sandY(0, 30) + 0.2, 30);
+    const bar = new THREE.Group(); bar.position.set(0, sandY(0, 30) + 0.2, 30); this._take(0, 30, 5.5);
     const counter = new THREE.Mesh(new THREE.BoxGeometry(7, 1.15, 1.2), wood); counter.position.set(0, 0.58, -1.6);
     const back = new THREE.Mesh(new THREE.BoxGeometry(7, 2.8, 0.3), wood); back.position.set(0, 1.4, 0.8);
     const thatch = new THREE.Mesh(new THREE.ConeGeometry(5.2, 1.6, 8), new THREE.MeshStandardMaterial({ color: 0xc8a25a, roughness: 1 }));
