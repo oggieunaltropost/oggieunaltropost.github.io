@@ -2,21 +2,21 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003193043';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003193043';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003193043';
-import { Player, SimInput } from './player.js?v=20261003193043';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003193043';
-import { Room } from './room.js?v=20261003193043';
-import { Arena } from './arena.js?v=20261003193043';
-import { Beach } from './beach.js?v=20261003193043';
-import { RingGirl } from './ringgirl.js?v=20261003193043';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003193043';
-import * as sfx from './sfx.js?v=20261003193043';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003193043';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003193043';
-import { Tournament, BracketView } from './tournament.js?v=20261003193043';
-import { CpuMatch } from './cpu_match.js?v=20261003193043';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003194913';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003194913';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003194913';
+import { Player, SimInput } from './player.js?v=20261003194913';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003194913';
+import { Room } from './room.js?v=20261003194913';
+import { Arena } from './arena.js?v=20261003194913';
+import { Beach } from './beach.js?v=20261003194913';
+import { RingGirl } from './ringgirl.js?v=20261003194913';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003194913';
+import * as sfx from './sfx.js?v=20261003194913';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003194913';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003194913';
+import { Tournament, BracketView } from './tournament.js?v=20261003194913';
+import { CpuMatch } from './cpu_match.js?v=20261003194913';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -228,7 +228,7 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003193043`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003194913`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -263,8 +263,8 @@ const rootMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.0, 
 // Arcade: stage, avversario e opzioni dell'incontro
 const arcadeMenu = new MenuPanel({ title: t('arcade'), titleTk: 'arcade', titleH: 0.1, width: 1.0, height: 1.52, rows: withText([
   stageRow(0.48),
-  { label: t('opponent'), tk: 'opponent', y: 0.22, h: 0.2, buttons: [...FIGHTER_IDS.map(id => ({ id: 'f:' + id, text: FIGHTERS[id].name, w: 0.125, img: fighterImg(id) })),
-    { id: 'f:random', tk: 'f_random', w: 0.125, img: randomPreview() }] },
+  { label: t('opponent'), tk: 'opponent', y: 0.22, h: 0.2, buttons: [...FIGHTER_IDS.map(id => ({ id: 'f:' + id, text: FIGHTERS[id].name, w: 0.105, img: fighterImg(id) })),
+    { id: 'f:random', tk: 'f_random', w: 0.105, img: randomPreview() }] },
   ...optionRows(0.01),
   { y: -0.65, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'start', tk: 'start', w: 0.5, color: 0x1f8a4c }] },
 ]) });
