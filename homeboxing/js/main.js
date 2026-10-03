@@ -2,18 +2,18 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003121046';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003121046';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003121046';
-import { Player, SimInput } from './player.js?v=20261003121046';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD } from './hud.js?v=20261003121046';
-import { Room } from './room.js?v=20261003121046';
-import { Arena } from './arena.js?v=20261003121046';
-import { Beach } from './beach.js?v=20261003121046';
-import { RingGirl } from './ringgirl.js?v=20261003121046';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003121046';
-import * as sfx from './sfx.js?v=20261003121046';
-import { t, lang, setLang, onLang } from './i18n.js?v=20261003121046';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003121134';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003121134';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003121134';
+import { Player, SimInput } from './player.js?v=20261003121134';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD } from './hud.js?v=20261003121134';
+import { Room } from './room.js?v=20261003121134';
+import { Arena } from './arena.js?v=20261003121134';
+import { Beach } from './beach.js?v=20261003121134';
+import { RingGirl } from './ringgirl.js?v=20261003121134';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003121134';
+import * as sfx from './sfx.js?v=20261003121134';
+import { t, lang, setLang, onLang } from './i18n.js?v=20261003121134';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -171,7 +171,7 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003121046`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003121134`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const mainMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.0, height: 1.5, rows: [
   { label: t('where'), tk: 'where', y: 0.41, h: 0.22, buttons: [{ id: 'm:stanza', tk: 'm_stanza', w: 0.29, img: roomPreview() },
     { id: 'm:arena', tk: 'm_arena', w: 0.29, img: stageImg('arena') }, { id: 'm:spiaggia', tk: 'm_spiaggia', w: 0.29, img: stageImg('spiaggia') }] },
@@ -790,7 +790,7 @@ function calibrateByHand(dt) {
 }
 
 // ---------------------------------------------------------------- avvio
-loadMikeGLTF('assets/mike.glb?v=20261003121046', f => statusT('loading', { p: Math.min(100, Math.round(f * 100)) })).then(gltf => {
+loadMikeGLTF('assets/mike.glb?v=20261003121134', f => statusT('loading', { p: Math.min(100, Math.round(f * 100)) })).then(gltf => {
   mike = new Mike(gltf, scene, level);
   girl.load().catch(e => console.warn('ragazza del ring', e));
   bruises = new Bruises(mike.model);
