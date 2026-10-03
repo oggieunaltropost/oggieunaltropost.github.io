@@ -40,10 +40,10 @@ const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).ma
   'win_mike_ko', 'win_mike_tko', 'win_mike_points', 'draw', 'box', 'lowblow_1', 'lowblow_2', 'dq', 'win_mike_dq', 'win_you_dq',
   'intro_1', 'intro_red', 'intro_blue', 'title'];
 let vbuf = {}, vLang = 'it';
-let vEnd = 0;
+let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261003120215`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261003120554`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
@@ -58,10 +58,13 @@ export function announce(names, gain = 1.0) {
     const s = ctx.createBufferSource(); s.buffer = b;
     const g = ctx.createGain(); g.gain.value = gain;
     s.connect(g); g.connect(master); s.start(t);
+    vPlaying.push(s); s.onended = () => { vPlaying = vPlaying.filter(x => x !== s); };
     t += b.duration + 0.2;
   }
   vEnd = t;
 }
+// zittisce lo speaker (anche le frasi gia' in coda)
+export function stopVoices() { for (const s of vPlaying) { try { s.stop(); } catch (e) {} } vPlaying = []; vEnd = 0; }
 export function voiceNow(name, gain = 1.0) { vEnd = 0; announce(name, gain); }   // subito (es. conteggio)
 // subito, con l'intonazione alzata (rate > 1: piu' acuta e veloce)
 export function voiceRate(name, rate = 1, gain = 1.0) {
@@ -121,7 +124,7 @@ const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261003120215`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261003120554`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
   loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); });
   return loading;

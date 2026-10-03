@@ -2,18 +2,18 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003120215';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003120215';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003120215';
-import { Player, SimInput } from './player.js?v=20261003120215';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD } from './hud.js?v=20261003120215';
-import { Room } from './room.js?v=20261003120215';
-import { Arena } from './arena.js?v=20261003120215';
-import { Beach } from './beach.js?v=20261003120215';
-import { RingGirl } from './ringgirl.js?v=20261003120215';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003120215';
-import * as sfx from './sfx.js?v=20261003120215';
-import { t, lang, setLang, onLang } from './i18n.js?v=20261003120215';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003120554';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003120554';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003120554';
+import { Player, SimInput } from './player.js?v=20261003120554';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD } from './hud.js?v=20261003120554';
+import { Room } from './room.js?v=20261003120554';
+import { Arena } from './arena.js?v=20261003120554';
+import { Beach } from './beach.js?v=20261003120554';
+import { RingGirl } from './ringgirl.js?v=20261003120554';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003120554';
+import * as sfx from './sfx.js?v=20261003120554';
+import { t, lang, setLang, onLang } from './i18n.js?v=20261003120554';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -169,7 +169,7 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003120215`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003120554`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const mainMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.0, height: 1.5, rows: [
   { label: t('where'), tk: 'where', y: 0.41, h: 0.22, buttons: [{ id: 'm:stanza', tk: 'm_stanza', w: 0.29, img: roomPreview() },
     { id: 'm:arena', tk: 'm_arena', w: 0.29, img: stageImg('arena') }, { id: 'm:spiaggia', tk: 'm_spiaggia', w: 0.29, img: stageImg('spiaggia') }] },
@@ -247,10 +247,15 @@ const KD_REFILL = [75, 50, 25];
 const getUp = new GetUpChallenge(scene);
 getUp.attachDark(camera);
 const countdown = new CountdownHUD(camera);
-const nextMenu = new MenuPanel({ title: t('next_title', { n: 2, s: 30 }), titleH: 0.045, titleW: 0.32, width: 0.36, height: 0.15, rows: [
-  { y: -0.025, h: 0.06, buttons: [{ id: 'next', tk: 'next_btn', text: t('next_btn'), w: 0.32, color: 0x1f8a4c }] },
+const nextMenu = new MenuPanel({ title: t('next_title', { n: 2, s: 30 }), titleH: 0.045, titleW: 0.32, width: 0.36, height: 0.18, rows: [
+  { y: -0.045, h: 0.06, buttons: [{ id: 'next', tk: 'next_btn', text: t('next_btn'), w: 0.32, color: 0x1f8a4c }] },
 ] });
 scene.add(nextMenu.group);
+// durante la presentazione dello speaker: conto alla rovescia e pulsante per iniziare subito
+const introMenu = new MenuPanel({ title: t('intro_title', { s: 20 }), titleH: 0.045, titleW: 0.32, width: 0.36, height: 0.18, rows: [
+  { y: -0.045, h: 0.06, buttons: [{ id: 'skip', tk: 'skip_intro', text: t('skip_intro'), w: 0.32, color: 0x1f8a4c }] },
+] });
+scene.add(introMenu.group);
 const fighter = () => ({ points: 0, hits: 0, blocks: 0, dodges: 0, dmg: 0, kd: 0, kdRound: 0, penalties: 0 });
 const game = {
   round: 1, time: roundSecs, phase: 'ready', phaseT: 0, paused: false,
@@ -272,7 +277,7 @@ function newMatch() {
   startRound();
 }
 function startRound() {
-  girl.stop(); stool.visible = false; nextMenu.close(); countdown.hide();
+  girl.stop(); stool.visible = false; nextMenu.close(); introMenu.close(); countdown.hide();
   if (mike) mike.leaveCorner();
   game.time = roundSecs; game.phase = 'ready'; game.phaseT = 0; game.paused = false; game.kd = null; game.foul = null;
   game.announced = false; game.lastCount = 0; game.girlStarted = false;
@@ -488,7 +493,12 @@ function updateGame(dt) {
     game.message = t('pause');
   } else if (game.phase === 'presentazione') {
     game.message = t('presenting');
-    if (game.phaseT >= game.presT) { game.phase = 'ready'; game.phaseT = 0; }
+    // conto alla rovescia fino al gong del primo round (presentazione + preparazione)
+    introMenu.setTitle(t('intro_title', { s: Math.max(0, Math.ceil(game.presT - game.phaseT + READY_S)) }));
+    if (introMenu.update(dt, Object.values(player.gloves)) === 'skip') {     // si salta: subito "Round one… Fight!"
+      sfx.punchBlock(); sfx.stopVoices(); introMenu.close();
+      game.phase = 'ready'; game.phaseT = READY_S - 2.2;
+    } else if (game.phaseT >= game.presT) { game.phase = 'ready'; game.phaseT = 0; introMenu.close(); }
   } else if (game.phase === 'ready') {
     const left = Math.ceil(READY_S - game.phaseT);
     game.message = left > 0 ? t('starts_in', { r: game.round, n: rounds, s: left }) : 'BOX!';
@@ -549,6 +559,9 @@ function startPresentation() {
   sfx.announce(parts);
   game.phase = 'presentazione'; game.phaseT = 0; game.presT = d.reduce((a, b) => a + b + 0.2, 0) + 0.8;
   game.message = t('presenting');
+  const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
+  const e = new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ');
+  introMenu.open(player.head, e.y, 0.5, 0.35);
   // il pubblico applaude ai nomi
   const crowd = (ms, k, g) => setTimeout(() => { if (game.phase !== 'presentazione') return;
     if (mode === 'arena') { sfx.cheer(k, g); if (arenaEnv) arenaEnv.cheer(1.2); } }, ms);
@@ -558,7 +571,7 @@ function startPresentation() {
 // cambio lingua dal menu: scritte e voci
 onLang(l => {
   sfx.setVoiceLang(l);
-  mainMenu.relabel(); nextMenu.relabel(); pause.relabel();
+  mainMenu.relabel(); nextMenu.relabel(); introMenu.relabel(); pause.relabel();
   mainMenu.select(menuChoices());
   if (game.phase === 'menu') game.message = t('menu');
   showMode();
@@ -774,7 +787,7 @@ function calibrateByHand(dt) {
 }
 
 // ---------------------------------------------------------------- avvio
-loadMikeGLTF('assets/mike.glb?v=20261003120215', f => status(t('loading', { p: Math.min(100, Math.round(f * 100)) }))).then(gltf => {
+loadMikeGLTF('assets/mike.glb?v=20261003120554', f => status(t('loading', { p: Math.min(100, Math.round(f * 100)) }))).then(gltf => {
   mike = new Mike(gltf, scene, level);
   girl.load().catch(e => console.warn('ragazza del ring', e));
   bruises = new Bruises(mike.model);
