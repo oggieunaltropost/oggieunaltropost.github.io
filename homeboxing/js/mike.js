@@ -555,6 +555,9 @@ export class Mike {
           this.combo = [...pick(toBody ? BODY_COMBOS : c.combos)];
           this.readGuard(player);
           this.setState('approach');
+        } else if (!this.defending && !this.layers.length && this.cfg0.feints && Math.random() < this.cfg0.feints.rate * dt) {
+          const f = this.cfg0.feints, mv = pick(f.moves.filter(n => this.clips[n]));    // finta del suo stile (a vuoto)
+          if (mv) this.play(mv, f.speed);
         } else if (!this.defending && !this.layers.length && Math.random() < c.feints * dt) {
           this.play(pick(['slip_l', 'slip_r', 'duck', 'block']), c.defenseSpeed * 0.9);   // finta
         }

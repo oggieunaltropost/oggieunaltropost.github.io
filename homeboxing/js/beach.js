@@ -71,7 +71,7 @@ export class Beach {
 
   // cielo e sfondo: il panorama a 360 gradi della spiaggia vera (proiezione equirettangolare)
   _sky() {
-    const tex = new THREE.TextureLoader().load('assets/spiaggia_cielo.jpg?v=20261003130248', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load('assets/spiaggia_cielo.jpg?v=20261003154145', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -112,7 +112,7 @@ export class Beach {
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     g.setIndex(idx); g.computeVertexNormals();
     const L = new THREE.TextureLoader();
-    const tex = L.load('assets/sabbia_colore.jpg?v=20261003130248'), nrm = L.load('assets/sabbia_rilievo.jpg?v=20261003130248');
+    const tex = L.load('assets/sabbia_colore.jpg?v=20261003154145'), nrm = L.load('assets/sabbia_rilievo.jpg?v=20261003154145');
     tex.colorSpace = THREE.SRGBColorSpace;
     for (const t of [tex, nrm]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; }
     const m = new THREE.MeshStandardMaterial({ map: tex, normalMap: nrm, normalScale: new THREE.Vector2(1.4, 1.4), vertexColors: true, roughness: 1 });
@@ -134,7 +134,7 @@ export class Beach {
       spots.push([x, z]);
     }
     spots.push([-7.5, 9], [8, 12], [-13, -3], [12.5, -4.5]);
-    for (let k = 0; k < 9; k++) spots.push([-40 + k * 10 + r() * 3, 19 + r() * 1.5]);
+    for (let k = 0; k < 9; k++) spots.push([-40 + k * 10 + r() * 3, 15.5 + r() * 1.5]);
     for (const [x, z] of spots) {
       if (Math.abs(x) < 7.5 && z < 11) continue;               // lontano dal ring e dal giro della ragazza
       if (!this._free(x, z, 2.0)) continue;                    // niente palme dentro ombrelloni, cabine, bar o altre palme
@@ -270,7 +270,7 @@ export class Beach {
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.8), new THREE.MeshBasicMaterial({ map: canvasTex(512, 128, (g, w, h) => {
       g.fillStyle = '#1e66c9'; g.fillRect(0, 0, w, h); g.fillStyle = '#ffd34d'; g.font = '900 86px system-ui, sans-serif';
       g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('BEACH BAR', w / 2, h / 2 + 4); }) }));
-    sign.position.set(0, 2.75, -2.35); sign.rotation.y = Math.PI;
+    sign.position.set(0, 1.95, 0.63); sign.rotation.y = Math.PI;      // sulla parete di fondo, sopra il bancone
     bar.add(counter, back, thatch, sign); bar.rotation.y = 0; this.group.add(bar);
     // lampioni lungo la passeggiata
     const iron = new THREE.MeshStandardMaterial({ color: 0x2a2f36, roughness: 0.5, metalness: 0.4 });
@@ -287,14 +287,36 @@ export class Beach {
   // gabbiani che volano in cerchio
   _birds() {
     this.birds = [];
-    const m = new THREE.MeshBasicMaterial({ color: 0x3a3a3a, side: THREE.DoubleSide });
+    const white = new THREE.MeshStandardMaterial({ color: 0xf4f5f6, roughness: 0.8 });
+    const grey = new THREE.MeshStandardMaterial({ color: 0xb9c0c8, roughness: 0.8, side: THREE.DoubleSide });
+    const black = new THREE.MeshStandardMaterial({ color: 0x1e1f22, roughness: 0.8, side: THREE.DoubleSide });
+    const yellow = new THREE.MeshStandardMaterial({ color: 0xf2c230, roughness: 0.6 });
+    // mezza ala: profilo piatto (x = apertura, z = avanti), piu' larga all'attaccatura
+    const wingPart = (x0, x1, c0, c1, back0, back1) => {
+      const sh = new THREE.Shape();
+      sh.moveTo(x0, c0); sh.lineTo(x1, c1); sh.lineTo(x1, -back1); sh.lineTo(x0, -back0); sh.closePath();
+      const g = new THREE.ShapeGeometry(sh); g.rotateX(Math.PI / 2);      // nel piano orizzontale
+      return g;
+    };
+    const inner = wingPart(0.0, 0.30, 0.07, 0.05, 0.10, 0.08), outer = wingPart(0.0, 0.26, 0.05, 0.0, 0.08, 0.02);
+    const tip = wingPart(0.18, 0.26, 0.015, 0.0, 0.05, 0.02);
     for (let k = 0; k < 7; k++) {
       const b = new THREE.Group();
-      for (const s of [-1, 1]) {
-        const w = new THREE.Mesh(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, -0.08), new THREE.Vector3(s * 0.55, 0, 0), new THREE.Vector3(0, 0, 0.12)]), m);
-        b.add(w); b.userData[s] = w;
+      const body = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), white); body.scale.set(0.055, 0.05, 0.17);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.042, 10, 8), white); head.position.set(0, 0.025, 0.17);
+      const beak = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.06, 6), yellow); beak.rotation.x = Math.PI / 2; beak.position.set(0, 0.02, 0.23);
+      const tail = new THREE.Mesh(wingPart(-0.05, 0.05, 0.0, 0.0, 0.09, 0.09), white); tail.position.set(0, 0, -0.14);
+      b.add(body, head, beak, tail);
+      for (const sd of [-1, 1]) {
+        const sh = new THREE.Group(); sh.position.set(sd * 0.04, 0.01, 0.02); sh.scale.x = sd;   // spalla
+        const w1 = new THREE.Mesh(inner, grey); sh.add(w1);
+        const el = new THREE.Group(); el.position.x = 0.30; sh.add(el);                      // gomito dell'ala
+        el.add(new THREE.Mesh(outer, grey), new THREE.Mesh(tip, black));
+        b.add(sh); b.userData[sd] = { sh, el };
       }
-      b.userData.p = { cx: (Math.random() - 0.5) * 30, cz: -12 - Math.random() * 20, r: 6 + Math.random() * 10, y: 9 + Math.random() * 8, w: (0.15 + Math.random() * 0.15) * (Math.random() < 0.5 ? 1 : -1), a: Math.random() * 6 };
+      b.scale.setScalar(1.6);
+      b.userData.p = { cx: (Math.random() - 0.5) * 30, cz: -12 - Math.random() * 20, r: 6 + Math.random() * 10, y: 9 + Math.random() * 8,
+        w: (0.15 + Math.random() * 0.15) * (Math.random() < 0.5 ? 1 : -1), a: Math.random() * 6 };
       this.birds.push(b); this.group.add(b);
     }
   }
@@ -309,9 +331,15 @@ export class Beach {
     for (const b of this.birds) {
       const p = b.userData.p; p.a += p.w * dt;
       b.position.set(p.cx + Math.cos(p.a) * p.r, p.y + Math.sin(t * 0.5 + p.a) * 0.6, p.cz + Math.sin(p.a) * p.r);
-      b.rotation.y = -p.a + (p.w > 0 ? 0 : Math.PI);
-      const f = Math.sin(t * 7 + p.a * 5) * 0.5;
-      b.userData[-1].rotation.z = -f; b.userData[1].rotation.z = f;
+      // muso nella direzione del volo, un po' inclinato in virata
+      b.rotation.set(0, Math.atan2(-Math.sin(p.a) * Math.sign(p.w), Math.cos(p.a) * Math.sign(p.w)), -0.25 * Math.sign(p.w), 'YXZ');
+      // battito d'ali alternato a planate; l'ala si piega al "gomito"
+      const glide = Math.sin(t * 0.35 + p.a * 3) > 0.2;
+      const f = glide ? 0.06 * Math.sin(t * 2 + p.a) : Math.sin(t * 6.5 + p.a * 5) * 0.32;   // battito ampio come un gabbiano vero
+      for (const sd of [-1, 1]) {
+        const u = b.userData[sd];
+        u.sh.rotation.z = sd * f; u.el.rotation.z = sd * (glide ? -0.05 : f * 0.4 - 0.08);
+      }
     }
     if (this.flag) this.flag.rotation.y = Math.sin(t * 3.1) * 0.25;
   }

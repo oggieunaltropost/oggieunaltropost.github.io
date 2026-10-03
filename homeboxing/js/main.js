@@ -2,19 +2,19 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003130248';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003130248';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003130248';
-import { Player, SimInput } from './player.js?v=20261003130248';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003130248';
-import { Room } from './room.js?v=20261003130248';
-import { Arena } from './arena.js?v=20261003130248';
-import { Beach } from './beach.js?v=20261003130248';
-import { RingGirl } from './ringgirl.js?v=20261003130248';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003130248';
-import * as sfx from './sfx.js?v=20261003130248';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003130248';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003130248';
+import { buildRing, RING_SIZE } from './ring.js?v=20261003154145';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003154145';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261003154145';
+import { Player, SimInput } from './player.js?v=20261003154145';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003154145';
+import { Room } from './room.js?v=20261003154145';
+import { Arena } from './arena.js?v=20261003154145';
+import { Beach } from './beach.js?v=20261003154145';
+import { RingGirl } from './ringgirl.js?v=20261003154145';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003154145';
+import * as sfx from './sfx.js?v=20261003154145';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003154145';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003154145';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -174,7 +174,7 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003130248`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003154145`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 const mainMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.0, height: 1.72, rows: [
   { label: t('where'), tk: 'where', y: 0.565, h: 0.22, buttons: [{ id: 'm:stanza', tk: 'm_stanza', w: 0.29, img: roomPreview() },
@@ -313,6 +313,9 @@ function landed(who, zone, power) {
 function knockdown(who, power) {
   const f = game[who];
   f.kd++; f.kdRound++;
+  // stanchezza da atterramenti: sale di 1 a ogni atterramento e cala col tempo (pause tra i round, minuti di combattimento)
+  f.kdLvl = (f.kdLvl || 0) + 1;
+  const lvl = Math.max(1, Math.round(f.kdLvl));
   mike.enabled = false;
   sfx.punchHit(1.4);
   sfx.voiceNow('knockdown');
@@ -320,7 +323,7 @@ function knockdown(who, power) {
   if (mode === 'arena') sfx.cheer('boato', 1);
   // energia che si recupera rialzandosi: 75, 50, 25 (con la regola dei 3 atterramenti il terzo chiude l'incontro);
   // senza la regola ci si rialza finche' c'e' energia da recuperare: 15, 8, poi niente -> si resta giu' (KO). Vale per tutti e due.
-  const refill = KD_REFILL[f.kd - 1] ?? (threeKO ? 0 : [15, 8][f.kd - 4] ?? 0);
+  const refill = KD_REFILL[lvl - 1] ?? (threeKO ? 0 : [15, 8][lvl - 4] ?? 0);
   const kd = { who, count: 0, t: 0, up: false, refill, final: refill <= 0, tko: threeKO && f.kd >= 3 };
   if (who === 'mike') {
     mike.knockdown();
@@ -329,7 +332,7 @@ function knockdown(who, power) {
   } else {
     const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
     const e = new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ');
-    const n = 10 * f.kd;                      // colpi per rialzarsi: 10 in piu' a ogni atterramento
+    const n = 10 * lvl;                       // colpi per rialzarsi: 10 in piu' a ogni atterramento (meno se hai recuperato)
     if (!kd.final && !kd.tko) {
       getUp.start(n, 0.11, player.head, e.y);
       game.message = t('you_down_hit', { n });
@@ -486,7 +489,7 @@ function startRest() {
   stool.position.copy(corner); stool.visible = true;
   mike.goTo(corner.clone().addScaledVector(center.clone().sub(corner).setY(0).normalize(), 0.12), center);
   if (mode === 'arena') sfx.cheer('applauso', 0.8);
-  for (const k of ['player', 'mike']) game[k].dmg = Math.max(0, game[k].dmg - 25);   // all'angolo ci si riprende
+  for (const k of ['player', 'mike']) { game[k].dmg = Math.max(0, game[k].dmg - 25); game[k].kdLvl = Math.max(0, (game[k].kdLvl || 0) - 0.5); }   // all'angolo ci si riprende
   const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
   const e = new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ');
   nextMenu.open(player.head, e.y, 0.5, 0.35);
@@ -533,6 +536,7 @@ function updateGame(dt) {
       // ultimi 10 secondi: solo l'annuncio a voce "Ten seconds!" (niente numeri a schermo)
       if (game.time <= 10 && game.lastCount !== 10 && roundSecs > 15) { game.lastCount = 10; sfx.announce('ten_seconds'); }
       if (!game.fill) for (const k of ['player', 'mike']) game[k].dmg = Math.max(0, game[k].dmg - dt * 0.5);   // si riprende un po'
+      for (const k of ['player', 'mike']) game[k].kdLvl = Math.max(0, (game[k].kdLvl || 0) - dt / 90);      // e smaltisce gli atterramenti
       flash.setBase(game.player.dmg > 55 ? (game.player.dmg - 55) / 45 * 0.35 : 0);         // vista che si annebbia
       if (game.time === 0) {
         sfx.bell(3); mike.enabled = false; countdown.hide();
@@ -703,8 +707,8 @@ function tick(dt, frame) {
   if (renderer.xr.isPresenting) xrFrames++;
   if (orbit) orbit.update();
   player.update(dt);
-  // puntatori: raggi da mani e controller quando c'e' un menu aperto (puntare = toccare col guantone)
-  const menuOpen = mainMenu.group.visible || nextMenu.group.visible || introMenu.group.visible || pause.group.visible;
+  // puntatori: raggi da mani e controller quando c'e' il menu aperto (puntare = toccare col guantone)
+  const menuOpen = mainMenu.group.visible || pause.group.visible;   // (solo menu principale e pausa, non i pannellini dell'incontro)
   const rays = [];
   if (menuOpen && renderer.xr.isPresenting && frame) {
     const ref = renderer.xr.getReferenceSpace();
