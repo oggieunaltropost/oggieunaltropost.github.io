@@ -6,8 +6,8 @@
 // Durata libera: si va avanti finche' non fermi dalla pausa. La velocita' del partner (colpi, andata e ritorno,
 // spostamenti, parate) si regola trascinando su e giu' il cursore della barra al tuo fianco.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261004151804';
-import { t as tr } from './i18n.js?v=20261004151804';
+import * as sfx from './sfx.js?v=20261004152212';
+import { t as tr } from './i18n.js?v=20261004152212';
 
 // combinazioni chiamate: voce, colpi che tira il partner (non qui) e quello che devi tirare tu
 // codici: 1 jab, 2 diretto, 3 gancio sinistro, 4 gancio destro, 5 montante sinistro, 6 montante destro; 'b' = al corpo
@@ -31,12 +31,14 @@ export const DEF_KINDS = {
 };
 const ALL_ATTACKS = Object.values(DEF_KINDS).flat();
 const pick = a => a[Math.floor(Math.random() * a.length)];
+// numeri sopra il partner nelle combinazioni: un colore per colpo
+const CUE_COL = { '1': '#3fb0ff', '2': '#4cff7a', '3': '#ffd34d', '4': '#ff8a3d', '5': '#c77dff', '6': '#ff5aa8', b: '#ff4d4d' };
 const GOOD = ['c_good1', 'c_good2', 'c_good3', 'c_good4'];
 
 export class Sparring {
   constructor(scene) {
     this.scene = scene;
-    this._board(); this._slider();
+    this._board(); this._slider(); this._cue();
     let p = 0.31; try {                                          // (barra nuova 5..120%; la vecchia era 30..120%: si converte)
       const v2 = parseFloat(localStorage.getItem('hb-spar-speed2')), v = parseFloat(localStorage.getItem('hb-spar-speed'));
       if (v2 >= 0 && v2 <= 1) p = v2; else if (v >= 0 && v <= 1) p = (0.3 + 0.9 * v - 0.05) / 1.15; } catch (e) {}
@@ -44,6 +46,31 @@ export class Sparring {
     this.active = false;
   }
   get speed() { return 0.05 + 1.15 * this.p; }                   // 5% .. 120% della velocita' normale
+
+  // ---- il colpo da tirare: numero colorato sopra la testa del partner, con il cerchio del tempo che si svuota
+  _cue() {
+    const c = document.createElement('canvas'); c.width = c.height = 256; this.cc = c;
+    this.ctex = new THREE.CanvasTexture(c); this.ctex.colorSpace = THREE.SRGBColorSpace;
+    this.cueS = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.ctex, depthTest: false, transparent: true, toneMapped: false }));
+    this.cueS.scale.setScalar(0.26); this.cueS.renderOrder = 1200; this.cueS.visible = false;
+  }
+  _drawCue(code, left, state) {                       // left: 1 -> 0 (tempo rimasto); state: 'go' | 'ok' | 'ko'
+    const g = this.cc.getContext('2d'), n = code === 'b' ? '' : code[0], body = code.endsWith('b');
+    const col = state === 'ko' ? '#ff3b3b' : state === 'ok' ? '#ffffff' : CUE_COL[n || 'b'];
+    g.clearRect(0, 0, 256, 256);
+    g.fillStyle = 'rgba(8,10,14,0.78)'; g.beginPath(); g.arc(128, 128, 100, 0, Math.PI * 2); g.fill();
+    g.lineWidth = 16; g.strokeStyle = 'rgba(255,255,255,0.15)'; g.beginPath(); g.arc(128, 128, 112, 0, Math.PI * 2); g.stroke();
+    g.strokeStyle = col; g.lineCap = 'round'; g.beginPath(); g.arc(128, 128, 112, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, left)); g.stroke();
+    g.fillStyle = col; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = `900 ${n ? 140 : 70}px system-ui, sans-serif`; g.fillText(n || tr('cue_body'), 128, body && n ? 112 : 132);
+    if (body && n) { g.font = '800 38px system-ui, sans-serif'; g.fillText(tr('cue_body'), 128, 190); }
+    this.ctex.needsUpdate = true;
+  }
+  _placeCue() {
+    const h = this.mike.headCenter(); this.cueS.position.copy(h); this.cueS.position.y += 0.42;
+    if (this.cueS.parent !== this.mike.root.parent && this.mike.root.parent) this.mike.root.parent.add(this.cueS);
+    if (this.cueS.parent) this.cueS.parent.worldToLocal(this.cueS.position);
+  }
 
   // ---- tabellone (sopra il ring, dietro al partner)
   _board() {
@@ -156,13 +183,13 @@ export class Sparring {
   }
   stop(sayTips = true) {
     if (!this.active) return;
-    this.active = false; this.board.visible = false; this.slider.G.visible = false;
+    this.active = false; this.board.visible = false; this.slider.G.visible = false; this.cueS.visible = false;
     if (this.mike) { this.mike.noAttack = false; if (this.base) this.mike.cfg = this.base; }
     if (sayTips && this.time > 20) sfx.announce(['c_end', this._tip()]);
   }
   reset() {
     this.time = 0; this.st = { ok: 0, bad: 0, avoided: 0, taken: 0, guardOk: 0, guardN: 0, landed: 0, blocked: 0, dodged: 0, thrown: 0, body: 0, headTaken: 0 };
-    this.task = null; this.next = 2; this.coachT = 0; this.track = { left: null, right: null }; this.lastDraw = '';
+    this.task = null; this.next = 2; this.coachT = 0; this.track = { left: null, right: null }; this.lastDraw = ''; if (this.cueS) this.cueS.visible = false;
     this._drawBoard();
   }
   _tip() {
@@ -231,33 +258,40 @@ export class Sparring {
     this._drawBoard();
   }
 
-  // combinazioni: chiama, apre la guardia, aspetta i tuoi colpi e li confronta
+  // combinazioni: chiama, apre la guardia e poi un colpo alla volta: sopra il partner compare il numero da tirare con
+  // il cerchio del tempo (il primo con piu' margine, i successivi subito dopo il colpo prima, con poco tempo)
   _combo(dt, punches) {
     const m = this.mike, S = this.st;
     if (!this.task) {
-      if (this.next > 0 || sfx.voiceBusy()) { m.low = Math.max(0, m.low - dt); return; }
+      if (this.next > 0 || sfx.voiceBusy()) { m.low = Math.max(0, m.low - dt); if (this.cueS.visible && (this.cueHold -= dt) <= 0) this.cueS.visible = false; else if (this.cueS.visible) this._placeCue(); return; }
       const maxLvl = this.speed < 0.6 ? 0 : this.speed < 0.9 ? 1 : 2;
       const c = pick(CALLS.filter(x => x.lvl <= maxLvl));
       sfx.announce(c.v);
-      this.task = { kind: 'combo', c, got: [], wait: sfx.voiceDur(c.v) + 0.15, t: 0 };
+      this.task = { kind: 'combo', c, got: [], wait: sfx.voiceDur(c.v) + 0.15, t: 0, step: 0, stepT: 0 };
+      this.cueS.visible = false;
       return;
     }
     const T = this.task; T.t += dt;
     m.low = 1; m.lowTarget = 1;                               // guardia aperta: tocca a te
     if (T.t < T.wait * 0.6) return;                           // (i colpi contano da quando sta finendo di chiamare)
-    for (const p of punches) T.got.push(p);
-    const need = T.c.seq.length, window = (0.9 + 0.55 * need) / Math.sqrt(this.speed);
-    if (T.got.length >= need || T.t > T.wait + window) {
-      const ok = T.got.length === need && T.c.seq.every((x, i) => {
-        const g = T.got[i];
-        if (x === 'b') return g.body;
-        if (x.endsWith('b')) return g.body && g.n === x[0];
-        return g.n === x && !g.body;
-      });
-      if (ok) { S.ok++; this._coach(pick(GOOD), true); }
-      else { S.bad++; this._coach(T.got.length < need ? pick(['c_bad2', 'c_bad3']) : 'c_bad5', true); }
-      this.task = null; this.next = 1.2 / Math.sqrt(this.speed);
+    const seq = T.c.seq, sp = Math.sqrt(this.speed);
+    const win = (T.step === 0 ? 1.6 : 0.75) / sp;             // tempo per questo colpo
+    const match = (x, g) => x === 'b' ? g.body : x.endsWith('b') ? (g.body && g.n === x[0]) : (g.n === x && !g.body);
+    let res = null;
+    for (const p of punches) {
+      T.got.push(p);
+      if (!match(seq[T.step], p)) { res = 'wrong'; break; }
+      T.step++; T.stepT = 0;
+      if (T.step >= seq.length) { res = 'ok'; break; }
     }
+    if (!res) { T.stepT += dt; if (T.stepT > win) res = 'late'; }
+    this._placeCue(); this.cueS.visible = true;
+    if (!res) { this._drawCue(seq[T.step], 1 - T.stepT / win, 'go'); return; }
+    // fine dell'esercizio: il numero resta un attimo bianco (giusto) o rosso (sbagliato / in ritardo)
+    if (res === 'ok') { S.ok++; this._coach(pick(GOOD), true); this._drawCue(seq[seq.length - 1], 1, 'ok'); }
+    else { S.bad++; this._coach(res === 'late' ? pick(['c_bad2', 'c_bad3']) : 'c_bad5', true); this._drawCue(seq[Math.min(T.step, seq.length - 1)], 0, 'ko'); }
+    this.cueHold = 0.6;
+    this.task = null; this.next = 1.2 / sp;
   }
 
   // difesa: annuncia, tira, guarda come ti difendi e se torni in guardia
