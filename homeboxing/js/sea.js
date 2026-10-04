@@ -94,7 +94,7 @@ export class Sea {
   }
 
   _sky() {
-    const tex = new THREE.TextureLoader().load('assets/mare_panorama.jpg?v=20261004231804', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load('assets/mare_panorama.jpg?v=20261004232430', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -312,21 +312,53 @@ export class Sea {
 
   // ---------------------------------------------------------------- squali
   _sharks() {
-    // corpo affusolato (profilo ruotato) lungo x, schiacciato ai lati; pinne dorsale, pettorali, caudale alta
-    const prof = [[0, 1.3], [0.12, 1.2], [0.22, 0.95], [0.28, 0.6], [0.3, 0.2], [0.27, -0.2], [0.2, -0.6], [0.11, -0.95], [0.05, -1.2], [0, -1.3]].map(([r, z]) => new THREE.Vector2(r, z));
-    const body = new THREE.LatheGeometry(prof, 16); body.rotateZ(-Math.PI / 2); body.scale(1, 0.85, 0.68);   // asse lungo x, snello
-    const dors = triFin([0.35, 0.22, 0], [-0.25, 0.2, 0], [-0.05, 0.75, 0]);
-    const pecL = triFin([0.45, -0.12, 0.18], [0.0, -0.12, 0.2], [-0.1, -0.35, 0.75]);
-    const pecR = triFin([0.45, -0.12, -0.18], [-0.1, -0.35, -0.75], [0.0, -0.12, -0.2]);
-    const tailU = triFin([-1.15, 0.03, 0], [-1.85, 0.75, 0], [-1.45, 0.0, 0]);
-    const tailD = triFin([-1.15, -0.03, 0], [-1.45, 0.0, 0], [-1.65, -0.4, 0]);
-    const dors2 = triFin([-0.8, 0.1, 0], [-0.98, 0.08, 0], [-0.95, 0.22, 0]);
-    const parts = [body, dors, pecL, pecR, tailU, tailD, dors2].map(g => { if (g.attributes.uv) g.deleteAttribute('uv'); g.deleteAttribute('normal'); return g.index ? g.toNonIndexed() : g; });
-    const geo = mergeGeometries(parts); geo.computeVertexNormals();
-    paint(geo, (x, y, z) => y < -0.1 + 0.04 * Math.sin(x * 3) ? [0.8, 0.82, 0.83] : (y < -0.04 ? [0.42, 0.47, 0.5] : [0.2, 0.25, 0.29]));   // dorso scuro, fianchi grigi, pancia chiara
+    // corpo: sezioni ellittiche lungo x (muso a punta, pancia un po' piatta, peduncolo sottile verso la coda)
+    const NL = 44, NR = 22, pos = [], col = [], idx = [];
+    const rad = t => t < 0.22 ? 0.3 * Math.pow(Math.sin(t / 0.22 * Math.PI / 2), 0.75) : t < 0.45 ? 0.3 : 0.3 * (0.08 + 0.92 * Math.pow(Math.cos((t - 0.45) / 0.55 * Math.PI / 2), 1.3));
+    for (let i = 0; i <= NL; i++) {
+      const t = i / NL, x = 1.3 - 2.6 * t, r = rad(t), yc = t < 0.15 ? -0.03 * (1 - t / 0.15) : 0;   // muso appena sotto
+      for (let j = 0; j <= NR; j++) {
+        const f = j / NR * Math.PI * 2, sy = Math.sin(f), cz = Math.cos(f);
+        const y = yc + r * (sy > 0 ? 0.88 : 0.66) * sy, z = r * 0.7 * cz;
+        pos.push(x, y, z);
+        const k = THREE.MathUtils.smoothstep(sy, -0.45, 0.15);            // 0 = pancia, 1 = dorso
+        const top = [0.045, 0.06, 0.075], side = [0.13, 0.16, 0.19], belly = [0.66, 0.68, 0.7];   // (colori lineari)
+        const c = sy < -0.25 ? belly : k < 1 ? side.map((v, q) => belly[q] + (v - belly[q]) * THREE.MathUtils.smoothstep(sy, -0.45, -0.1)) : side;
+        const mix = THREE.MathUtils.smoothstep(sy, -0.1, 0.6);
+        col.push(...c.map((v, q) => v + (top[q] - v) * mix));
+      }
+    }
+    for (let i = 0; i < NL; i++) for (let j = 0; j < NR; j++) { const a = i * (NR + 1) + j, b = a + NR + 1; idx.push(a, a + 1, b, b, a + 1, b + 1); }
+    const body = new THREE.BufferGeometry(); body.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); body.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); body.setIndex(idx);
+    // pinne: sagome (Shape) nel piano xy, colore del dorso con la punta piu' scura
+    const finCol = [0.05, 0.065, 0.08];
+    const fin = (pts, rotX = 0, z = 0, colr = finCol) => {
+      const sh = new THREE.Shape(pts.map(([a, b]) => new THREE.Vector2(a, b)));
+      const g = new THREE.ShapeGeometry(sh, 6); g.rotateX(rotX); g.translate(0, 0, z);
+      const n = g.attributes.position.count, c = new Float32Array(n * 3);
+      for (let q = 0; q < n; q++) { c[q * 3] = colr[0]; c[q * 3 + 1] = colr[1]; c[q * 3 + 2] = colr[2]; }
+      g.setAttribute('color', new THREE.BufferAttribute(c, 3)); return g;
+    };
+    const dors = fin([[0.42, 0.22], [0.25, 0.5], [0.1, 0.74], [0.02, 0.76], [-0.08, 0.5], [-0.2, 0.22]]);          // dorsale falcata
+    const dors2 = fin([[-0.78, 0.1], [-0.86, 0.22], [-0.92, 0.2], [-0.96, 0.07]]);
+    const anal = fin([[-0.82, -0.08], [-0.9, -0.2], [-0.97, -0.18], [-1.0, -0.05]], 0, 0, [0.3, 0.32, 0.34]);
+    const tail = fin([[-1.12, 0.04], [-1.36, 0.22], [-1.62, 0.52], [-1.69, 0.5], [-1.52, 0.15], [-1.46, 0.0], [-1.55, -0.24], [-1.5, -0.27], [-1.28, -0.06], [-1.12, -0.04]]);   // coda a mezzaluna, lobo alto piu' lungo
+    const pec = s => fin([[0.5, 0], [0.32, 0.05], [-0.18, 0.62], [-0.05, 0.6], [0.2, 0.25]], s * (Math.PI / 2 + 0.35), 0, [0.09, 0.11, 0.13]);
+    const pecL = pec(1); pecL.translate(0, -0.13, 0.17); const pecR = pec(-1); pecR.translate(0, -0.13, -0.17);
+    const pel = s => { const g = fin([[-0.45, 0], [-0.5, 0.18], [-0.6, 0.15], [-0.6, 0]], s * (Math.PI / 2 + 0.6), 0, [0.25, 0.27, 0.29]); g.translate(0, -0.12, s * 0.08); return g; };
+    // occhi e branchie (cinque fessure per lato)
+    const eyeG = [1, -1].map(s => { const g = new THREE.SphereGeometry(0.026, 8, 6); g.translate(0.95, 0.05, s * 0.135); return paint(g, () => [0.02, 0.02, 0.03]); });
+    const gills = [];
+    for (const s of [1, -1]) for (let k = 0; k < 5; k++) {
+      const x = 0.66 - k * 0.045, r = rad((1.3 - x) / 2.6), g = new THREE.BoxGeometry(0.008, 0.13 - k * 0.008, 0.01);
+      g.rotateZ(0.12); g.translate(x, 0.0, s * r * 0.69); gills.push(paint(g, () => [0.1, 0.12, 0.14]));
+    }
+    body.computeVertexNormals();                       // (normali morbide sul corpo: prima veniva a facce, a strisce)
+    const parts = [body, dors, dors2, anal, tail, pecL, pecR, pel(1), pel(-1), ...eyeG, ...gills].map(g => { if (g.attributes.uv) g.deleteAttribute('uv'); if (!g.attributes.normal) g.computeVertexNormals(); return g; });
+    const geo = mergeGeometries(parts);
     this.sharks = [];
     for (let i = 0; i < 2; i++) {
-      const mat = swimMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.05, side: THREE.DoubleSide }, { instanced: false, head: 1.0, len: 2.6, freq: 4.2, k: 1.6, amp: 0.22 });
+      const mat = swimMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.08, side: THREE.DoubleSide }, { instanced: false, head: 0.7, len: 2.5, freq: 4.2, k: 1.6, amp: 0.24 });
       mat.userData.u.uPhase = { value: i * 2 };
       const ob = mat.onBeforeCompile; mat.onBeforeCompile = sh => { sh.uniforms.uPhase = mat.userData.u.uPhase; ob(sh); };
       this.mats.push(mat);

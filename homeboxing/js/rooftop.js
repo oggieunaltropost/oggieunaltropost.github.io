@@ -4,7 +4,7 @@
 // La citta' si muove (city_life.js): auto, battelli, navi, uccelli, aerei. Ogni tanto passa un elicottero (il suono lo fa sfx.heli, spaziale: piu' forte quando e' vicino).
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
 import * as THREE from 'three';
-import { CityLife } from './city_life.js?v=20261004231804';
+import { CityLife } from './city_life.js?v=20261004232430';
 
 const PANO_U = 0.0;               // rotazione del panorama (il sole della foto a sinistra, un po' dietro)
 const TOWER_H = 260;              // dal tetto alla strada
@@ -25,7 +25,7 @@ export class Rooftop {
   }
 
   _sky() {
-    const tex = new THREE.TextureLoader().load(this.night ? 'assets/citta_notte_panorama.jpg?v=20261004231804' : 'assets/citta_panorama.jpg?v=20261004231804', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load(this.night ? 'assets/citta_notte_panorama.jpg?v=20261004232430' : 'assets/citta_panorama.jpg?v=20261004232430', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -160,10 +160,49 @@ export class Rooftop {
       l.position.set(...p); H.add(l); return l;
     });
     this.heli = H; this.rotor = rotor; this.trot = trot;
+    if (this.night) this._heliNight(H);
     this.group.add(H);
     this.nextHeli = 10 + Math.random() * 12;
     this.flight = null;
   }
+  // di notte: ogni luce ha il suo alone, due strobo bianchi anticollisione (doppio lampo), un faro di ricerca sotto
+  // il muso col suo fascio nella foschia, finestrini della cabina appena illuminati
+  _heliNight(H) {
+    const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+    const gr = g.createRadialGradient(64, 64, 2, 64, 64, 64);
+    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.15, 'rgba(255,255,255,0.75)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.18)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+    const halo = new THREE.CanvasTexture(c);
+    const glow = (parent, col, size) => {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: halo, color: col, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+      sp.scale.setScalar(size); parent.add(sp); return sp;
+    };
+    for (const l of this.heliLights) glow(l, l.material.color, 3.2);
+    this.strobes = [[0, -0.95, 0.4], [0, 1.15, 7.6]].map(p => {
+      const l = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }));
+      l.position.set(...p); H.add(l); glow(l, 0xffffff, 7); l.visible = false; return l;
+    });
+    // faro: lampada sotto il muso e cono di luce verso il basso e in avanti
+    const spot = new THREE.Group(); spot.position.set(0, -1.1, -1.8); spot.rotation.x = 0.75; H.add(spot);   // (giu' e in avanti: il muso e' verso -Z)
+    const lamp = new THREE.Mesh(new THREE.CircleGeometry(0.22, 16), new THREE.MeshBasicMaterial({ color: 0xfff6e0, toneMapped: false, side: THREE.DoubleSide }));
+    lamp.rotation.x = Math.PI / 2; spot.add(lamp); glow(lamp, 0xfff2d8, 5);
+    const bc = document.createElement('canvas'); bc.width = 8; bc.height = 256; const bg = bc.getContext('2d');
+    const gy = bg.createLinearGradient(0, 0, 0, 256); gy.addColorStop(0, 'rgba(255,255,255,0.9)'); gy.addColorStop(0.3, 'rgba(255,255,255,0.35)'); gy.addColorStop(1, 'rgba(255,255,255,0)');
+    bg.fillStyle = gy; bg.fillRect(0, 0, 8, 256);
+    const L = 90, cone = new THREE.Mesh(new THREE.ConeGeometry(9, L, 24, 1, true),
+      new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(bc), color: 0xfff0d0, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false }));
+    cone.position.y = -L / 2; spot.add(cone);                  // (apice sulla lampada, si allarga verso il basso)
+    this.searchCone = cone; this.searchSpot = spot;
+    // di notte la fusoliera e' scura (la luce dei fari sul ring non arriva fin la'): si vedono le luci.
+    // Finestrini: un filo di luce dal cruscotto
+    const seen = new Map();
+    H.traverse(o => {
+      if (!o.isMesh || !o.material || !o.material.isMeshStandardMaterial) return;
+      if (!seen.has(o.material)) { const m = o.material.clone(); m.color.multiplyScalar(0.28); if (m.clearcoat === 1) m.emissive = new THREE.Color(0x1a2a3a); seen.set(o.material, m); }
+      o.material = seen.get(o.material);
+    });
+  }
+
   // percorso casuale: passaggio dritto, giro ad arco attorno alla torre (inclinato in virata) o salita dalla citta'
   _newFlight() {
     const kind = ['dritto', 'dritto', 'arco', 'arco', 'salita'][Math.floor(Math.random() * 5)];
@@ -220,6 +259,10 @@ export class Rooftop {
     }
     this.rotor.rotation.y += dt * 40; this.trot.rotation.x += dt * 70;
     this.heliLights[2].visible = (this.t % 1.1) < 0.12; this.heliLights[3].visible = (this.t % 1.5) < 0.1;
+    if (this.strobes) {                                // strobo: doppio lampo ogni 1,3 s, i due sfasati
+      this.strobes.forEach((l, i) => { const ph = (this.t + i * 0.65) % 1.3; l.visible = ph < 0.05 || (ph > 0.14 && ph < 0.19); });
+      this.searchSpot.rotation.z = Math.sin(this.t * 0.4) * 0.35;   // il faro spazzola piano a destra e sinistra
+    }
     return this.heli.getWorldPosition(new THREE.Vector3());
   }
 }

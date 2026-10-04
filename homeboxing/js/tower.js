@@ -1,7 +1,7 @@
 // Modalita' Sopravvivenza: la torre. Un piano per ogni avversario (dal basso), tu a destra del piano che devi
 // conquistare. Dopo una vittoria il tuo gettone sale al piano sopra con scia, lampo e suono; in cima la corona.
 import * as THREE from 'three';
-import { t } from './i18n.js?v=20261004231804';
+import { t } from './i18n.js?v=20261004232430';
 
 const W = 1024, H = 1600;                    // tela
 const PW = 0.9, PH = PW * H / W;             // pannello in metri
@@ -83,7 +83,7 @@ export class TowerView {
   draw(climbing = null) {
     const S = this.S; if (!S) return;
     const g = this.canvas.getContext('2d'), n = S.order.length;
-    this.focus = climbing ? climbing.from + 1 : S.idx;      // (in salita la torre e' gia' inquadrata sull'arrivo: niente scatto alla fine)
+    this.focus = this.intro ? this.intro.focus : climbing ? climbing.from + 1 : S.idx;      // (in salita la torre e' gia' inquadrata sull'arrivo: niente scatto alla fine)
     const b0 = this.base(), showTop = b0 + VIS >= n;
     g.clearRect(0, 0, W, H);
     const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, 'rgba(18,14,30,0.97)'); bg.addColorStop(1, 'rgba(6,8,12,0.97)');
@@ -105,7 +105,9 @@ export class TowerView {
       this._crown(g, W / 2, this.crownY(), S.state === 'champion');
     } else { g.fillStyle = '#8a93a6'; g.font = '900 60px system-ui, sans-serif'; g.textAlign = 'center'; g.fillText('▲ ▲ ▲', W / 2, TOP - 60); }
     const reached = climbing ? climbing.from + 1 : S.idx;       // piani gia' conquistati
-    for (let i = b0; i < Math.min(n, b0 + VIS); i++) {
+    // (durante lo scorrimento iniziale b0 non e' intero: i piani che escono dalla torre vengono tagliati)
+    g.save(); g.beginPath(); g.rect(0, TOP - 64, W, BOTTOM - TOP + 120); g.clip();
+    for (let i = Math.max(0, Math.floor(b0 - 1)); i < Math.min(n, Math.ceil(b0 + VIS + 1)); i++) {
       const y = this.floorY(i), id = S.order[i], beaten = i < reached || (S.state === 'champion');
       const lit = i <= reached;
       rr(g, tx0 + 20, y - 52, tx1 - tx0 - 40, 104, 14);
@@ -122,6 +124,7 @@ export class TowerView {
       g.fillText(this.fighters[id].name.toUpperCase(), tx0 + 146, y + 12);
       if (S.state === 'lost' && i === S.idx) { g.fillStyle = '#e5484d'; g.font = '900 30px system-ui, sans-serif'; g.fillText('KO', tx1 - 150, y + 12); }
     }
+    g.restore();
     this.tex.needsUpdate = true;
   }
   _crown(g, x, y, won) {
@@ -140,8 +143,17 @@ export class TowerView {
   close() { this.group.visible = false; this.hl.visible = false; }
   _placeToken(py, scale = 1, px = W - 260) { this.token.position.set(this._lx(px), this._ly(py), 0.006); this.token.scale.setScalar(scale); }
   // stato attuale: gettone accanto al piano da conquistare (o in cima se campione)
-  show(S, subtitle) {
-    this.S = S; this.subtitle = subtitle; this.anim = null; this.draw();
+  // intro: la prima volta, se la torre non sta tutta nel pannello, la si guarda scorrere dalla cima (il campione)
+  // fino al primo piano: cosi' si vede chi c'e' da affrontare
+  show(S, subtitle, intro = false) {
+    this.S = S; this.subtitle = subtitle; this.anim = null;
+    const n = S.order.length;
+    if (intro && n > VIS) {
+      this.intro = { t: 0, from: n - VIS + 2, to: S.idx, focus: n - VIS + 2, sub: subtitle };
+      this.token.visible = false; this.hl.visible = false; this.crownGlow.material.opacity = 0;
+      this.draw(); return;
+    }
+    this.intro = null; this.draw();
     const top = S.state === 'champion';
     this._placeToken(top ? this.crownY() + 105 : this.floorY(Math.min(S.idx, S.order.length - 1)), 1, top ? W / 2 : W - 260);
     this.token.visible = S.state !== 'lost' || true;
@@ -162,6 +174,13 @@ export class TowerView {
     if (this.hl.visible) this.hl.material.opacity = 0.55 + 0.45 * Math.sin(this.time * 4);
     for (const p of this.trail) if (p.t > 0) { p.t -= dt; p.m.material.opacity = Math.max(0, p.t / 0.5) * 0.8; p.m.scale.setScalar(0.5 + p.t * 1.4); }
     if (this.flash.material.opacity > 0) { this.flash.material.opacity = Math.max(0, this.flash.material.opacity - dt * 1.6); this.flash.scale.setScalar(1 + (1 - this.flash.material.opacity) * 1.5); }
+    if (this.intro) {                                  // scorrimento iniziale: ferma un attimo in cima, scende, si ferma sul primo
+      const I = this.intro; I.t += dt;
+      const k = Math.min(1, Math.max(0, (I.t - 1.0) / 3.2)), e = k * k * (3 - 2 * k);
+      I.focus = I.from + (I.to - I.from) * e; this.draw();
+      if (k >= 1) { this.intro = null; this.token.visible = true; this.show(this.S, I.sub); }
+      return;
+    }
     const A = this.anim; if (!A) return;
     A.t += dt;
     const k = Math.min(1, A.t / A.dur);
