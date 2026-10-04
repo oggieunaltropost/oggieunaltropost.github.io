@@ -5,7 +5,7 @@
 // la retta delle sue due mani fino a terra, cosi' resta sempre in mano.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261004145938';
+import { buildRing, RING_SIZE } from './ring.js?v=20261004151804';
 
 const FLOOR = -1.0;
 const WALK_SPEED = 0.42;                       // m/s (come la clip "cammina" di Blender)
@@ -13,14 +13,16 @@ const WALK_SPEED = 0.42;                       // m/s (come la clip "cammina" di
 const PATH = [[-3.8, -3.6], [0, -3.9], [3.8, -3.6], [4.3, 0], [3.9, 3.4], [0, 3.5], [-3.9, 3.4], [-4.3, 0]];
 // allenamento: il giro completo attorno al ring, dal tuo lato passa tra la pedana e te (a ~1 m: lo vedi da vicino)
 const PATH_TRAIN = [[3.9, 3.4], [0, 3.5], [-3.3, 3.2], [-3.3, 0], [-3.3, -3.3], [0, -3.9], [3.8, -3.6], [4.3, 0]];
-const BAG_SPOT = [-5.2, 0];                    // allenamento: qui pende il tuo sacco (spazio libero sul lato ovest)
+const BAG_SPOT = [-5.2, 0];
+// tappeto di gomma (create_gym.py): spesso 1,6 cm, l'inserviente e il mocio ci salgono sopra
+const floorAt = (x, z) => FLOOR + (Math.abs(x) < 7 && z > 3.4 && z < 5.8 ? 0.016 : 0);                    // allenamento: qui pende il tuo sacco (spazio libero sul lato ovest)
 
 export class Gym {
   constructor() {
     this.group = new THREE.Group(); this.group.name = 'palestra';
     this.t = 0; this.bags = [];
     const L = new GLTFLoader();
-    L.load('assets/palestra.glb?v=20261004145938', g => {
+    L.load('assets/palestra.glb?v=20261004151804', g => {
       g.scene.traverse(o => {
         if (!o.isMesh) return;
         const m = o.material;
@@ -31,7 +33,7 @@ export class Gym {
       this.group.add(g.scene);
       this.loaded = true; if (this.onLoad) this.onLoad();
     });
-    L.load('assets/inserviente.glb?v=20261004145938', g => this._janitor(g));
+    L.load('assets/inserviente.glb?v=20261004151804', g => this._janitor(g));
     // in allenamento il ring del gioco sparisce: sulla pedana restano corde, pali e angoli (girano con la palestra)
     this.ring = buildRing(RING_SIZE); this.ring.visible = false; this.group.add(this.ring);
   }
@@ -59,13 +61,15 @@ export class Gym {
     stick.position.y = 0.72; mop.add(stick);
     const head = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.06, 8), new THREE.MeshStandardMaterial({ color: 0x3a3d42, roughness: 0.6 }));
     head.position.y = 0.07; mop.add(head);
-    const fr = new THREE.MeshStandardMaterial({ color: 0xb9b3a4, roughness: 1 });
-    for (let k = 0; k < 26; k++) {                               // frange che si allargano a terra
-      const a = k / 26 * Math.PI * 2, r = 0.05 + Math.random() * 0.1;
-      const s = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.012, 0.16), fr);
-      s.position.set(Math.cos(a) * r, 0.012, Math.sin(a) * r); s.rotation.y = -a + Math.PI / 2; mop.add(s);
-    }
     this.mop = mop; this.group.add(mop);
+    // frange di cotone: ogni filo scende dalla testa del mocio e si appoggia a terra; quando il mocio si muove i fili
+    // restano indietro e strisciano (non e' un pezzo rigido)
+    const NF = 48, fg = new THREE.CylinderGeometry(0.006, 0.008, 1, 5); fg.translate(0, 0.5, 0);
+    this.fringe = new THREE.InstancedMesh(fg, new THREE.MeshStandardMaterial({ color: 0xc9c2b2, roughness: 1 }), NF * 2);
+    this.fringe.frustumCulled = false; this.group.add(this.fringe);
+    this.strands = Array.from({ length: NF }, (_, k) => { const a = k / NF * Math.PI * 2 + Math.random() * 0.2;
+      return { a, len: 0.13 + Math.random() * 0.07, tip: null }; });
+    this.mopPrev = null;
     this.J = J; this.wp = 0; this.state = 'lava'; this.stateT = 4 + Math.random() * 4; this.blend = 0;
     this.headB = J.getObjectByName('head'); this.neckB = J.getObjectByName('neck_01'); this.look = 0; this.lookYaw = 0;
     this.nextWatch = 12 + Math.random() * 15;
@@ -76,8 +80,13 @@ export class Gym {
     const P = this.path || PATH, tgt = P[(this.wp + 1) % P.length];
     // ogni tanto si ferma, si appoggia al mocio e guarda te (o il match) per qualche secondo
     this.nextWatch -= dt;
-    if (watchW && this.nextWatch <= 0 && this.state !== 'guarda') { this.prevState = this.state; this.state = 'guarda'; this.stateT = 4 + Math.random() * 4; }
     const wl = watchW ? this.group.worldToLocal(watchW.clone()) : null;
+    const near = wl && Math.hypot(wl.x - J.position.x, wl.z - J.position.z) < 3.2;
+    if (watchW && this.state !== 'guarda' && (this.nextWatch <= 0 || (near && this.sayKind && !this.said))) {
+      this.prevState = this.state; this.state = 'guarda'; this.stateT = 4 + Math.random() * 4;
+      if (near && this.sayKind && !this.said) { this.said = true; this.sayT = 1.2; }   // si gira, poi parla
+    }
+    if (this.sayT > 0 && (this.sayT -= dt) <= 0 && this.onSay && this.headB) this.onSay(this.sayKind, this.headB.getWorldPosition(new THREE.Vector3()));
     if (this.state === 'guarda') {
       if (wl) {                                                   // si gira verso di te
         const want = Math.atan2(wl.x - J.position.x, wl.z - J.position.z);
@@ -98,6 +107,7 @@ export class Gym {
       }
       if (d < 0.08) { this.wp = (this.wp + 1) % P.length; this.state = 'lava'; this.stateT = 7 + Math.random() * 8; }
     }
+    J.position.y = floorAt(J.position.x, J.position.z);
     // dissolvenza tra "lava" e "cammina"
     this.blend += ((this.state === 'cammina' ? 1 : 0) - this.blend) * Math.min(1, dt * 3);
     this.aWalk.setEffectiveWeight(this.blend); this.aMop.setEffectiveWeight(1 - this.blend);
@@ -109,7 +119,9 @@ export class Gym {
       const hp = this.headB.getWorldPosition(new THREE.Vector3()), to = watchW.clone().sub(hp);
       const fw = new THREE.Vector3(0, 0, 1).applyQuaternion(J.getWorldQuaternion(new THREE.Quaternion()));
       let yaw = Math.atan2(to.x, to.z) - Math.atan2(fw.x, fw.z); yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
-      yaw = Math.max(-1.0, Math.min(1.0, yaw)) * this.look;
+      const behind = THREE.MathUtils.smoothstep(Math.abs(yaw), 1.3, 1.9);           // sei dietro di lui: non gira la testa
+      this.yawS = (this.yawS || 0) + (Math.max(-1.0, Math.min(1.0, yaw)) * (1 - behind) - (this.yawS || 0)) * Math.min(1, dt * 4);
+      yaw = this.yawS * this.look;
       for (const [b, k] of [[this.neckB, 0.4], [this.headB, 0.6]]) {   // rotazione attorno alla verticale del mondo
         if (!b) continue;
         const wq = b.getWorldQuaternion(new THREE.Quaternion());
@@ -125,16 +137,42 @@ export class Gym {
     if (d.y > 0.2) {
       const t = (R.y - FLOOR) / d.y;
       const foot = R.clone().addScaledVector(d, -t);
-      this.mop.position.copy(foot);
+      foot.y = floorAt(foot.x, foot.z);                        // (sopra il tappeto di gomma)
+      const head = foot.clone().addScaledVector(d, 0.1);       // testa del mocio un po' su dal pavimento, lungo il manico
+      this.mop.position.copy(head).addScaledVector(d, -0.1);
       this.mop.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
       this.mop.visible = true;
+      this._updFringe(dt, head);
     }
+  }
+
+  _updFringe(dt, head) {
+    const v = this.mopPrev ? head.clone().sub(this.mopPrev).divideScalar(Math.max(dt, 1e-3)) : new THREE.Vector3();
+    this.mopPrev = head.clone(); v.y = 0;
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), sc = new THREE.Vector3();
+    const fy = floorAt(head.x, head.z) + 0.004;
+    this.strands.forEach((S, k) => {
+      // dove vorrebbe stare la punta: a raggiera attorno alla testa, spinta indietro dal movimento
+      const want = new THREE.Vector3(head.x + Math.cos(S.a) * S.len * 0.75, fy, head.z + Math.sin(S.a) * S.len * 0.75).addScaledVector(v, -0.12);
+      if (!S.tip) S.tip = want.clone();
+      S.tip.lerp(want, Math.min(1, dt * 6));                  // i fili seguono in ritardo (attrito sul pavimento)
+      const r = S.tip.clone().sub(head); r.y = 0;
+      if (r.length() > S.len * 0.95) r.setLength(S.len * 0.95); S.tip.set(head.x + r.x, fy, head.z + r.z);
+      // primo pezzo: dalla testa giu' al pavimento poco fuori; secondo: disteso a terra fino alla punta
+      const mid = new THREE.Vector3(head.x + r.x * 0.3, fy + 0.008, head.z + r.z * 0.3);
+      for (const [a, b, i] of [[head, mid, k * 2], [mid, S.tip, k * 2 + 1]]) {
+        const dir = b.clone().sub(a), L = Math.max(dir.length(), 1e-3);
+        q.setFromUnitVectors(up, dir.divideScalar(L)); m.compose(a, q, sc.set(1, L, 1)); this.fringe.setMatrixAt(i, m);
+      }
+    });
+    this.fringe.instanceMatrix.needsUpdate = true;
   }
 
   // allenamento: la palestra si sposta e gira perche' il punto libero BAG_SPOT finisca sul sacco davanti a te,
   // con il pavimento a quota 0 (dove stai davvero); l'uomo delle pulizie lavora dall'altra parte
-  setTraining(on, bagZ) {
+  setTraining(on, bagZ, kind = null) {
     this.path = on ? PATH_TRAIN : PATH;
+    this.sayKind = on ? kind : null; this.said = false;      // la sua battuta: una volta per allenamento
     this.ring.visible = !!on;
     if (on) { this.group.rotation.y = -Math.PI / 2; this.group.position.set(0, 1, bagZ - BAG_SPOT[0]); }
     else { this.group.rotation.y = 0; this.group.position.set(0, 0, 0); }

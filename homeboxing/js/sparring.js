@@ -6,8 +6,8 @@
 // Durata libera: si va avanti finche' non fermi dalla pausa. La velocita' del partner (colpi, andata e ritorno,
 // spostamenti, parate) si regola trascinando su e giu' il cursore della barra al tuo fianco.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261004145938';
-import { t as tr } from './i18n.js?v=20261004145938';
+import * as sfx from './sfx.js?v=20261004151804';
+import { t as tr } from './i18n.js?v=20261004151804';
 
 // combinazioni chiamate: voce, colpi che tira il partner (non qui) e quello che devi tirare tu
 // codici: 1 jab, 2 diretto, 3 gancio sinistro, 4 gancio destro, 5 montante sinistro, 6 montante destro; 'b' = al corpo
@@ -37,11 +37,13 @@ export class Sparring {
   constructor(scene) {
     this.scene = scene;
     this._board(); this._slider();
-    let p = 0.12; try { const v = parseFloat(localStorage.getItem('hb-spar-speed')); if (v >= 0 && v <= 1) p = v; } catch (e) {}
+    let p = 0.31; try {                                          // (barra nuova 5..120%; la vecchia era 30..120%: si converte)
+      const v2 = parseFloat(localStorage.getItem('hb-spar-speed2')), v = parseFloat(localStorage.getItem('hb-spar-speed'));
+      if (v2 >= 0 && v2 <= 1) p = v2; else if (v >= 0 && v <= 1) p = (0.3 + 0.9 * v - 0.05) / 1.15; } catch (e) {}
     this.p = p;
     this.active = false;
   }
-  get speed() { return 0.3 + 0.9 * this.p; }                     // 30% .. 120% della velocita' normale
+  get speed() { return 0.05 + 1.15 * this.p; }                   // 5% .. 120% della velocita' normale
 
   // ---- tabellone (sopra il ring, dietro al partner)
   _board() {
@@ -117,7 +119,7 @@ export class Sparring {
       this.p = THREE.MathUtils.clamp((loc.y + 0.25) / 0.5, 0, 1);
       this._layoutSlider(); this._applySpeed();
       S.still = g.speed < 0.05 ? (S.still || 0) + dt : 0;
-      if (S.still > 0.8) { S.grab = null; S.knob.material.color.set(0xf2f2f2); try { localStorage.setItem('hb-spar-speed', this.p.toFixed(3)); } catch (e) {} }
+      if (S.still > 0.8) { S.grab = null; S.knob.material.color.set(0xf2f2f2); try { localStorage.setItem('hb-spar-speed2', this.p.toFixed(3)); } catch (e) {} }
       return;
     }
     let near = null;
@@ -265,7 +267,7 @@ export class Sparring {
       if (this.next > 0 || sfx.voiceBusy() || m.state !== 'stalk') return;
       const a = pick(this.defKinds && this.defKinds.length ? this.defKinds.flatMap(k => DEF_KINDS[k] || []) : ALL_ATTACKS);   // casuale o i colpi scelti
       sfx.announce(a.v);
-      this.task = { kind: 'def', a, t: 0, thrown: false, res: null, delay: sfx.voiceDur(a.v) + 0.35 / this.speed, after: 0 };
+      this.task = { kind: 'def', a, t: 0, thrown: false, res: null, delay: sfx.voiceDur(a.v) + 0.35 / Math.sqrt(this.speed), after: 0 };
       return;
     }
     const T = this.task; T.t += dt;

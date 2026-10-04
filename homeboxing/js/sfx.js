@@ -33,7 +33,7 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261004145938';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261004151804';
 // Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
@@ -48,12 +48,14 @@ const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).ma
   'c_start', 'c_free', 'c_combo', 'c_defense', 'c_k_1', 'c_k_2', 'c_k_11', 'c_k_12', 'c_k_112', 'c_k_123', 'c_k_32', 'c_k_23', 'c_k_1232',
   'c_k_16', 'c_k_63', 'c_k_34', 'c_k_b', 'c_k_12b', 'c_d_slip', 'c_d_block', 'c_d_duck', 'c_d_body', 'c_backguard',
   'c_good1', 'c_good2', 'c_good3', 'c_good4', 'c_bad1', 'c_bad2', 'c_bad3', 'c_bad4', 'c_bad5',
-  'c_tip_guard', 'c_tip_body', 'c_tip_def', 'c_tip_miss', 'c_tip_combo', 'c_end'];
+  'c_tip_guard', 'c_tip_body', 'c_tip_def', 'c_tip_miss', 'c_tip_combo', 'c_end',
+  // l'uomo delle pulizie (in allenamento, quando si ferma vicino a te)
+  'j_sacco', 'j_pera', 'j_doppio', 'j_corda'];
 let vbuf = {}, vLang = 'it';
 let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261004145938`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261004151804`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
@@ -87,6 +89,15 @@ export function voiceRate(name, rate = 1, gain = 1.0) {
   const g = ctx.createGain(); g.gain.value = gain; s.connect(g); g.connect(master); s.start();
 }
 
+// una voce che arriva da un punto (l'uomo delle pulizie): spaziale
+export function voiceAt(name, pos, cam) {
+  const b = vbuf[name]; if (!ctx || !b || ctx.state !== 'running') return;
+  setListener(cam);
+  const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 1.5; p.rolloffFactor = 1;
+  if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);
+  const s = ctx.createBufferSource(); s.buffer = b; const g = ctx.createGain(); g.gain.value = 1.1;
+  s.connect(g); g.connect(p); p.connect(master); s.start();
+}
 // uscendo dal gioco: silenzio totale (si riaccende con initAudio)
 export function stopAll() {
   crowdAmbient(false); seaAmbient(false); windAmbient(false); snowAmbient(false); heliStop();
@@ -175,7 +186,7 @@ const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261004145938`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261004151804`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
   loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (snowWanted && !snowW) snowAmbient(true); if (windWanted && (!wind || wind.synth)) { if (wind) { wind.s.stop(); wind = null; } windAmbient(true); } });   // vento vero appena caricato
   return loading;
