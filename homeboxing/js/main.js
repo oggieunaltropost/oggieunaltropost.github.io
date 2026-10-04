@@ -2,24 +2,25 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261003232708';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261003232708';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261003232708';
-import { Player, SimInput } from './player.js?v=20261003232708';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261003232708';
-import { Room } from './room.js?v=20261003232708';
-import { Arena } from './arena.js?v=20261003232708';
-import { Beach } from './beach.js?v=20261003232708';
-import { Rooftop } from './rooftop.js?v=20261003232708';
-import { Desert } from './desert.js?v=20261003232708';
-import { RingGirl } from './ringgirl.js?v=20261003232708';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261003232708';
-import * as sfx from './sfx.js?v=20261003232708';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261003232708';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261003232708';
-import { Tournament, BracketView } from './tournament.js?v=20261003232708';
-import { CpuMatch } from './cpu_match.js?v=20261003232708';
-import { TowerView } from './tower.js?v=20261003232708';
+import { buildRing, RING_SIZE } from './ring.js?v=20261004103857';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261004103857';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261004103857';
+import { Player, SimInput } from './player.js?v=20261004103857';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261004103857';
+import { Room } from './room.js?v=20261004103857';
+import { Arena } from './arena.js?v=20261004103857';
+import { Beach } from './beach.js?v=20261004103857';
+import { Rooftop } from './rooftop.js?v=20261004103857';
+import { Desert } from './desert.js?v=20261004103857';
+import { Gym } from './gym.js?v=20261004103857';
+import { RingGirl } from './ringgirl.js?v=20261004103857';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261004103857';
+import * as sfx from './sfx.js?v=20261004103857';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261004103857';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261004103857';
+import { Tournament, BracketView } from './tournament.js?v=20261004103857';
+import { CpuMatch } from './cpu_match.js?v=20261004103857';
+import { TowerView } from './tower.js?v=20261004103857';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -155,7 +156,7 @@ try { level = localStorage.getItem('hb-level') || 'normale'; } catch (e) {}
 if (!LEVELS[level]) level = 'normale';
 // dove si gioca: 'stanza' = realta' mista nella tua stanza, 'arena' = palazzetto virtuale con il pubblico,
 // 'spiaggia' = ring sulla sabbia in riva al mare
-const MODES = ['stanza', 'arena', 'spiaggia', 'grattacielo', 'deserto'];
+const MODES = ['stanza', 'arena', 'spiaggia', 'grattacielo', 'deserto', 'palestra'];
 let mode = 'stanza';
 try { mode = localStorage.getItem('hb-mode') || 'stanza'; } catch (e) {}
 // stage scelto nel menu: uno dei tre oppure 'random' (estratto a ogni incontro tra gli stage virtuali)
@@ -166,12 +167,14 @@ try { gameMode = localStorage.getItem('hb-gamemode') || 'arcade'; } catch (e) {}
 let tour = null;                      // torneo in corso
 
 if (!MODES.includes(mode)) mode = 'stanza';
-let arenaEnv = null, beachEnv = null, roofEnv = null, desertEnv = null;
+let arenaEnv = null, beachEnv = null, roofEnv = null, desertEnv = null, gymEnv = null;
 function applyMode() {
   const inArena = mode === 'arena', onBeach = mode === 'spiaggia', onRoof = mode === 'grattacielo';
   if (onRoof && !roofEnv) { roofEnv = new Rooftop(RING_SIZE); arena.add(roofEnv.group); }
   if (roofEnv) roofEnv.group.visible = onRoof;
-  const onDesert = mode === 'deserto';
+  const onDesert = mode === 'deserto', inGym = mode === 'palestra';
+  if (inGym && !gymEnv) { gymEnv = new Gym(); arena.add(gymEnv.group); }
+  if (gymEnv) gymEnv.group.visible = inGym;
   if (onDesert && !desertEnv) { desertEnv = new Desert(); arena.add(desertEnv.group); }
   if (desertEnv) desertEnv.group.visible = onDesert;
   if (inArena && !arenaEnv) { arenaEnv = new Arena(RING_SIZE); arena.add(arenaEnv.group); }
@@ -179,7 +182,14 @@ function applyMode() {
   if (arenaEnv) arenaEnv.group.visible = inArena;
   if (beachEnv) beachEnv.group.visible = onBeach;
   room.group.visible = mode === 'stanza';
-  if (onDesert) {                                      // deserto vero a mezzogiorno: sole alto e forte, cielo blu intenso
+  if (inGym) {                                         // palestra la sera: luci calde e soffuse dall'alto, sala in penombra
+    scene.environment = roomEnv; scene.environmentRotation.set(0, 0, 0);
+    hemi.color.set(0xffe2c0); hemi.groundColor.set(0x2a2018); hemi.intensity = 0.35;
+    scene.environmentIntensity = 0.3; key.intensity = 1.8; fill.intensity = 0.35;
+    key.color.set(0xffd9a8); key.position.set(0.8, 4.0, 0.9);
+    scene.background = new THREE.Color(0x0b0a0c); scene.fog = null;
+    camera.far = 60;
+  } else if (onDesert) {                                      // deserto vero a mezzogiorno: sole alto e forte, cielo blu intenso
     hemi.color.set(0x8fb0f0); hemi.groundColor.set(0xb8865a); hemi.intensity = 0.8;
     scene.environmentIntensity = 0.75; key.intensity = 3.0; fill.intensity = 0.45;
     key.color.set(0xfff4e2); key.position.copy(desertEnv.sunDir).multiplyScalar(6);
@@ -260,7 +270,7 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261003232708`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261004103857`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -278,7 +288,7 @@ const stageRow = y => ({ label: t('stage'), tk: 'stage', y, h: 0.2, carousel: tr
   { id: 's:stanza', tk: 'm_stanza', w: 0.22, img: roomPreview() }, { id: 's:arena', tk: 'm_arena', w: 0.22, img: stageImg('arena') },
   { id: 's:spiaggia', tk: 'm_spiaggia', w: 0.22, img: stageImg('spiaggia') },
   { id: 's:grattacielo', tk: 'm_grattacielo', w: 0.22, img: stageImg('grattacielo') },
-  { id: 's:deserto', tk: 'm_deserto', w: 0.22, img: stageImg('deserto') }, { id: 's:random', tk: 'm_random', w: 0.22, img: randomPreview() }] });
+  { id: 's:deserto', tk: 'm_deserto', w: 0.22, img: stageImg('deserto') }, { id: 's:palestra', tk: 'm_palestra', w: 0.22, img: stageImg('palestra') }, { id: 's:random', tk: 'm_random', w: 0.22, img: randomPreview() }] });
 const optionRows = y0 => [
   { label: t('level'), tk: 'level', y: y0, buttons: [{ id: 'l:facile', tk: 'l_facile', w: 0.205 }, { id: 'l:normale', tk: 'l_normale', w: 0.205 },
     { id: 'l:difficile', tk: 'l_difficile', w: 0.205 }, { id: 'l:impossibile', tk: 'l_impossibile', w: 0.205 }] },
@@ -930,6 +940,7 @@ function tick(dt, frame) {
   if (party.update(dt)) sfx.firework();
   if (arenaEnv && arenaEnv.group.visible) { arenaEnv.update(dt); sfx.crowdLevel(arenaEnv.excite); }
   if (desertEnv && desertEnv.group.visible) desertEnv.update(dt);
+  if (gymEnv && gymEnv.group.visible) gymEnv.update(dt);
   if (roofEnv && roofEnv.group.visible) {
     const hp = roofEnv.update(dt);
     if (hp) sfx.heli(hp, renderer.xr.isPresenting ? renderer.xr.getCamera() : camera); else sfx.heliStop();
@@ -972,7 +983,7 @@ function showMainMenu() {
   openMenu(rootMenu);
 }
 // stage dell'incontro: quello scelto, oppure a caso tra gli stage virtuali (nel torneo senza ripetere finche' si puo')
-const VIRTUAL = ['arena', 'spiaggia', 'grattacielo', 'deserto'];
+const VIRTUAL = ['arena', 'spiaggia', 'grattacielo', 'deserto', 'palestra'];
 function pickStage() {
   if (stageChoice !== 'random') return stageChoice;
   let pool = VIRTUAL;
@@ -1259,7 +1270,7 @@ loadMikeGLTF(FIGHTERS[fighterId].glb, f => statusT('loading', { p: Math.min(100,
   bruises = new Bruises(mike.model);
   mike.bounds = keepInRing;
   placeArena(new THREE.Vector3(0, 1.65, 0), 0);
-  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.getUpFx = getUp; window.gameApi = { newMatch, showMainMenu, openPause, pause, envs: () => ({ roofEnv, desertEnv }), startIntro, startPresentation, girl: () => girl, arena: () => arena, ringSize: () => ringSize }; window.sweatFx = sweat;   // per le prove
+  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.getUpFx = getUp; window.gameApi = { newMatch, showMainMenu, openPause, pause, envs: () => ({ roofEnv, desertEnv, gymEnv }), startIntro, startPresentation, girl: () => girl, arena: () => arena, ringSize: () => ringSize }; window.sweatFx = sweat;   // per le prove
   window.tourApi = { MENUS, bracket, tourBtns, show: () => showMainMenu(), open: m => openMenu(MENUS[m]), start: () => { tour = new Tournament(FIGHTERS); showBracketNext(); },
     after: win => { game.result = { winner: win ? 'player' : 'mike' }; showBracketAfter(); }, fight: () => startFight(tour.opponent()), setStageChoice: c => { stageChoice = c; }, get mode() { return mode; }, get tour() { return tour; }, get cpu() { return cpu; }, skipBtn, tower, startSurvival, get surv() { return surv; }, survAfter: win => { game.result = { winner: win ? 'player' : 'mike' }; showTowerAfter(); } };   // (prove)
   status('');

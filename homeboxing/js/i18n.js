@@ -2,7 +2,7 @@
 // (la scelta resta salvata). Scritte e voci (game/assets/voce/it, .../en) seguono la stessa lingua.
 const STR = {
   it: {
-    menu_sub: 'tieni un guantone sul pulsante', where: 'DOVE', m_stanza: 'La tua stanza', m_arena: 'Nell\'arena', m_spiaggia: 'In spiaggia', m_grattacielo: 'Grattacielo', m_deserto: 'Nel deserto',
+    menu_sub: 'tieni un guantone sul pulsante', where: 'DOVE', m_stanza: 'La tua stanza', m_arena: 'Nell\'arena', m_spiaggia: 'In spiaggia', m_grattacielo: 'Grattacielo', m_deserto: 'Nel deserto', m_palestra: 'In palestra',
     level: 'LIVELLO', l_facile: 'Facile', l_normale: 'Normale', l_difficile: 'Difficile', l_impossibile: 'Impossibile',
     rounds: 'ROUND', duration: 'DURATA DI UN ROUND', rule3: 'REGOLA DEI 3 ATTERRAMENTI', yes: 'Sì', no: 'No', language: 'LINGUA',
     start: 'INIZIA INCONTRO', quit: 'ESCI DAL GIOCO',
@@ -34,7 +34,7 @@ const STR = {
     load_err: 'Errore nel caricamento di Mike: {e}', xr_err: 'Impossibile entrare in realtà mista: {e}',
   },
   en: {
-    menu_sub: 'hold a glove on a button', where: 'WHERE', m_stanza: 'Your room', m_arena: 'Arena', m_spiaggia: 'Beach', m_grattacielo: 'Skyscraper', m_deserto: 'Desert',
+    menu_sub: 'hold a glove on a button', where: 'WHERE', m_stanza: 'Your room', m_arena: 'Arena', m_spiaggia: 'Beach', m_grattacielo: 'Skyscraper', m_deserto: 'Desert', m_palestra: 'Gym',
     level: 'LEVEL', l_facile: 'Easy', l_normale: 'Normal', l_difficile: 'Hard', l_impossibile: 'Impossible',
     rounds: 'ROUNDS', duration: 'ROUND LENGTH', rule3: 'THREE KNOCKDOWN RULE', yes: 'Yes', no: 'No', language: 'LANGUAGE',
     start: 'START FIGHT', quit: 'EXIT GAME',
