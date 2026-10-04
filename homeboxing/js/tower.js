@@ -1,7 +1,7 @@
 // Modalita' Sopravvivenza: la torre. Un piano per ogni avversario (dal basso), tu a destra del piano che devi
 // conquistare. Dopo una vittoria il tuo gettone sale al piano sopra con scia, lampo e suono; in cima la corona.
 import * as THREE from 'three';
-import { t } from './i18n.js?v=20261004144809';
+import { t } from './i18n.js?v=20261004145938';
 
 const W = 1024, H = 1600;                    // tela
 const PW = 0.9, PH = PW * H / W;             // pannello in metri
@@ -23,7 +23,8 @@ export class TowerView {
     this.hl = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: this._glowTex(), transparent: true, depthTest: false, toneMapped: false }));
     this.hl.renderOrder = 1101; this.hl.visible = false; this.group.add(this.hl);
     // il tuo gettone, la sua scia e il lampo d'arrivo
-    this.token = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.09), new THREE.MeshBasicMaterial({ map: this._tokenTex(), transparent: true, depthTest: false, toneMapped: false }));
+    // (gettone piu' piccolo del riquadro del piano: resta dentro con un po' di margine)
+    this.token = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.0675), new THREE.MeshBasicMaterial({ map: this._tokenTex(), transparent: true, depthTest: false, toneMapped: false }));
     this.token.renderOrder = 1104; this.group.add(this.token);
     const halo = this._haloTex();
     this.flash = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), new THREE.MeshBasicMaterial({ map: halo, transparent: true, depthTest: false, toneMapped: false, opacity: 0, blending: THREE.AdditiveBlending }));
@@ -110,8 +111,6 @@ export class TowerView {
       rr(g, tx0 + 20, y - 52, tx1 - tx0 - 40, 104, 14);
       g.fillStyle = lit ? 'rgba(48,40,22,0.95)' : 'rgba(28,32,42,0.95)'; g.fill();
       g.lineWidth = 3; g.strokeStyle = i === reached && S.state !== 'champion' ? '#ffc928' : '#3b4252'; g.stroke();
-      // finestre accese sui piani gia' raggiunti
-      for (let k = 0; k < 3; k++) { g.fillStyle = lit ? '#ffcf5a' : '#262b38'; g.fillRect(tx0 + 300 + k * 46, y - 18, 26, 36); }
       // numero del piano, grande a sinistra della torre: dorato se raggiunto, grigio se ancora da salire
       const cur = i === reached && S.state !== 'champion' && S.state !== 'lost';
       rr(g, 18, y - 40, 88, 80, 16); g.fillStyle = cur ? '#ffc928' : lit ? 'rgba(255,201,40,0.25)' : 'rgba(40,46,60,0.9)'; g.fill();
@@ -139,12 +138,12 @@ export class TowerView {
     this.group.visible = true;
   }
   close() { this.group.visible = false; this.hl.visible = false; }
-  _placeToken(py, scale = 1, px = W - 230) { this.token.position.set(this._lx(px), this._ly(py), 0.006); this.token.scale.setScalar(scale); }
+  _placeToken(py, scale = 1, px = W - 260) { this.token.position.set(this._lx(px), this._ly(py), 0.006); this.token.scale.setScalar(scale); }
   // stato attuale: gettone accanto al piano da conquistare (o in cima se campione)
   show(S, subtitle) {
     this.S = S; this.subtitle = subtitle; this.anim = null; this.draw();
     const top = S.state === 'champion';
-    this._placeToken(top ? this.crownY() + 105 : this.floorY(Math.min(S.idx, S.order.length - 1)), 1, top ? W / 2 : W - 230);
+    this._placeToken(top ? this.crownY() + 105 : this.floorY(Math.min(S.idx, S.order.length - 1)), 1, top ? W / 2 : W - 260);
     this.token.visible = S.state !== 'lost' || true;
     this.hl.visible = !top && S.state !== 'lost';
     if (this.hl.visible) { const y = this.floorY(S.idx); this.hl.position.set(0, this._ly(y), 0.004); this.hl.scale.set(PW * 0.84, 0.13, 1); }
@@ -168,7 +167,7 @@ export class TowerView {
     const k = Math.min(1, A.t / A.dur);
     const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;      // parte piano, scatta, frena
     const py = A.y0 + (A.y1 - A.y0) * e;
-    this._placeToken(py, 1 + 0.35 * Math.sin(Math.PI * k), A.toTop ? (W - 230) + (W / 2 - (W - 230)) * Math.max(0, (k - 0.5) / 0.5) : W - 230);   // in cima: al centro, sotto la corona
+    this._placeToken(py, 1 + 0.35 * Math.sin(Math.PI * k), A.toTop ? (W - 260) + (W / 2 - (W - 260)) * Math.max(0, (k - 0.5) / 0.5) : W - 260);   // in cima: al centro, sotto la corona
     this.token.position.x += Math.sin(k * Math.PI * 6) * 0.004 * (1 - k);
     // scia luminosa
     const free = this.trail.find(p => p.t <= 0);
