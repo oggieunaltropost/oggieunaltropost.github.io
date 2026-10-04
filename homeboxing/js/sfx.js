@@ -33,17 +33,17 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
-import { FIGHTER_IDS } from './fighters.js?v=20261004121714';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261004135833';
 // Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
   'final_round', 'ten_seconds', 'knockdown', 'winner_intro', 'scorecards', 'win_you_ko', 'win_you_tko', 'win_you_points',
   'win_you_dq', 'draw', 'box', 'lowblow_1', 'lowblow_2', 'dq', 'intro_1', 'intro_red', 'intro_blue_g', 'title',
   // l'avversario: parte comune + il suo nome (per un nuovo pugile bastano intro_<id> e name_<id>)
-  'win_opp_ko', 'win_opp_tko', 'win_opp_points', 'win_opp_dq',
+  'win_opp_ko', 'win_opp_tko', 'win_opp_points', 'win_opp_dq', 'intro_gen',
   // torneo: benvenuto, nome del turno, campione, eliminato
   'tour_intro', 'tour_r0', 'tour_r1', 'tour_r2', 'tour_r3', 'tour_r4', 'tour_champ', 'tour_out',
-  ...FIGHTER_IDS.flatMap(id => [`intro_${id}`, `name_${id}`]),
+  ...FIGHTER_IDS.flatMap(id => FIGHTERS[id].genericIntro ? [`name_${id}`] : [`intro_${id}`, `name_${id}`]),   // (i nuovi: presentazione comune intro_gen)
   // l'allenatore dello sparring
   'c_start', 'c_free', 'c_combo', 'c_defense', 'c_k_1', 'c_k_2', 'c_k_11', 'c_k_12', 'c_k_112', 'c_k_123', 'c_k_32', 'c_k_23', 'c_k_1232',
   'c_k_16', 'c_k_63', 'c_k_34', 'c_k_b', 'c_k_12b', 'c_d_slip', 'c_d_block', 'c_d_duck', 'c_d_body', 'c_backguard',
@@ -53,7 +53,7 @@ let vbuf = {}, vLang = 'it';
 let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261004121714`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261004135833`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
@@ -89,7 +89,7 @@ export function voiceRate(name, rate = 1, gain = 1.0) {
 
 // uscendo dal gioco: silenzio totale (si riaccende con initAudio)
 export function stopAll() {
-  crowdAmbient(false); seaAmbient(false); windAmbient(false); heliStop();
+  crowdAmbient(false); seaAmbient(false); windAmbient(false); snowAmbient(false); heliStop();
   if (ctx && ctx.state === 'running') ctx.suspend();
 }
 
@@ -169,14 +169,15 @@ export function bell(times = 1) {
 const SAMPLES = ['brusio', 'tifo', 'boato_0', 'boato_1', 'boato_2', 'boato_3', 'ooh_0', 'ooh_1', 'ooh_2', 'applauso_0', 'applauso_1',
   'mare', 'onda_0', 'onda_1', 'onda_2', 'gabbiano_0', 'gabbiano_1', 'elicottero', 'vento',
   'sacco_0', 'sacco_1', 'sacco_2', 'sacco_3', 'catena_0', 'catena_1', 'catena_2',
-  'pera_0', 'pera_1', 'pera_2', 'pera_3', 'pera_4', 'pera_5', 'pera_6', 'pera_7', 'aquila_0', 'aquila_1', 'aquila_2'];
+  'pera_0', 'pera_1', 'pera_2', 'pera_3', 'pera_4', 'pera_5', 'pera_6', 'pera_7', 'aquila_0', 'aquila_1', 'aquila_2',
+  'ululato_0', 'ululato_1', 'ululato_2', 'ululato_3', 'passineve_0', 'passineve_1', 'passineve_2', 'passineve_3', 'passineve_4', 'passineve_5', 'ventoneve'];
 const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261004121714`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261004135833`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
-  loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (windWanted && (!wind || wind.synth)) { if (wind) { wind.s.stop(); wind = null; } windAmbient(true); } });   // vento vero appena caricato
+  loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (snowWanted && !snowW) snowAmbient(true); if (windWanted && (!wind || wind.synth)) { if (wind) { wind.s.stop(); wind = null; } windAmbient(true); } });   // vento vero appena caricato
   return loading;
 }
 function loopSrc(b, gain) {
@@ -452,4 +453,31 @@ export function eagleCry(pos, cam) {
   s.playbackRate.value = 0.94 + Math.random() * 0.12;
   const g = ctx.createGain(); g.gain.value = 0.8;
   s.connect(g); g.connect(p); p.connect(master); s.start();
+}
+
+// ---------------------------------------------------------------- neve: vento freddo in loop, passi del lupo, ululato
+let snowW = null, snowWanted = false;
+export function snowAmbient(on) {
+  snowWanted = on;
+  if (!ctx) return;
+  if (on && !snowW) {
+    if (!buf.ventoneve) { loadSamples(); return; }
+    snowW = loopSrc(buf.ventoneve, 0.0); snowW.g.gain.setTargetAtTime(0.38, ctx.currentTime, 1.5);
+  } else if (!on && snowW) { const w = snowW; snowW = null; w.g.gain.setTargetAtTime(0, ctx.currentTime, 0.3); setTimeout(() => { try { w.s.stop(); } catch (e) {} }, 1200); }
+}
+function playSpatial(names, pos, cam, gain, ref, rate = 1) {
+  if (!ctx || ctx.state !== 'running') return;
+  names = names.filter(n => buf[n]); if (!names.length) return;
+  setListener(cam);
+  const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = ref; p.rolloffFactor = 1;
+  if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);
+  const s = ctx.createBufferSource(); s.buffer = buf[names[Math.floor(Math.random() * names.length)]]; s.playbackRate.value = rate;
+  const g = ctx.createGain(); g.gain.value = gain;
+  s.connect(g); g.connect(p); p.connect(master); s.start();
+}
+export function snowStep(pos, cam) {
+  playSpatial(['passineve_0', 'passineve_1', 'passineve_2', 'passineve_3', 'passineve_4', 'passineve_5'], pos, cam, 0.35, 1.5, 1.05 + Math.random() * 0.25);
+}
+export function wolfHowl(pos, cam) {
+  playSpatial(['ululato_0', 'ululato_1', 'ululato_2', 'ululato_3'], pos, cam, 0.9, 6, 0.97 + Math.random() * 0.06);
 }

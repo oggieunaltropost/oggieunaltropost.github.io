@@ -1,7 +1,7 @@
 // Modalita' Sopravvivenza: la torre. Un piano per ogni avversario (dal basso), tu a destra del piano che devi
 // conquistare. Dopo una vittoria il tuo gettone sale al piano sopra con scia, lampo e suono; in cima la corona.
 import * as THREE from 'three';
-import { t } from './i18n.js?v=20261004121714';
+import { t } from './i18n.js?v=20261004135833';
 
 const W = 1024, H = 1600;                    // tela
 const PW = 0.9, PH = PW * H / W;             // pannello in metri
@@ -82,7 +82,7 @@ export class TowerView {
   draw(climbing = null) {
     const S = this.S; if (!S) return;
     const g = this.canvas.getContext('2d'), n = S.order.length;
-    this.focus = climbing ? climbing.from : S.idx;
+    this.focus = climbing ? climbing.from + 1 : S.idx;      // (in salita la torre e' gia' inquadrata sull'arrivo: niente scatto alla fine)
     const b0 = this.base(), showTop = b0 + VIS >= n;
     g.clearRect(0, 0, W, H);
     const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, 'rgba(18,14,30,0.97)'); bg.addColorStop(1, 'rgba(6,8,12,0.97)');

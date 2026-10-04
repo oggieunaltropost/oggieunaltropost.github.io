@@ -18,7 +18,7 @@ export class Gym {
     this.group = new THREE.Group(); this.group.name = 'palestra';
     this.t = 0; this.bags = [];
     const L = new GLTFLoader();
-    L.load('assets/palestra.glb?v=20261004121714', g => {
+    L.load('assets/palestra.glb?v=20261004135833', g => {
       g.scene.traverse(o => {
         if (!o.isMesh) return;
         const m = o.material;
@@ -29,7 +29,7 @@ export class Gym {
       this.group.add(g.scene);
       this.loaded = true; if (this.onLoad) this.onLoad();
     });
-    L.load('assets/inserviente.glb?v=20261004121714', g => this._janitor(g));
+    L.load('assets/inserviente.glb?v=20261004135833', g => this._janitor(g));
   }
 
   _janitor(g) {

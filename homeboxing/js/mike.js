@@ -44,6 +44,10 @@ const C = {
   '2b': ['body_r'], '1-2b': ['jab', 'body_r'], '3b-3': ['body_l', 'hook_l'], '2-3b': ['cross', 'body_l'],
   '1-3b-3': ['jab', 'body_l', 'hook_l'], '2b-3-2': ['body_r', 'hook_l', 'cross'], '3b-4': ['body_l', 'hook_r'],
   '6-3b-3': ['uppercut_r', 'body_l', 'hook_l'],
+  // per i pugili nuovi: jab doppiati, ganci a ripetizione, lavoro al corpo
+  '1-2-1': ['jab', 'cross', 'jab'], '1-2-3-4': ['jab', 'cross', 'hook_l', 'hook_r'], '4-3': ['hook_r', 'hook_l'],
+  '3-4-3': ['hook_l', 'hook_r', 'hook_l'], '3b-3b': ['body_l', 'body_l'], '2-3b-3': ['cross', 'body_l', 'hook_l'],
+  '1-2-3b': ['jab', 'cross', 'body_l'], '5-6': ['uppercut_l', 'uppercut_r'],
 };
 const combos = (...names) => names.map(n => C[n]);
 // se tieni la guardia alta, Mike lavora al corpo e con montanti e ganci che entrano di lato
