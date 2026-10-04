@@ -992,7 +992,13 @@ export class Mike {
   move(dt, dist, dir) {
     if (this.stun > 0) { this.vel.set(0, 0, 0); if (this.moveVel) this.moveVel.set(0, 0, 0); return; }
     const c = this.cfg;
-    const desired = this.holdDist || (this.state === 'approach' || this.state === 'attack' ? this.attackDist() : c.stalkDist);
+    let desired = this.holdDist || (this.state === 'approach' || this.state === 'attack' ? this.attackDist() : c.stalkDist);
+    // gioco di gambe (incontri tra CPU): ogni tanto si allontana, gira intorno all'altro, cambia lato
+    let fwSide = 0;
+    if (this.footwork && (this.state === 'stalk' || this.state === 'retreat')) {
+      if (!this.fw || (this.fw.t -= dt) <= 0) this.fw = { t: 1.2 + Math.random() * 2.2, off: Math.random() < 0.45 ? 0.3 + Math.random() * 0.8 : 0, side: (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.45) };
+      desired += this.fw.off; fwSide = this.fw.side;
+    }
     let radial = Math.max(-c.moveSpeed, Math.min(c.moveSpeed * (this.counter ? 1.6 : 1), (dist - desired) * 4));
     // pugno partito: il passo resta quello deciso al lancio (se indietreggi non ti insegue: la schivata indietro
     // funziona); ti segue di nuovo quando il colpo e' finito
@@ -1001,7 +1007,7 @@ export class Mike {
     if (this.state === 'retreat') radial = Math.min(radial, -0.2);
     if (this.backOff > 0) { radial = -1.1; this.backOff -= 1.1 * dt; }   // passo indietro (schiva al corpo), con i passi
     const side = _c.set(dir.z, 0, -dir.x);       // perpendicolare: gira intorno
-    const strafe = this.state === 'stalk' ? Math.sin(this.time * 0.8 + this.strafe) * 0.3 : 0;
+    const strafe = (this.state === 'stalk' ? Math.sin(this.time * 0.8 + this.strafe) * 0.3 : 0) + fwSide;
     // velocita' con un minimo di inerzia (un pugile non parte e non si ferma di colpo)
     const target = _b.copy(dir).multiplyScalar(radial).addScaledVector(side, strafe);
     this.moveVel.lerp(target, Math.min(1, dt * 6));
