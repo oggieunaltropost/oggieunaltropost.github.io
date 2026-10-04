@@ -223,11 +223,15 @@ export class Player {
     this.sim = null;
   }
 
+  // vibrazione del controller (solo controller: le mani e il visore non vibrano); si spegne dalle opzioni
   pulse(side, strength = 0.8, ms = 60) {
+    if (this.vibrate === false) return;
     for (const s of this.sources) {
       if (s.handedness !== side || !s.gamepad) continue;
       const h = s.gamepad.hapticActuators && s.gamepad.hapticActuators[0];
-      if (h && h.pulse) h.pulse(strength, ms);
+      if (h && h.pulse) { h.pulse(strength, ms); continue; }
+      const v = s.gamepad.vibrationActuator;                    // (browser piu' nuovi)
+      if (v && v.playEffect) v.playEffect('dual-rumble', { duration: ms, strongMagnitude: strength, weakMagnitude: strength * 0.6 }).catch(() => {});
     }
   }
 
