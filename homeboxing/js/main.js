@@ -2,33 +2,33 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261004233118';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261004233118';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261004233118';
-import { Player, SimInput } from './player.js?v=20261004233118';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261004233118';
-import { Room } from './room.js?v=20261004233118';
-import { Arena } from './arena.js?v=20261004233118';
-import { Beach } from './beach.js?v=20261004233118';
-import { Rooftop } from './rooftop.js?v=20261004233118';
-import { Desert } from './desert.js?v=20261004233118';
-import { Snow } from './snow.js?v=20261004233118';
-import { Volcano } from './volcano.js?v=20261004233118';
-import { Sea, WATER } from './sea.js?v=20261004233118';
-import { Gym } from './gym.js?v=20261004233118';
-import { BagTraining } from './training.js?v=20261004233118';
-import { RopeTraining } from './rope.js?v=20261004233118';
-import { SpeedBagTraining } from './speedbag.js?v=20261004233118';
-import { DoubleEndTraining } from './doubleend.js?v=20261004233118';
-import { Sparring } from './sparring.js?v=20261004233118';
-import { RingGirl } from './ringgirl.js?v=20261004233118';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261004233118';
-import * as sfx from './sfx.js?v=20261004233118';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261004233118';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261004233118';
-import { Tournament, BracketView } from './tournament.js?v=20261004233118';
-import { CpuMatch } from './cpu_match.js?v=20261004233118';
-import { TowerView } from './tower.js?v=20261004233118';
+import { buildRing, RING_SIZE } from './ring.js?v=20261004234021';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261004234021';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261004234021';
+import { Player, SimInput } from './player.js?v=20261004234021';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261004234021';
+import { Room } from './room.js?v=20261004234021';
+import { Arena } from './arena.js?v=20261004234021';
+import { Beach } from './beach.js?v=20261004234021';
+import { Rooftop } from './rooftop.js?v=20261004234021';
+import { Desert } from './desert.js?v=20261004234021';
+import { Snow } from './snow.js?v=20261004234021';
+import { Volcano } from './volcano.js?v=20261004234021';
+import { Sea, WATER } from './sea.js?v=20261004234021';
+import { Gym } from './gym.js?v=20261004234021';
+import { BagTraining } from './training.js?v=20261004234021';
+import { RopeTraining } from './rope.js?v=20261004234021';
+import { SpeedBagTraining } from './speedbag.js?v=20261004234021';
+import { DoubleEndTraining } from './doubleend.js?v=20261004234021';
+import { Sparring } from './sparring.js?v=20261004234021';
+import { RingGirl } from './ringgirl.js?v=20261004234021';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261004234021';
+import * as sfx from './sfx.js?v=20261004234021';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261004234021';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261004234021';
+import { Tournament, BracketView } from './tournament.js?v=20261004234021';
+import { CpuMatch } from './cpu_match.js?v=20261004234021';
+import { TowerView } from './tower.js?v=20261004234021';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -341,7 +341,8 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261004233118`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261004234021`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261004234021`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -352,6 +353,66 @@ function randomPreview() {
   g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(0, 0, 320, 200);
   g.fillStyle = '#ffd34d'; g.font = '900 150px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 12; g.fillText('?', 160, 108);
+  const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; return tx;
+}
+// riquadri delle modalita' (menu iniziale): foto dal gioco per arcade e allenamento, disegni per torneo e torre
+function modeArt(kind) {
+  const c = document.createElement('canvas'); c.width = 480; c.height = 300; const g = c.getContext('2d');
+  const gold = (x0, y0, x1, y1) => { const gr = g.createLinearGradient(x0, y0, x1, y1); gr.addColorStop(0, '#fff3b0'); gr.addColorStop(0.45, '#ffc928'); gr.addColorStop(1, '#a8700c'); return gr; };
+  const sparkle = (x, y, r) => { g.fillStyle = 'rgba(255,245,200,0.95)'; g.beginPath(); for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, rr = k % 2 ? r * 0.25 : r; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.fill(); };
+  if (kind === 'tour') {
+    const bg = g.createRadialGradient(240, 150, 20, 240, 150, 300); bg.addColorStop(0, '#3b2a6e'); bg.addColorStop(1, '#0c0a1c'); g.fillStyle = bg; g.fillRect(0, 0, 480, 300);
+    // tabellone: dai 16 per lato si arriva al centro
+    g.strokeStyle = 'rgba(255,201,40,0.55)'; g.lineWidth = 2;
+    for (const side of [-1, 1]) {
+      let ys = Array.from({ length: 8 }, (_, i) => 30 + i * 34), x = side < 0 ? 18 : 462;
+      for (let lev = 0; lev < 3; lev++) {
+        const nx = x + side * -48, ny = [];
+        for (let i = 0; i < ys.length; i += 2) {
+          const m = (ys[i] + ys[i + 1]) / 2;
+          g.beginPath(); g.moveTo(x, ys[i]); g.lineTo(nx - side * -0, ys[i]); g.lineTo(nx, ys[i + 1]); g.lineTo(x, ys[i + 1]); g.moveTo(nx, m); g.stroke();
+          ny.push(m);
+        }
+        ys = ny; x = nx;
+      }
+      g.beginPath(); g.moveTo(x, ys[0]); g.lineTo(240 + side * -0 + side * 60, ys[0]); g.stroke();
+    }
+    // la coppa
+    const glow = g.createRadialGradient(240, 125, 10, 240, 125, 120); glow.addColorStop(0, 'rgba(255,210,80,0.55)'); glow.addColorStop(1, 'rgba(255,210,80,0)');
+    g.fillStyle = glow; g.fillRect(100, 0, 280, 300);
+    g.fillStyle = gold(180, 40, 300, 220);
+    g.beginPath(); g.moveTo(190, 55); g.lineTo(290, 55); g.bezierCurveTo(292, 130, 270, 165, 240, 172); g.bezierCurveTo(210, 165, 188, 130, 190, 55); g.fill();   // coppa
+    g.lineWidth = 9; g.strokeStyle = gold(150, 60, 330, 140);
+    g.beginPath(); g.arc(190, 95, 30, Math.PI * 0.45, Math.PI * 1.55); g.stroke(); g.beginPath(); g.arc(290, 95, 30, -Math.PI * 0.55, Math.PI * 0.55); g.stroke();   // manici
+    g.fillStyle = gold(225, 170, 255, 230); g.fillRect(232, 170, 16, 32);
+    g.fillRect(208, 200, 64, 14); g.fillRect(196, 212, 88, 24);                                   // base
+    g.fillStyle = 'rgba(255,255,255,0.45)'; g.beginPath(); g.ellipse(214, 95, 7, 30, 0.15, 0, Math.PI * 2); g.fill();   // riflesso
+    g.fillStyle = '#5a3a06'; g.font = '900 22px system-ui, sans-serif'; g.textAlign = 'center'; g.fillText('32', 240, 230);
+    sparkle(305, 50, 12); sparkle(172, 150, 8); sparkle(300, 175, 6);
+  } else {
+    const bg = g.createLinearGradient(0, 0, 0, 300); bg.addColorStop(0, '#1a0f3a'); bg.addColorStop(0.6, '#6b2a5a'); bg.addColorStop(1, '#e0753a'); g.fillStyle = bg; g.fillRect(0, 0, 480, 300);
+    for (let k = 0; k < 40; k++) { g.fillStyle = `rgba(255,255,255,${0.3 + Math.random() * 0.6})`; g.fillRect(Math.random() * 480, Math.random() * 140, 2, 2); }
+    // la torre: corpo scuro, merli, finestre accese piano per piano
+    const x0 = 180, x1 = 300;
+    g.fillStyle = '#120d1e'; g.fillRect(x0, 92, x1 - x0, 210);
+    for (let x = x0; x < x1; x += 24) g.fillRect(x, 78, 14, 16);
+    for (let f = 0; f < 8; f++) for (let k = 0; k < 3; k++) {
+      const lit = (f + k) % 3 !== 0;
+      g.fillStyle = lit ? (f === 7 ? '#ffd34d' : '#ffb347') : '#2a2238';
+      g.fillRect(x0 + 18 + k * 32, 106 + f * 24, 18, 12);
+    }
+    // la corona sopra, che brilla
+    const glow = g.createRadialGradient(240, 48, 5, 240, 48, 90); glow.addColorStop(0, 'rgba(255,215,90,0.75)'); glow.addColorStop(1, 'rgba(255,215,90,0)');
+    g.fillStyle = glow; g.fillRect(140, 0, 200, 120);
+    g.fillStyle = gold(200, 20, 280, 70);
+    g.beginPath(); g.moveTo(206, 66); g.lineTo(200, 26); g.lineTo(222, 46); g.lineTo(240, 16); g.lineTo(258, 46); g.lineTo(280, 26); g.lineTo(274, 66); g.closePath(); g.fill();
+    for (const [x, y, c] of [[200, 24, '#e5484d'], [240, 14, '#3fb0ff'], [280, 24, '#e5484d']]) { g.fillStyle = c; g.beginPath(); g.arc(x, y, 5, 0, Math.PI * 2); g.fill(); }
+    // il tuo gettone che sale, con la scia
+    for (let k = 0; k < 6; k++) { g.fillStyle = `rgba(255,201,40,${0.08 + k * 0.06})`; g.beginPath(); g.arc(330, 250 - k * 14, 4 + k, 0, Math.PI * 2); g.fill(); }
+    g.fillStyle = '#ffc928'; g.beginPath(); g.arc(330, 160, 13, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#1a1406'; g.font = '900 13px system-ui, sans-serif'; g.textAlign = 'center'; g.fillText('TU', 330, 165);
+    sparkle(160, 40, 9); sparkle(320, 30, 7);
+  }
   const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; return tx;
 }
 const withText = rows => rows.map(r => ({ ...r, buttons: r.buttons.map(b => ({ ...b, text: b.tk ? t(b.tk) + (b.disabled ? ' (' + t('soon') + ')' : '') : b.text })) }));
@@ -368,15 +429,16 @@ const optionRows = y0 => [
   { label: t('rule3'), tk: 'rule3', y: y0 - 0.48, buttons: [{ id: 'k:si', tk: 'yes', w: 0.2 }, { id: 'k:no', tk: 'no', w: 0.2 }] },
 ];
 // menu iniziale: modalita' di gioco, regole generali, lingua
-const rootMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.0, height: 0.86, draggable: true, rows: withText([
-  { label: t('mode_title'), tk: 'mode_title', y: 0.15, h: 0.12, buttons: [{ id: 'gm:arcade', tk: 'm_arcade', w: 0.22, color: 0x1f6f8a },
-    { id: 'gm:training', tk: 'm_training', w: 0.22, color: 0x8a3a1a }, { id: 'gm:tour', tk: 'm_tour', w: 0.22, color: 0x7a5a10 },
-    { id: 'gm:surv', tk: 'm_surv', w: 0.22, color: 0x6a1f8a }] },
-  { label: t('language'), tk: 'language', y: -0.02, buttons: [{ id: 'g:it', text: 'Italiano', w: 0.26 }, { id: 'g:en', text: 'English', w: 0.26 }] },
+const rootMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.0, height: 0.98, draggable: true, rows: withText([
+  // modalita': riquadri con l'immagine, come gli stage
+  { label: t('mode_title'), tk: 'mode_title', y: 0.15, h: 0.22, buttons: [{ id: 'gm:arcade', tk: 'm_arcade', w: 0.22, color: 0x1f6f8a, img: modeImg('mode_arcade') },
+    { id: 'gm:training', tk: 'm_training', w: 0.22, color: 0x8a3a1a, img: modeImg('mode_train') }, { id: 'gm:tour', tk: 'm_tour', w: 0.22, color: 0x7a5a10, img: modeArt('tour') },
+    { id: 'gm:surv', tk: 'm_surv', w: 0.22, color: 0x6a1f8a, img: modeArt('surv') }] },
+  { label: t('language'), tk: 'language', y: -0.1, buttons: [{ id: 'g:it', text: 'Italiano', w: 0.26 }, { id: 'g:en', text: 'English', w: 0.26 }] },
   // con quale mano si punta nei menu (con tutte e due si facevano scelte per sbaglio)
-  { label: t('pointer'), tk: 'pointer', y: -0.225, h: 0.09, buttons: [{ id: 'pt:left', tk: 'pt_left', w: 0.22 }, { id: 'pt:right', tk: 'pt_right', w: 0.22 }, { id: 'pt:both', tk: 'pt_both', w: 0.22 }] },
+  { label: t('pointer'), tk: 'pointer', y: -0.285, h: 0.09, buttons: [{ id: 'pt:left', tk: 'pt_left', w: 0.22 }, { id: 'pt:right', tk: 'pt_right', w: 0.22 }, { id: 'pt:both', tk: 'pt_both', w: 0.22 }] },
   // esci: piccolo, in basso a sinistra (lontano dalle scelte)
-  { y: -0.36, h: 0.065, x: -0.47, buttons: [{ id: 'quit', tk: 'quit', w: 0.2, color: 0x8a1a20 }] },
+  { y: -0.42, h: 0.065, x: -0.47, buttons: [{ id: 'quit', tk: 'quit', w: 0.2, color: 0x8a1a20 }] },
 ]) });
 // Arcade: stage, avversario e opzioni dell'incontro
 // avversari a righe da 4 (pulsanti grandi); con piu' pugili le righe si aggiungono da sole e il pannello si allunga
@@ -1217,7 +1279,7 @@ function sparSounds(ev) {
   }
 }
 // ---- sparring: il partner (caschetto, alto come te) prende il posto dell'avversario sul ring della palestra
-const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261004233118', evenSkin: false,
+const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261004234021', evenSkin: false,
   band: { bg: '#1a1a1c', line: '#c4122a', text: '#f2ece0', label: 'SPARRING' } };
 let spar = null, partner = null, savedMike = null, sparLoading = false;
 async function startSparring(kind, defKinds = null) {
