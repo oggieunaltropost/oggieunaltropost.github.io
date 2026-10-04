@@ -8,7 +8,7 @@
 //  - l'eruzione sul vulcano lontano: bagliore del cratere che pulsa, lapilli incandescenti che salgono e ricadono,
 //    nuvole di fumo che escono e salgono; ogni tanto un'esplosione piu' forte col boato.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261004232430';
+import * as sfx from './sfx.js?v=20261004233118';
 
 const EYE = 1.65;
 const R_FADE0 = 11, R_FADE1 = 17;
@@ -39,7 +39,7 @@ export class Volcano {
     const img = new Image();
     const tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     img.onload = () => { tex.needsUpdate = true; this.skyLoaded = true; this._tintGround(img); if (this.onSkyLoad) this.onSkyLoad(); };
-    img.src = 'assets/vulcano_panorama.jpg?v=20261004232430';
+    img.src = 'assets/vulcano_panorama.jpg?v=20261004233118';
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false, uniforms: { uPano: { value: tex } },
@@ -64,6 +64,7 @@ export class Volcano {
     for (let i = 0; i < RS; i++) for (let j = 0; j < AS; j++) { const a = i * (AS + 1) + j, b = a + AS + 1; idx.push(a, b, a + 1, a + 1, b, b + 1); }
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx);
     geo.computeVertexNormals();
+    this.baseY = new Map(); this.baseY.set(geo, Float32Array.from(geo.attributes.position.array));
     const n = geo.attributes.position.count, col = new Float32Array(n * 4);
     for (let i = 0; i < n; i++) { col[i * 4] = 0.03; col[i * 4 + 1] = 0.025; col[i * 4 + 2] = 0.022; col[i * 4 + 3] = 1; }
     geo.setAttribute('color', new THREE.BufferAttribute(col, 4));
@@ -86,7 +87,7 @@ export class Volcano {
   }
   // basalto: nero con grana e vesciche; e la mappa delle crepe (linee sottili che si ramificano)
   _rockTex() {
-    const S = 1024, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d');
+    const S = 512, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d');
     const im = g.createImageData(S, S), d = im.data;
     const hash = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); };
     for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
@@ -109,9 +110,11 @@ export class Volcano {
         if (Math.random() < 0.05 && len > 10) crack(x, y, a + (Math.random() < 0.5 ? 1 : -1) * (0.6 + Math.random() * 0.6), len * 0.4 | 0, w * 0.7);
       }
     };
-    h.filter = 'blur(1.2px)';
     for (let k = 0; k < 22; k++) crack(Math.random() * 1024, Math.random() * 1024, Math.random() * 6.28, 30 + Math.random() * 50, 6 + Math.random() * 6);
-    const cracks = new THREE.CanvasTexture(c2); cracks.wrapS = cracks.wrapT = THREE.RepeatWrapping;
+    // sfocatura una volta sola sull'immagine finita (prima ogni tratto era sfocato: migliaia di sfocature, lentissimo)
+    const c3 = document.createElement('canvas'); c3.width = c3.height = 1024; const h3 = c3.getContext('2d');
+    h3.filter = 'blur(1.2px)'; h3.drawImage(c2, 0, 0);
+    const cracks = new THREE.CanvasTexture(c3); cracks.wrapS = cracks.wrapT = THREE.RepeatWrapping;
     return [rock, cracks];
   }
   // terreno lavico a placche e cordoni (rilievo di pochi centimetri, piatto sotto e vicino al ring)
@@ -122,16 +125,30 @@ export class Volcano {
     return bed + k * Math.min(1, Math.max(0, dR / 1.2)) * (0.05 * Math.sin(x * 2.1 + Math.sin(z * 1.3) * 1.7) * Math.sin(z * 1.7 + Math.sin(x * 0.9) * 2.0) + 0.025 * Math.sin(x * 5.3 + z * 4.1));
   }
   // distanza dal fiume piu' vicino (per la luce rossa della lava sulle rocce attorno)
+  // (griglia da 0,2 m precalcolata in _riverCurves: prima si misurava da tutti i 660 punti dei fiumi per ogni vertice,
+  // milioni di conti al caricamento; fuori dalla griglia o lontano dai fiumi: 99)
   _riverDist(x, z) {
-    let best = 99;
-    for (const R of this.riverPts) for (const p of R.pts) { const d = Math.hypot(p.x - x, p.z - z) - R.w / 2; if (d < best) best = d; }
-    return best;
+    const G = this.rdGrid; if (!G) return 99;
+    const fx = (x + G.H) / G.C, fz = (z + G.H) / G.C, i = Math.floor(fx), j = Math.floor(fz);
+    if (i < 0 || j < 0 || i >= G.N - 1 || j >= G.N - 1) return 99;
+    const tx = fx - i, tz = fz - j, d = G.d, N = G.N;
+    return (d[j * N + i] * (1 - tx) + d[j * N + i + 1] * tx) * (1 - tz) + (d[(j + 1) * N + i] * (1 - tx) + d[(j + 1) * N + i + 1] * tx) * tz;
   }
   _riverCurves() {
     this.riverPts = RIVERS.map(R => {
       const curve = new THREE.CatmullRomCurve3(R.pts.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal');
       return { curve, w: R.w, pts: curve.getSpacedPoints(220) };
     });
+    const H = R_FADE1 + 2, C = 0.2, N = Math.ceil(2 * H / C) + 1, d = new Float32Array(N * N).fill(99), RAD = 4.8;   // (fino a ~3,5 m dalla riva)
+    for (const R of this.riverPts) for (const p of R.pts) {           // ogni punto aggiorna solo le celle vicine
+      const i0 = Math.max(0, Math.floor((p.x - RAD + H) / C)), i1 = Math.min(N - 1, Math.ceil((p.x + RAD + H) / C));
+      const j0 = Math.max(0, Math.floor((p.z - RAD + H) / C)), j1 = Math.min(N - 1, Math.ceil((p.z + RAD + H) / C));
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+        const dd = Math.hypot(i * C - H - p.x, j * C - H - p.z) - R.w / 2;
+        if (dd < d[j * N + i]) d[j * N + i] = dd;
+      }
+    }
+    this.rdGrid = { H, C, N, d };
   }
   _tintGround(img) {
     const W = 1024, H = 512, c = document.createElement('canvas'); c.width = W; c.height = H;
@@ -202,6 +219,7 @@ export class Volcano {
       const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
       geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setAttribute('aR', new THREE.Float32BufferAttribute(ar, 1)); geo.setAttribute('aS', new THREE.Float32BufferAttribute(as, 1)); geo.setIndex(idx);
       const mesh = new THREE.Mesh(geo, this.lavaMat); mesh.renderOrder = -3; this.group.add(mesh);
+      this.baseY.set(geo, Float32Array.from(geo.attributes.position.array));
       this.riverPaths.push({ curve, L, w: R.w });
       // argini: dal pelo della lava salgono ~10 cm e scendono sul terreno; bordo interno incandescente, fuori nero
       const B = [], BC = [], BI = [], prof = [[0, -0.02, 0.85], [0.07, 0.08, 0.12], [0.3, 0.06, 0.0], [0.6, 0.0, 0]];   // (solo il bordo sulla lava brilla)
@@ -222,6 +240,7 @@ export class Volcano {
       const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.Float32BufferAttribute(B, 3));
       bg.setAttribute('color', new THREE.Float32BufferAttribute(BC, 4)); bg.setIndex(BI);
       const bank = new THREE.Mesh(bg, bankMat); bank.renderOrder = -2; this.group.add(bank);
+      this.baseY.set(bg, Float32Array.from(bg.attributes.position.array));
     }
   }
   _rocks() {
@@ -422,4 +441,16 @@ export class Volcano {
     this._updSparks(dt); this._updSmoke(dt); this._updEruption(dt, cam);
   }
   setDrawHeight(h) { this._drawH = h; }
+  // altezza dei tuoi occhi dal pavimento: la terra 3D (con fiumi e argini) piega piano verso il bordo per combaciare
+  // con lo sfondo, che e' stato fotografato da 1,65 m (senza questo, con occhi diversi, al bordo si vedeva un gradino)
+  setEye(eye) {
+    if (!(eye > 1.0 && eye < 2.3) || (this.eyeApplied != null && Math.abs(eye - this.eyeApplied) < 0.03)) return;
+    this.eyeApplied = eye;
+    const off = eye - EYE;
+    for (const [geo, base] of this.baseY) {
+      const p = geo.attributes.position.array;
+      for (let i = 0; i < p.length; i += 3) { const r = Math.hypot(base[i], base[i + 2]); p[i + 1] = base[i + 1] + off * ss(4.5, R_FADE1, r); }
+      geo.attributes.position.needsUpdate = true; geo.computeBoundingSphere();
+    }
+  }
 }
