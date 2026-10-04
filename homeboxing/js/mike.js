@@ -977,6 +977,10 @@ export class Mike {
     const c = this.cfg;
     const desired = this.holdDist || (this.state === 'approach' || this.state === 'attack' ? this.attackDist() : c.stalkDist);
     let radial = Math.max(-c.moveSpeed, Math.min(c.moveSpeed * (this.counter ? 1.6 : 1), (dist - desired) * 4));
+    // pugno partito: il passo resta quello deciso al lancio (se indietreggi non ti insegue: la schivata indietro
+    // funziona); ti segue di nuovo quando il colpo e' finito
+    const pp = this.state === 'attack' && this.punch && !this.punch.move && !this.punch.resolved ? this.punch : null;
+    if (pp) { if (pp.radial === undefined) pp.radial = radial; radial = Math.min(radial, pp.radial); }
     if (this.state === 'retreat') radial = Math.min(radial, -0.2);
     if (this.backOff > 0) { radial = -1.1; this.backOff -= 1.1 * dt; }   // passo indietro (schiva al corpo), con i passi
     const side = _c.set(dir.z, 0, -dir.x);       // perpendicolare: gira intorno
