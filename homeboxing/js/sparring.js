@@ -6,8 +6,8 @@
 // Durata libera: si va avanti finche' non fermi dalla pausa. La velocita' del partner (colpi, andata e ritorno,
 // spostamenti, parate) si regola trascinando su e giu' il cursore della barra al tuo fianco.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261004202113';
-import { t as tr } from './i18n.js?v=20261004202113';
+import * as sfx from './sfx.js?v=20261004202924';
+import { t as tr } from './i18n.js?v=20261004202924';
 
 // combinazioni chiamate: voce, colpi che tira il partner (non qui) e quello che devi tirare tu
 // codici: 1 jab, 2 diretto, 3 gancio sinistro, 4 gancio destro, 5 montante sinistro, 6 montante destro; 'b' = al corpo
@@ -227,6 +227,7 @@ export class Sparring {
       this.cool[side] = Math.max(0, this.cool[side] - dt);
       if (!g.mesh.visible) { this.track[side] = null; continue; }
       const towards = g.vel.dot(fwd);
+      if (landed[side] && this.cool[side] > 0.1) continue;            // stesso pugno (es. toccato il guanto e poi la testa): conta una volta
       if (landed[side]) {                                              // a segno: il colpo e' questo, subito
         const body = landed[side] === 'body';
         out.push({ n: T ? kind(side, T) : (side === 'left' ? '1' : '2'), body, side, landed: true });

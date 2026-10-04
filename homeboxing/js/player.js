@@ -194,7 +194,7 @@ class Glove {
       this.cooldown -= dt;
       // il colpo successivo vale solo quando il pugno si e' allontanato dal punto d'impatto
       // (basta che si sia ritirato di 10 cm: i jab corti e i doppi jab si contano tutti)
-      if (this.center.distanceTo(this.contactPoint) > 0.10) this.cooldown = Math.min(this.cooldown, 0.03);
+      if (this.center.distanceTo(this.contactPoint) > 0.18) this.cooldown = Math.min(this.cooldown, 0.03);
     }
   }
 

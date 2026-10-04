@@ -237,15 +237,24 @@ export class Mike {
       const a = this.mixer.clipAction(this.clips[name]);
       this.idle.setEffectiveWeight(0);
       a.reset(); a.setEffectiveWeight(1); a.play();
-      a.time = (spec.from + spec.to) / 2 / 30;
-      this.mixer.update(0);
-      this.root.updateMatrixWorld(true);
-      const tip = this.root.worldToLocal(this.glove(spec.side).tip);
-      res[name] = { x: tip.x, y: tip.y, z: tip.z, dist: Math.hypot(tip.x, tip.z), yaw: Math.atan2(tip.x, tip.z) };
+      // strada fatta dal guantone dalla guardia all'impatto (per dare a tutti i colpi la stessa velocita')
+      const imp = (spec.from + spec.to) / 2 / 30;
+      let path = 0, prev = null;
+      for (let i = 0; i <= 12; i++) {
+        a.time = imp * i / 12; this.mixer.update(0); this.root.updateMatrixWorld(true);
+        const p = this.root.worldToLocal(this.glove(spec.side).tip);
+        if (prev) path += p.distanceTo(prev);
+        prev = p;
+      }
+      const tip = prev;
+      res[name] = { x: tip.x, y: tip.y, z: tip.z, dist: Math.hypot(tip.x, tip.z), yaw: Math.atan2(tip.x, tip.z), speed: path / imp };
       a.stop();
     }
     this.idle.setEffectiveWeight(1);
     this.mixer.update(0);
+    // velocita' di riferimento: la media dei colpi di questo pugile (il suo ritmo resta quello)
+    const v = Object.values(res).map(r => r.speed).filter(x => x > 0);
+    this.refSpeed = v.reduce((a, b) => a + b, 0) / Math.max(1, v.length);
     return res;
   }
 
@@ -595,8 +604,11 @@ export class Mike {
       target = this.bendLock; armT = this.armLock;
     }
     else this.bendFor = null;
-    this.bend = (this.bend || 0) + (target - (this.bend || 0)) * Math.min(1, dt * 8);
-    this.armUp = (this.armUp || 0) + ((punching ? armT : 0) - (this.armUp || 0)) * Math.min(1, dt * 10);
+    // a pugno partito l'inclinazione arriva quasi subito (~0,1 s): il guantone va dritto verso la faccia;
+    // prima si inclinava piano durante il colpo e il jab partiva basso e si alzava alla fine
+    const kIn = punching ? 30 : 8;
+    this.bend = (this.bend || 0) + (target - (this.bend || 0)) * Math.min(1, dt * kIn);
+    this.armUp = (this.armUp || 0) + ((punching ? armT : 0) - (this.armUp || 0)) * Math.min(1, dt * (punching ? 30 : 10));
     if (Math.abs(this.bend) < 0.003 && this.armUp < 0.003) return;
     const fwd = _c.set(0, 0, 1).applyQuaternion(this.root.getWorldQuaternion(_q)).setY(0).normalize();
     const axis = new THREE.Vector3(0, 1, 0).cross(fwd).normalize();   // ruotando di + attorno a questo, il busto va avanti e giu'
@@ -966,7 +978,10 @@ export class Mike {
       return;
     }
     let ts = this.cfg.punchSpeed * (1 - 0.2 * (this.fatigue || 0));
-    if (this.evenImpact && PUNCH[name]) ts *= ((PUNCH[name].from + PUNCH[name].to) / 2 / 30) / 0.3;   // tutti all'impatto in 0,3 s (a velocita' piena)
+    // stessa velocita' del guantone per tutti i colpi: il jab non e' piu' un lampo e il gancio ci mette di piu'
+    // solo perche' fa piu' strada (prima ogni animazione aveva la sua velocita')
+    const im = this.impact && this.impact[name];
+    if (im && im.speed > 0 && this.refSpeed) ts *= THREE.MathUtils.clamp(this.refSpeed / im.speed, 0.4, 2.5);
     const layer = this.play(name, ts);
     this.punch = { name, layer, resolved: false, inRange: false };
     this.emit('mikeThrows', { name });
