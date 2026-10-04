@@ -5,7 +5,7 @@
 // la retta delle sue due mani fino a terra, cosi' resta sempre in mano.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261004152556';
+import { buildRing, RING_SIZE } from './ring.js?v=20261004153610';
 
 const FLOOR = -1.0;
 const WALK_SPEED = 0.42;                       // m/s (come la clip "cammina" di Blender)
@@ -22,7 +22,7 @@ export class Gym {
     this.group = new THREE.Group(); this.group.name = 'palestra';
     this.t = 0; this.bags = [];
     const L = new GLTFLoader();
-    L.load('assets/palestra.glb?v=20261004152556', g => {
+    L.load('assets/palestra.glb?v=20261004153610', g => {
       g.scene.traverse(o => {
         if (!o.isMesh) return;
         const m = o.material;
@@ -33,7 +33,7 @@ export class Gym {
       this.group.add(g.scene);
       this.loaded = true; if (this.onLoad) this.onLoad();
     });
-    L.load('assets/inserviente.glb?v=20261004152556', g => this._janitor(g));
+    L.load('assets/inserviente.glb?v=20261004153610', g => this._janitor(g));
     // in allenamento il ring del gioco sparisce: sulla pedana restano corde, pali e angoli (girano con la palestra)
     this.ring = buildRing(RING_SIZE); this.ring.visible = false; this.group.add(this.ring);
   }
@@ -46,6 +46,7 @@ export class Gym {
     J.traverse(o => { if (!o.isMesh || !o.material || !o.material.transparent) return;
       const m = o.material, cut = /short|eyebrow|hair|high-poly|eye/i.test(o.name + m.name);
       m.transparent = false; m.depthWrite = true; m.alphaTest = cut ? 0.5 : 0; m.side = THREE.FrontSide; m.needsUpdate = true; });
+    J.traverse(o => { if (o.isMesh && /short04/i.test(o.name)) o.material.color.setRGB(2.2, 2.1, 2.0); });    // capelli grigi (la texture e' scura)
     J.traverse(o => { if (o.isMesh && o.material && o.material.name === 'Cappellino') {          // rosso scuro opaco (con il velluto sembrava rosa)
       o.material.color.setRGB(0.2, 0.025, 0.02); o.material.roughness = 0.85; if ('sheen' in o.material) o.material.sheen = 0; o.material.needsUpdate = true; } });
     this.group.add(J);
@@ -72,7 +73,12 @@ export class Gym {
     this.mopPrev = null;
     this.J = J; this.wp = 0; this.state = 'lava'; this.stateT = 4 + Math.random() * 4; this.blend = 0;
     this.headB = J.getObjectByName('head'); this.neckB = J.getObjectByName('neck_01'); this.look = 0; this.lookYaw = 0;
+    // dove guarda la faccia, nel sistema dell'osso della testa (a riposo la faccia guarda avanti come il corpo)
+    J.updateMatrixWorld(true);
+    if (this.headB) this.faceLocal = new THREE.Vector3(0, 0, 1).applyQuaternion(J.getWorldQuaternion(new THREE.Quaternion())).applyQuaternion(this.headB.getWorldQuaternion(new THREE.Quaternion()).invert());
     this.nextWatch = 12 + Math.random() * 15;
+    J.traverse(o => { if (o.isMesh && o.morphTargetDictionary && o.morphTargetDictionary.bocca !== undefined) { this.mouthM = o; this.mouthI = o.morphTargetDictionary.bocca; } });
+    this.talkT = 0; this.mouth = 0;
   }
 
   _updJanitor(dt, watchW) {
@@ -83,15 +89,24 @@ export class Gym {
     const wl = watchW ? this.group.worldToLocal(watchW.clone()) : null;
     const near = wl && Math.hypot(wl.x - J.position.x, wl.z - J.position.z) < 3.2;
     if (watchW && this.state !== 'guarda' && (this.nextWatch <= 0 || (near && this.sayKind && !this.said))) {
-      this.prevState = this.state; this.state = 'guarda'; this.stateT = 4 + Math.random() * 4;
+      this.prevState = this.state; this.state = 'guarda'; this.stateT = 4 + Math.random() * 4; this.facing = false;
       if (near && this.sayKind && !this.said) { this.said = true; this.sayT = 1.2; }   // si gira, poi parla
     }
-    if (this.sayT > 0 && (this.sayT -= dt) <= 0 && this.onSay && this.headB) this.onSay(this.sayKind, this.headB.getWorldPosition(new THREE.Vector3()));
+    if (this.sayT > 0 && (this.facing || this.sayT > 0.2) && (this.sayT -= dt) <= 0 && this.onSay && this.headB) {   // parla solo quando ti guarda
+      const dur = this.onSay(this.sayKind, this.headB.getWorldPosition(new THREE.Vector3())) || 2.5;
+      this.talkT = dur; this.stateT = Math.max(this.stateT, dur + 1.5);       // resta fermo a guardarti finche' ha finito di parlare
+    }
+    // bocca: si apre e si chiude mentre parla (a sillabe, un po' irregolare)
+    if (this.talkT > 0) this.talkT -= dt;
+    const mo = this.talkT > 0 ? 0.25 + 0.75 * Math.abs(Math.sin(this.t * 11)) * (0.6 + 0.4 * Math.sin(this.t * 3.7)) : 0;
+    this.mouth += (mo - this.mouth) * Math.min(1, dt * 18);
+    if (this.mouthM) this.mouthM.morphTargetInfluences[this.mouthI] = this.mouth;
     if (this.state === 'guarda') {
       if (wl) {                                                   // si gira verso di te
         const want = Math.atan2(wl.x - J.position.x, wl.z - J.position.z);
         const dy = Math.atan2(Math.sin(want - J.rotation.y), Math.cos(want - J.rotation.y));
-        J.rotation.y += Math.max(-1.0 * dt, Math.min(1.0 * dt, dy * 0.6));
+        J.rotation.y += Math.max(-2.2 * dt, Math.min(2.2 * dt, dy * 1.5));
+        this.facing = Math.abs(dy) < 0.25;
       }
       if ((this.stateT -= dt) <= 0) { this.state = this.prevState || 'lava'; this.stateT = 2 + Math.random() * 3; this.nextWatch = 20 + Math.random() * 25; }
     } else if (this.state === 'lava') {
@@ -117,15 +132,20 @@ export class Gym {
     // testa e collo verso di te (oltre a quanto si e' girato col corpo)
     if (this.headB && wl && this.look > 0.01) {
       const hp = this.headB.getWorldPosition(new THREE.Vector3()), to = watchW.clone().sub(hp);
-      const fw = new THREE.Vector3(0, 0, 1).applyQuaternion(J.getWorldQuaternion(new THREE.Quaternion()));
+      // dove guarda adesso la faccia (con l'animazione il busto e la testa sono girati): si corregge da li'
+      const fw = this.faceLocal.clone().applyQuaternion(this.headB.getWorldQuaternion(new THREE.Quaternion()));
       let yaw = Math.atan2(to.x, to.z) - Math.atan2(fw.x, fw.z); yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
       const behind = THREE.MathUtils.smoothstep(Math.abs(yaw), 1.3, 1.9);           // sei dietro di lui: non gira la testa
       this.yawS = (this.yawS || 0) + (Math.max(-1.0, Math.min(1.0, yaw)) * (1 - behind) - (this.yawS || 0)) * Math.min(1, dt * 4);
       yaw = this.yawS * this.look;
+      // su/giu' verso i tuoi occhi (attorno all'asse orizzontale del mondo: niente teste piegate di lato)
+      const hz = Math.hypot(to.x, to.z), fz = Math.hypot(fw.x, fw.z);
+      const pitch = Math.max(-0.45, Math.min(0.45, Math.atan2(to.y, hz) - Math.atan2(fw.y, fz))) * this.look * (1 - behind);
+      const pAx = new THREE.Vector3(to.x, 0, to.z).normalize().cross(new THREE.Vector3(0, 1, 0)).normalize();
       for (const [b, k] of [[this.neckB, 0.4], [this.headB, 0.6]]) {   // rotazione attorno alla verticale del mondo
         if (!b) continue;
         const wq = b.getWorldQuaternion(new THREE.Quaternion());
-        const nw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw * k).multiply(wq);
+        const nw = new THREE.Quaternion().setFromAxisAngle(pAx, pitch * k).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw * k)).multiply(wq);
         const pinv = b.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
         b.quaternion.copy(pinv.multiply(nw)); b.updateMatrixWorld(true);
       }

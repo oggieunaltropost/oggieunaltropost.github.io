@@ -5,8 +5,8 @@
 // Tabellone sul muro dietro al sacco: tempo, colpi a segno, colpo piu' forte, colpi al minuto.
 // Sistema: quello del ring (arena): il giocatore sta in (0, 0, playerZ) e guarda verso -Z; il pavimento e' a 0.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261004152556';
-import { t as tr } from './i18n.js?v=20261004152556';
+import * as sfx from './sfx.js?v=20261004153610';
+import { t as tr } from './i18n.js?v=20261004153610';
 
 const M = 45, R = 0.19, H = 1.3;              // massa, raggio, altezza del sacco
 const HOOK = 2.72;                             // gancio (perno)
@@ -245,11 +245,13 @@ export class BagTraining {
         const pen = rr - dist;
         this._impulse(p, nrm.clone().multiplyScalar(-Math.min(900 * pen, 250) * dt));
         // presa: con il guantone appoggiato il sacco segue la mano (lo fermi, lo inclini, lo accompagni); non e' un colpo
+        // (solo con la mano lenta, cioe' appoggiata: subito dopo un pugno il guantone e' ancora veloce e trascinava il sacco)
         const sp = vrel.length();
-        if (sp > 1e-3) {
+        if (sp > 1e-3 && g.speed < 0.7) {
           const d = vrel.clone().divideScalar(sp), rxd = new THREE.Vector3().crossVectors(r, d);
           const meff = 1 / Math.max(1e-4, rxd.clone().applyMatrix3(this.IwInv).cross(r).dot(d));
-          this._impulse(p, d.multiplyScalar(sp * meff * Math.min(1, dt * 10)));
+          const dv = Math.min(sp, 0.7) * Math.min(1, dt * 6);              // al massimo segue la mano a 0,7 m/s
+          this._impulse(p, d.multiplyScalar(dv * meff));
         }
         this.inside[side] = true;
       }

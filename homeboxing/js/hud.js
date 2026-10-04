@@ -1,10 +1,11 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261004152556';
+import { t as tr } from './i18n.js?v=20261004153610';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
-let RAYS = [];
-export function setRays(r) { RAYS = r; }
+// ogni raggio: { o, d, hit, sel (grilletto / pizzico tenuto), click (appena premuto) }
+let RAYS = [], HEAD = null;
+export function setRays(r, head) { RAYS = r; HEAD = head || HEAD; }
 const _ro = new THREE.Vector3(), _rd = new THREE.Vector3(), _inv = new THREE.Matrix4();
 // raggio contro il pannello (piano locale z = zf): punto locale colpito o null
 function rayLocal(group, o, d, zf) {
@@ -32,7 +33,15 @@ function updateDragBar(D, group, dt, gloves) {
     const G = D.grab;
     let p = null;
     if (G.glove) p = G.glove.mesh.visible ? G.glove.center.clone() : null;
-    else { const r = RAYS[G.ray]; if (r) p = rayPoint(r, G.dist); }
+    else {
+      // come le finestre del Quest: resta attaccato al raggio finche' tieni premuto (grilletto o pizzico),
+      // sempre girato verso di te; lasci e resta li'
+      const r = RAYS[G.ray];
+      if (!r || !r.sel) { D.grab = null; D.t = -0.3; D.bar.material.color.setHex(0x9aa3b6); return false; }
+      group.position.copy(rayPoint(r, G.dist)).add(G.offset);
+      if (HEAD) group.rotation.set(0, Math.atan2(HEAD.x - group.position.x, HEAD.z - group.position.z), 0);
+      return true;
+    }
     if (!p) { D.grab = null; D.bar.material.color.setHex(0x9aa3b6); return false; }
     G.still = p.distanceTo(G.last) < 0.004 ? G.still + dt : 0;
     G.last.copy(p);
@@ -53,7 +62,11 @@ function updateDragBar(D, group, dt, gloves) {
   });
   D.t = src ? D.t + dt : Math.max(Math.min(D.t, 0), D.t - dt);
   D.bar.material.color.setHex(src ? 0xffd34d : 0x9aa3b6);
-  if (src && D.t > 0.4) {
+  if (src && src.ray !== undefined && RAYS[src.ray].click) {          // raggio sulla barra + grilletto/pizzico: preso subito
+    D.grab = { ...src, offset: group.position.clone().sub(src.p), last: src.p.clone(), still: 0 };
+    D.t = 0; return true;
+  }
+  if (src && src.ray === undefined && D.t > 0.4) {                     // col guantone: tienilo sulla barra
     D.grab = { ...src, offset: group.position.clone().sub(src.p), last: src.p.clone(), still: 0 };
     D.t = 0;
     return true;
@@ -62,7 +75,7 @@ function updateDragBar(D, group, dt, gloves) {
 }
 // quali pulsanti sono puntati (e dove: il punto colpito per disegnare il puntino)
 function pointed(group, buttons, zf, size, bounds) {
-  const set = new Set();
+  const set = new Set(); set.clicked = new Set();         // clicked: premuto adesso col grilletto / pizzico (come sul Quest)
   for (const r of RAYS) {
     const p = rayLocal(group, r.o, r.d, zf);
     if (!p || Math.abs(p.x) > bounds[0] || Math.abs(p.y) > bounds[1]) continue;
@@ -70,7 +83,7 @@ function pointed(group, buttons, zf, size, bounds) {
     if (!r.hit || r.o.distanceTo(w) < r.o.distanceTo(r.hit)) r.hit = w;
     for (const b of buttons) {
       const [cx, cy, hw, hh] = size(b);
-      if (Math.abs(p.x - cx) < hw && Math.abs(p.y - cy) < hh) set.add(b);
+      if (Math.abs(p.x - cx) < hw && Math.abs(p.y - cy) < hh) { set.add(b); if (r.click) set.clicked.add(b); }
     }
   }
   return set;
@@ -301,6 +314,7 @@ export class PauseMenu {
       const p = b.group.getWorldPosition(new THREE.Vector3());
       const on = aimed.has(b) || gloves.some(g => g.mesh.visible && g.center.distanceTo(p) < 0.14);
       b.hold = on ? b.hold + dt : Math.max(0, b.hold - dt * 2);
+      if (aimed.clicked.has(b)) b.hold = 1.5;                  // grilletto / pizzico: subito
       b.fill.scale.y = Math.max(0.001, Math.min(1, b.hold / 1.5));
       b.fill.position.y = -0.11 + 0.11 * b.fill.scale.y;
       if (b.hold >= 1.5) { b.hold = 0; return b.id; }
@@ -451,6 +465,7 @@ export class MenuPanel {
       const p = b.g.getWorldPosition(new THREE.Vector3());
       const on = aimed.has(b) || gloves.some(g => g.mesh.visible && g.center.distanceTo(p) < Math.max(0.09, b.w / 2));
       b.t = on ? b.t + dt : Math.max(0, b.t - dt * 3);
+      if (aimed.clicked.has(b) && b.t >= 0) b.t = this.hold;  // grilletto / pizzico: subito
       b.fill.scale.x = Math.max(0.001, Math.min(1, b.t / this.hold));
       b.fill.position.x = -b.w / 2 * (1 - b.fill.scale.x);
       b.fill.visible = b.t > 0.01;                 // vuota: niente righina bianca al centro
