@@ -1,6 +1,6 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261004230929';
+import { t as tr } from './i18n.js?v=20261004231804';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
 // ogni raggio: { o, d, hit, sel (grilletto / pizzico tenuto), click (appena premuto) }
@@ -506,20 +506,33 @@ export class MenuPanel {
       const l = this.group.worldToLocal(g.center.clone());
       if (Math.abs(l.y - c.y) < c.h / 2 + 0.04 && Math.abs(l.x) < this.W / 2 && Math.abs(l.z) < 0.16) { hand = l; break; }
     }
+    c.vel = c.vel || 0;
     if (hand) {
-      if (c.drag) { const dx = hand.x - c.drag.x; c.off = Math.max(-0.35, Math.min(n - 0.65, c.off - dx / c.spacing)); if (Math.abs(dx) > 0.002) c.goal = null; }
+      if (c.drag) {
+        // la fila va un po' piu' della mano (1,5x: meno fatica), con la velocita' misurata per lo slancio
+        const d = -(hand.x - c.drag.x) * 1.5 / c.spacing;
+        c.off = Math.max(-0.45, Math.min(n - 0.55, c.off + d));
+        if (dt > 0) c.vel += (d / dt - c.vel) * 0.35;
+        if (Math.abs(d) > 0.004) { c.goal = null; c.target = null; }
+      } else c.vel = 0;
       c.drag = { x: hand.x };
-    } else c.drag = null;
+    } else if (c.drag) {
+      // lasciata: scivola con lo slancio (al massimo ~2 voci) e si ferma esattamente su una voce
+      c.drag = null;
+      const v = Math.max(-9, Math.min(9, c.vel));
+      c.vel = v; c.target = Math.max(0, Math.min(n - 1, Math.round(c.off + v * 0.22)));
+    }
     // puntare (raggio) o tenere ferma la mano su una voce laterale per mezzo secondo: va al centro
     let hov = -1;
     c.items.forEach((b, i) => { if (b.g.visible && aimed.has(b)) hov = i; });
     if (hov >= 0 && hov !== c.idx && !hand) { if (hov === c.hoverI) c.hoverT += dt; else { c.hoverI = hov; c.hoverT = 0; } if (c.hoverT > 0.45) { c.goal = hov; c.hoverT = 0; } }
     else { c.hoverI = -1; c.hoverT = 0; }
-    if (!c.drag) {                                   // lasciata: si ferma sulla voce piu' vicina (o su quella chiesta)
-      const target = c.goal !== null ? c.goal : Math.max(0, Math.min(n - 1, Math.round(c.off)));
-      c.off += (target - c.off) * Math.min(1, dt * 9);
-      if (Math.abs(target - c.off) < 0.01) {
-        c.off = target; c.goal = null;
+    if (!c.drag) {                                   // lasciata: va (morbida) sulla voce scelta dallo slancio, o su quella chiesta
+      const target = c.goal !== null ? c.goal : (c.target != null ? c.target : Math.max(0, Math.min(n - 1, Math.round(c.off))));
+      const w = 9, h = Math.min(dt, 0.05);           // molla smorzata: parte con la velocita' della mano, arriva senza rimbalzi
+      c.vel += (w * w * (target - c.off) - 2 * w * c.vel) * h; c.off += c.vel * h;
+      if (Math.abs(target - c.off) < 0.008 && Math.abs(c.vel) < 0.08) {
+        c.off = target; c.goal = null; c.target = null; c.vel = 0;
         if (target !== c.idx) { c.idx = target; this._layout(c); return c.items[target].id; }
       }
     }
