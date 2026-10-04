@@ -4,7 +4,7 @@
 // a te; le animazioni (chi combatte, chi passa il turno, il campione che arriva alla coppa) sono oggetti 3D
 // che si muovono sopra la tela.
 import * as THREE from 'three';
-import { t } from './i18n.js?v=20261004220606';
+import { t } from './i18n.js?v=20261004223937';
 
 const W = 2048, H = 1024;                  // tela del tabellone
 const PW = 1.6, PH = PW * H / W;           // pannello in metri
