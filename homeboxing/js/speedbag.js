@@ -5,8 +5,8 @@
 // verso la pera, le arriva vicino e il braccio torna indietro senza averla toccata.
 // Sistema: quello del ring (arena): il giocatore in (0, 0, playerZ) guarda verso -Z, pavimento a 0.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261004225738';
-import { t as tr } from './i18n.js?v=20261004225738';
+import * as sfx from './sfx.js?v=20261004225900';
+import { t as tr } from './i18n.js?v=20261004225900';
 
 const M = 0.3, PUNCH_MASS = 2.4, E_HIT = 0.5, E_BOARD = 0.62;
 const LC = 0.15, RB = 0.1;                    // dal girello al centro della pera, raggio (parte larga)
