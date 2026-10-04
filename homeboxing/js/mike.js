@@ -98,8 +98,8 @@ export const LEVELS = {
 const PUNCH = {
   jab: { side: 'l', from: 2, to: 6, zone: 'head' },
   cross: { side: 'r', from: 3, to: 8, zone: 'head' },
-  hook_l: { side: 'l', from: 5, to: 10, zone: 'head' },
-  hook_r: { side: 'r', from: 6, to: 11, zone: 'head' },
+  hook_l: { side: 'l', from: 7, to: 12, zone: 'head' },
+  hook_r: { side: 'r', from: 8, to: 13, zone: 'head' },
   body_l: { side: 'l', from: 5, to: 10, zone: 'body' },
   body_r: { side: 'r', from: 3, to: 8, zone: 'body' },
   uppercut_l: { side: 'l', from: 4, to: 8, zone: 'head' },
@@ -849,14 +849,11 @@ export class Mike {
         // pugno interrotto da un'altra animazione (parata, colpo preso): prima restava "in attacco" per sempre,
         // con la direzione bloccata (non si girava piu' verso di te) e senza tornare in guardia
         if (this.punch && (this.punch.layer.out || this.stateT > 3 / Math.max(0.05, c.punchSpeed))) { this.punch = null; this.combo = []; this.setState('retreat'); break; }
-        // sparring in difesa: appena il braccio e' disteso torna indietro subito (niente pausa col braccio fuori),
-        // alla stessa velocita' con cui e' partito
+        // sparring in difesa: dopo l'impatto il resto (seguito e rientro in guardia) accelera fino a durare quanto
+        // l'andata: niente pausa col braccio fuori e niente salti (prima si saltava un pezzo e il braccio "scattava")
         if (this.quickRecover && this.punch && !this.punch.move && !this.punch.fast && PUNCH[this.punch.name]) {
-          const sp = PUNCH[this.punch.name], L = this.punch.layer, peak = (sp.from + 2) / 30, to = Math.min(sp.to / 30, L.dur);
-          if (L.t >= peak) {
-            this.punch.fast = true; L.t = to; L.action.time = to;
-            L.ts = L.ts * Math.max(1, (L.dur - to) / peak); L.action.timeScale = L.ts;
-          }
+          const sp = PUNCH[this.punch.name], L = this.punch.layer, imp = (sp.from + sp.to) / 2 / 30;
+          if (L.t >= imp) { this.punch.fast = true; L.ts = L.ts * Math.max(1, (L.dur - imp) / imp); L.action.timeScale = L.ts; }
         }
         if (this.punch && this.punch.layer.t > this.punch.layer.dur * (this.punch.move ? 0.5 : 0.72)) {
           if (this.combo.length && this.stun <= 0) this.nextPunch();

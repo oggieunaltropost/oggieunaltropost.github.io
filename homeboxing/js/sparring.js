@@ -6,8 +6,8 @@
 // Durata libera: si va avanti finche' non fermi dalla pausa. La velocita' del partner (colpi, andata e ritorno,
 // spostamenti, parate) si regola trascinando su e giu' il cursore della barra al tuo fianco.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261004162649';
-import { t as tr } from './i18n.js?v=20261004162649';
+import * as sfx from './sfx.js?v=20261004165203';
+import { t as tr } from './i18n.js?v=20261004165203';
 
 // combinazioni chiamate: voce, colpi che tira il partner (non qui) e quello che devi tirare tu
 // codici: 1 jab, 2 diretto, 3 gancio sinistro, 4 gancio destro, 5 montante sinistro, 6 montante destro; 'b' = al corpo
@@ -67,7 +67,7 @@ export class Sparring {
     this.ctex.needsUpdate = true;
   }
   _placeCue() {
-    const h = this.mike.headCenter(); this.cueS.position.copy(h); this.cueS.position.y += 0.42;
+    const h = this.mike.headCenter(); this.cueS.position.copy(h); this.cueS.position.y += 0.3;   // (un po' sopra la testa, si legge meglio)
     if (this.cueS.parent !== this.mike.root.parent && this.mike.root.parent) this.mike.root.parent.add(this.cueS);
     if (this.cueS.parent) this.cueS.parent.worldToLocal(this.cueS.position);
   }
@@ -209,14 +209,30 @@ export class Sparring {
   }
 
   // ---- i tuoi colpi: si riconosce che pugno hai tirato (nel sistema "tu -> partner")
-  _trackPunches(dt, player) {
+  // landed: { left|right: zona } dei colpi andati a segno in questo fotogramma (contano sempre, anche se il guantone,
+  // fermato dal partner, ha fatto poca strada: prima il colpo a segno da vicino a volte non veniva contato)
+  _trackPunches(dt, player, landed = {}) {
     const head = player.head, ph = this.mike.headCenter();
     const fwd = ph.clone().sub(head).setY(0).normalize(), up = new THREE.Vector3(0, 1, 0), right = new THREE.Vector3().crossVectors(fwd, up);
     const out = [];
+    this.cool = this.cool || { left: 0, right: 0 };
+    const kind = (side, T) => {
+      const d = T.pBest.clone().sub(T.p0), F = d.dot(fwd), U = d.dot(up), I = d.dot(right) * (side === 'left' ? 1 : -1);   // in avanti, in su, verso l'interno
+      if (U > 0.09 && U > F * 0.7) return side === 'left' ? '5' : '6';
+      if (I > 0.14 && I > F * 0.8) return side === 'left' ? '3' : '4';      // gancio: arriva di lato
+      return side === 'left' ? '1' : '2';
+    };
     for (const side of ['left', 'right']) {
       const g = player.gloves[side]; let T = this.track[side];
+      this.cool[side] = Math.max(0, this.cool[side] - dt);
       if (!g.mesh.visible) { this.track[side] = null; continue; }
       const towards = g.vel.dot(fwd);
+      if (landed[side]) {                                              // a segno: il colpo e' questo, subito
+        const body = landed[side] === 'body';
+        out.push({ n: T ? kind(side, T) : (side === 'left' ? '1' : '2'), body, side });
+        this.st.thrown++; this.track[side] = null; this.cool[side] = 0.35; continue;
+      }
+      if (this.cool[side] > 0) continue;                               // (lo stesso colpo non si conta due volte)
       if (!T && g.speed > 1.3 && towards > 0.9) T = this.track[side] = { t: 0, p0: g.center.clone(), best: 0, pBest: g.center.clone(), peak: 0 };
       if (!T) continue;
       T.t += dt; T.peak = Math.max(T.peak, g.speed);
@@ -225,13 +241,7 @@ export class Sparring {
       if (T.t > 0.45 || (T.t > 0.08 && towards < 0.2)) {
         this.track[side] = null;
         if (T.best < 0.12 || T.peak < 1.6) continue;                   // non era un pugno
-        const d = T.pBest.clone().sub(T.p0), F = d.dot(fwd), U = d.dot(up), I = d.dot(right) * (side === 'left' ? 1 : -1);   // in avanti, in su, verso l'interno
-        let n;
-        if (U > 0.09 && U > F * 0.7) n = side === 'left' ? '5' : '6';
-        else if (I > 0.14 && I > F * 0.8) n = side === 'left' ? '3' : '4';      // gancio: arriva di lato
-        else n = side === 'left' ? '1' : '2';
-        const body = T.pBest.y < ph.y - 0.3;
-        out.push({ n, body, side });
+        out.push({ n: kind(side, T), body: T.pBest.y < ph.y - 0.3, side });
         this.st.thrown++;
       }
     }
@@ -242,7 +252,9 @@ export class Sparring {
     if (!this.active) return;
     this.time += dt; this.coachT -= dt; this.next -= dt;
     this._updSlider(dt, player);
-    const punches = this._trackPunches(dt, player), S = this.st, m = this.mike;
+    const landed = {};
+    for (const e of events) if ((e.type === 'playerHit' || e.type === 'mikeBlocked' || e.type === 'mikeDodged') && e.side) landed[e.side] = e.zone || 'head';
+    const punches = this._trackPunches(dt, player, landed), S = this.st, m = this.mike;
     // eventi dell'incontro (niente danni: si conta e basta)
     for (const e of events) {
       if (e.type === 'playerHit') { S.landed++; if (e.zone === 'body') S.body++; }
