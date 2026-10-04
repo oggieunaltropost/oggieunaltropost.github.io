@@ -993,9 +993,9 @@ export class Mike {
     if (this.stun > 0) { this.vel.set(0, 0, 0); if (this.moveVel) this.moveVel.set(0, 0, 0); return; }
     const c = this.cfg;
     let desired = this.holdDist || (this.state === 'approach' || this.state === 'attack' ? this.attackDist() : c.stalkDist);
-    // gioco di gambe (incontri tra CPU): ogni tanto si allontana, gira intorno all'altro, cambia lato
+    // gioco di gambe (incontri, anche contro di te; non negli esercizi): ogni tanto si allontana, ti gira intorno, cambia lato
     let fwSide = 0;
-    if (this.footwork && (this.state === 'stalk' || this.state === 'retreat')) {
+    if (this.footwork !== false && this.enabled && !this.holdDist && (this.state === 'stalk' || this.state === 'retreat')) {
       if (!this.fw || (this.fw.t -= dt) <= 0) this.fw = { t: 1.2 + Math.random() * 2.2, off: Math.random() < 0.45 ? 0.3 + Math.random() * 0.8 : 0, side: (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.45) };
       desired += this.fw.off; fwSide = this.fw.side;
     }
