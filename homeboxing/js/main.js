@@ -2,33 +2,33 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261004230128';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261004230128';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261004230128';
-import { Player, SimInput } from './player.js?v=20261004230128';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261004230128';
-import { Room } from './room.js?v=20261004230128';
-import { Arena } from './arena.js?v=20261004230128';
-import { Beach } from './beach.js?v=20261004230128';
-import { Rooftop } from './rooftop.js?v=20261004230128';
-import { Desert } from './desert.js?v=20261004230128';
-import { Snow } from './snow.js?v=20261004230128';
-import { Volcano } from './volcano.js?v=20261004230128';
-import { Sea, WATER } from './sea.js?v=20261004230128';
-import { Gym } from './gym.js?v=20261004230128';
-import { BagTraining } from './training.js?v=20261004230128';
-import { RopeTraining } from './rope.js?v=20261004230128';
-import { SpeedBagTraining } from './speedbag.js?v=20261004230128';
-import { DoubleEndTraining } from './doubleend.js?v=20261004230128';
-import { Sparring } from './sparring.js?v=20261004230128';
-import { RingGirl } from './ringgirl.js?v=20261004230128';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261004230128';
-import * as sfx from './sfx.js?v=20261004230128';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261004230128';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261004230128';
-import { Tournament, BracketView } from './tournament.js?v=20261004230128';
-import { CpuMatch } from './cpu_match.js?v=20261004230128';
-import { TowerView } from './tower.js?v=20261004230128';
+import { buildRing, RING_SIZE } from './ring.js?v=20261004230842';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261004230842';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261004230842';
+import { Player, SimInput } from './player.js?v=20261004230842';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261004230842';
+import { Room } from './room.js?v=20261004230842';
+import { Arena } from './arena.js?v=20261004230842';
+import { Beach } from './beach.js?v=20261004230842';
+import { Rooftop } from './rooftop.js?v=20261004230842';
+import { Desert } from './desert.js?v=20261004230842';
+import { Snow } from './snow.js?v=20261004230842';
+import { Volcano } from './volcano.js?v=20261004230842';
+import { Sea, WATER } from './sea.js?v=20261004230842';
+import { Gym } from './gym.js?v=20261004230842';
+import { BagTraining } from './training.js?v=20261004230842';
+import { RopeTraining } from './rope.js?v=20261004230842';
+import { SpeedBagTraining } from './speedbag.js?v=20261004230842';
+import { DoubleEndTraining } from './doubleend.js?v=20261004230842';
+import { Sparring } from './sparring.js?v=20261004230842';
+import { RingGirl } from './ringgirl.js?v=20261004230842';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261004230842';
+import * as sfx from './sfx.js?v=20261004230842';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261004230842';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261004230842';
+import { Tournament, BracketView } from './tournament.js?v=20261004230842';
+import { CpuMatch } from './cpu_match.js?v=20261004230842';
+import { TowerView } from './tower.js?v=20261004230842';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -341,7 +341,7 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261004230128`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261004230842`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -1216,7 +1216,7 @@ function sparSounds(ev) {
   }
 }
 // ---- sparring: il partner (caschetto, alto come te) prende il posto dell'avversario sul ring della palestra
-const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261004230128', evenSkin: false,
+const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261004230842', evenSkin: false,
   band: { bg: '#1a1a1c', line: '#c4122a', text: '#f2ece0', label: 'SPARRING' } };
 let spar = null, partner = null, savedMike = null, sparLoading = false;
 async function startSparring(kind, defKinds = null) {
@@ -1696,7 +1696,7 @@ function showMode() {
   $('sim').textContent = lang === 'it' ? 'Anteprima su PC' : 'PC preview';
   document.documentElement.lang = lang;
 }
-for (const b of document.querySelectorAll('#langs button')) b.onclick = () => setLang(b.dataset.lang);   // bandierine: lingua gia' dalla pagina
+for (const b of document.querySelectorAll('#langs button')) b.onclick = () => setLang(b.dataset.lang);   // pulsanti IT/EN: lingua gia' dalla pagina
 for (const b of document.querySelectorAll('#modes button')) b.onclick = () => {
   mode = b.dataset.mode;
   try { localStorage.setItem('hb-mode', mode); } catch (e) {}

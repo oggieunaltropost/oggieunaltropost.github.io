@@ -11,9 +11,12 @@
     html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
       font-family: system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
     canvas { display: block; }
-    #overlay { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; overflow-y: auto;
+    #overlay { position: fixed; inset: 0; display: flex; justify-content: center; align-items: safe center; padding: 16px; overflow-y: auto;
       background: radial-gradient(circle at 50% 25%, #2a1418, var(--bg) 70%); }
-    .card { max-width: 560px; width: 100%; text-align: center; }
+    .card { max-width: 600px; width: 100%; text-align: center; margin: auto 0; }
+    h2 { margin: 18px 0 4px; font-size: 17px; text-align: left; color: #ffd34d; text-transform: uppercase; letter-spacing: 0.5px; }
+    .lead { color: var(--fg); font-size: 17px; }
+    .card > div > p:not(.lead) { text-align: left; font-size: 15px; }
     h1 { margin: 8px 0 4px; font-size: 46px; letter-spacing: 1px; text-transform: uppercase; }
     h1 b { color: var(--red); }
     p { color: var(--muted); line-height: 1.5; margin: 8px 0; }
@@ -34,9 +37,8 @@
     #levels button.on { border-color: var(--red); background: #3a1c22; }
     [hidden] { display: none !important; }
     #langs { display: flex; gap: 10px; justify-content: center; margin-bottom: 10px; }
-    #langs button { padding: 0; width: 46px; height: 32px; border-radius: 6px; border: 2px solid transparent; background: none; cursor: pointer; overflow: hidden; opacity: 0.55; }
+    #langs button { padding: 4px 12px; font-size: 15px; border-radius: 8px; border: 2px solid #3a404c; background: #1b1f27; color: var(--fg); cursor: pointer; opacity: 0.6; }
     #langs button.on { border-color: #ffd34d; opacity: 1; }
-    #langs svg { display: block; width: 100%; height: 100%; }
   </style>
   <script type="importmap">
   {
@@ -51,32 +53,60 @@
   <div id="overlay">
     <div class="card">
       <div id="langs">
-        <button data-lang="it" title="Italiano" aria-label="Italiano"><svg viewBox="0 0 3 2"><rect width="1" height="2" fill="#009246"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#ce2b37"/></svg></button>
-        <button data-lang="en" title="English" aria-label="English"><svg viewBox="0 0 60 30"><clipPath id="uk"><path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z"/></clipPath><path d="M0,0 v30 h60 v-30 z" fill="#012169"/><path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/><path d="M0,0 L60,30 M60,0 L0,30" clip-path="url(#uk)" stroke="#C8102E" stroke-width="4"/><path d="M30,0 v30 M0,15 h60" stroke="#fff" stroke-width="10"/><path d="M30,0 v30 M0,15 h60" stroke="#C8102E" stroke-width="6"/></svg></button>
+        <button data-lang="it" title="Italiano" aria-label="Italiano">IT</button>
+        <button data-lang="en" title="English" aria-label="English">EN</button>
       </div>
       <h1>Home <b>Boxing</b></h1>
       <div class="lang-it">
-      <p>Il ring appare nella tua stanza. Sul ring ti aspetta <b>Mike</b>, peso massimo, 1,80 m, angolo blu.</p>
+      <p class="lead">Boxe vera per <b>Meta Quest 3</b>: tiri pugni con le tue mani, pari, schivi spostando la testa, e l'avversario fa lo stesso con te.</p>
+      <h2>Come si gioca</h2>
       <ul>
         <li>Si gioca <b>a mani nude</b> (chiudi i pugni) oppure con i <b>controller</b>.</li>
-        <li><b>Nella tua stanza</b>: il ring appare in casa tua (realtà mista). <b>Nell'arena</b>: sei in un palazzetto pieno di gente. <b>In spiaggia</b>: il ring è sulla sabbia in riva al mare (arena e spiaggia sono realtà virtuale: non vedi la stanza, tieni attivo il Confine del Quest).</li>
-        <li>Fai spazio intorno a te: almeno 2 × 2 metri liberi.</li>
-        <li>Colpi alla testa 2 punti, al corpo 1. Para con i guantoni davanti al viso o schiva spostando la testa.</li>
-        <li>Round da 3 minuti. Il ring si mette davanti a te quando entri.</li>
-        <li>Dentro il gioco trovi il menu: <b>Arcade</b> (scegli stage, avversario, livello, round) o <b>Torneo</b> (32 pugili a eliminazione diretta: 5 incontri per arrivare alla coppa). Si sceglie tenendo un guantone sul pulsante o puntandolo con la mano.</li>
-        <li>Incontro su 3 round da 3 minuti. Pausa: alza le due mani all'altezza della fronte per un secondo e mezzo.</li>
+        <li>Fai spazio intorno a te: almeno <b>2 × 2 metri</b> liberi. Il ring si mette davanti a te quando entri.</li>
+        <li>Colpi alla testa <b>2 punti</b>, al corpo <b>1</b>. Para con i guantoni davanti al viso o schiva spostando la testa.</li>
+        <li>Nei menu punti con la mano (sinistra di serie, si cambia nelle opzioni): il raggio compare quando chiudi il pugno. I pannelli si spostano trascinandoli dalla barra.</li>
+        <li>Pausa: tasto del controller o menu del visore.</li>
+      </ul>
+      <h2>Modalità</h2>
+      <ul>
+        <li><b>Arcade</b>: scegli stage, avversario, livello (Facile, Normale, Difficile, Impossibile), numero e durata dei round, regola dei 3 atterramenti.</li>
+        <li><b>Torneo</b>: 32 pugili a eliminazione diretta, 5 incontri per la coppa. Puoi guardare gli altri incontri o saltarli.</li>
+        <li><b>La torre</b>: un piano per ogni avversario, dal più facile al campione in cima.</li>
+        <li><b>Allenamento</b>: sacco pesante, speed bag, double end bag, corda, e sparring con un partner (libero, combinazioni con i numeri da seguire, difesa con i colpi che scegli tu e la velocità regolabile).</li>
+      </ul>
+      <h2>15 avversari</h2>
+      <p>Ognuno con il suo fisico, la sua guardia e il suo modo di combattere: c'è chi picchia duro, chi è veloce, chi gira sulle gambe. Si stancano round dopo round, si avvicinano e si allontanano sul ring, e i colpi seguono la tua altezza e cercano dove sei scoperto.</p>
+      <h2>Stage</h2>
+      <ul>
+        <li><b>La tua stanza</b>: il ring appare in casa tua (realtà mista).</li>
+        <li><b>Arena</b> piena di pubblico, <b>Spiaggia</b>, <b>Grattacielo</b> di giorno e <b>Città di notte</b>, <b>Deserto</b> con l'aquila e lo scorpione, <b>Neve</b> col lupo, <b>Vulcano</b> in eruzione, <b>Sotto il mare</b> in una sfera di vetro tra coralli, squali e mante, <b>Palestra</b>. Oppure <b>a caso</b>.</li>
+        <li>Gli stage virtuali coprono la stanza: tieni attivo il Confine del Quest.</li>
       </ul>
       </div>
       <div class="lang-en" hidden>
-      <p>The ring appears in your room. <b>Mike</b> is waiting for you: heavyweight, 1.80 m (5'11"), blue corner.</p>
+      <p class="lead">Real boxing for <b>Meta Quest 3</b>: throw punches with your own hands, block, slip by moving your head, and your opponent does the same to you.</p>
+      <h2>How to play</h2>
       <ul>
         <li>Play <b>bare-handed</b> (make fists) or with the <b>controllers</b>.</li>
-        <li><b>Your room</b>: the ring appears in your home (AR, mixed reality). <b>Arena</b>: a stadium full of people. <b>Beach</b>: the ring stands on the sand by the sea (arena and beach are virtual reality: you can't see your room, keep the Quest Boundary on).</li>
-        <li>Clear some space around you: at least 2 × 2 metres.</li>
-        <li>Head shots score 2 points, body shots 1. Block with your gloves in front of your face or dodge by moving your head.</li>
-        <li>The ring is placed in front of you when you enter.</li>
-        <li>In the game you'll find the menu: <b>Arcade</b> (choose stage, opponent, level, rounds) or <b>Tournament</b> (32-fighter knockout: 5 fights to reach the cup). Choose by holding a glove on a button or pointing at it with your hand.</li>
-        <li>Pause: raise both hands to forehead height for a second and a half.</li>
+        <li>Clear some space around you: at least <b>2 × 2 metres</b>. The ring is placed in front of you when you enter.</li>
+        <li>Head shots score <b>2 points</b>, body shots <b>1</b>. Block with your gloves in front of your face or dodge by moving your head.</li>
+        <li>In the menus you point with your hand (left by default, change it in the options): the ray appears when you make a fist. Panels can be moved by dragging their bar.</li>
+        <li>Pause: controller button or the headset menu.</li>
+      </ul>
+      <h2>Modes</h2>
+      <ul>
+        <li><b>Arcade</b>: choose stage, opponent, level (Easy, Normal, Hard, Impossible), number and length of rounds, three-knockdown rule.</li>
+        <li><b>Tournament</b>: 32-fighter knockout, 5 fights to win the cup. Watch the other fights or skip them.</li>
+        <li><b>The tower</b>: one floor per opponent, from the easiest up to the champion at the top.</li>
+        <li><b>Training</b>: heavy bag, speed bag, double end bag, jump rope, and sparring with a partner (free, combinations with numbers to follow, defence with the punches you choose and adjustable speed).</li>
+      </ul>
+      <h2>15 opponents</h2>
+      <p>Each with his own build, guard and fighting style: some hit hard, some are fast, some move around you. They tire round after round, step in and out across the ring, and their punches follow your height and look for your openings.</p>
+      <h2>Stages</h2>
+      <ul>
+        <li><b>Your room</b>: the ring appears in your home (mixed reality).</li>
+        <li>A packed <b>Arena</b>, <b>Beach</b>, <b>Skyscraper</b> by day and <b>City by night</b>, <b>Desert</b> with the eagle and the scorpion, <b>Snow</b> with the wolf, an erupting <b>Volcano</b>, <b>Under the sea</b> in a glass sphere among corals, sharks and manta rays, <b>Gym</b>. Or <b>random</b>.</li>
+        <li>Virtual stages cover your room: keep the Quest Boundary on.</li>
       </ul>
       </div>
       <div class="buttons">
@@ -90,6 +120,6 @@
     Mouse = guantoni · clic sinistro = jab sinistro · clic destro = diretto destro · tieni premuto Spazio = guardia<br>
     A / D = schiva a sinistra/destra · C = abbassati · W / S = avanti/indietro · V = vista dall'esterno
   </div>
-  <script type="module" src="js/main.js?v=20261004230128"></script>
+  <script type="module" src="js/main.js?v=20261004230842"></script>
 </body>
 </html>
