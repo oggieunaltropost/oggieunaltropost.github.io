@@ -239,15 +239,17 @@ export class Mike {
       a.reset(); a.setEffectiveWeight(1); a.play();
       // strada fatta dal guantone dalla guardia all'impatto (per dare a tutti i colpi la stessa velocita')
       const imp = (spec.from + spec.to) / 2 / 30;
-      let path = 0, prev = null;
-      for (let i = 0; i <= 12; i++) {
-        a.time = imp * i / 12; this.mixer.update(0); this.root.updateMatrixWorld(true);
-        const p = this.root.worldToLocal(this.glove(spec.side).tip);
-        if (prev) path += p.distanceTo(prev);
-        prev = p;
+      // velocita' come la vedi tu: quanto ci mette il guantone a fare gli ultimi 30 cm (in linea d'aria) prima
+      // dell'impatto. (la strada totale non va: nel jab conta anche il caricamento e il diretto risultava lento)
+      const N = 30, pts = [];
+      for (let i = 0; i <= N; i++) {
+        a.time = imp * i / N; this.mixer.update(0); this.root.updateMatrixWorld(true);
+        pts.push(this.root.worldToLocal(this.glove(spec.side).tip));
       }
-      const tip = prev;
-      res[name] = { x: tip.x, y: tip.y, z: tip.z, dist: Math.hypot(tip.x, tip.z), yaw: Math.atan2(tip.x, tip.z), speed: path / imp };
+      const tip = pts[N];
+      let i0 = N; while (i0 > 0 && pts[i0 - 1].distanceTo(tip) < 0.3) i0--;
+      const dd = i0 > 0 ? pts[i0 - 1].distanceTo(tip) : pts[0].distanceTo(tip), tt = imp * (N - Math.max(0, i0 - 1)) / N;
+      res[name] = { x: tip.x, y: tip.y, z: tip.z, dist: Math.hypot(tip.x, tip.z), yaw: Math.atan2(tip.x, tip.z), speed: dd / Math.max(1e-3, tt) };
       a.stop();
     }
     this.idle.setEffectiveWeight(1);
