@@ -6,8 +6,8 @@
 // Durata libera: si va avanti finche' non fermi dalla pausa. La velocita' del partner (colpi, andata e ritorno,
 // spostamenti, parate) si regola trascinando su e giu' il cursore della barra al tuo fianco.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261004154743';
-import { t as tr } from './i18n.js?v=20261004154743';
+import * as sfx from './sfx.js?v=20261004155720';
+import { t as tr } from './i18n.js?v=20261004155720';
 
 // combinazioni chiamate: voce, colpi che tira il partner (non qui) e quello che devi tirare tu
 // codici: 1 jab, 2 diretto, 3 gancio sinistro, 4 gancio destro, 5 montante sinistro, 6 montante destro; 'b' = al corpo
@@ -163,7 +163,7 @@ export class Sparring {
     m.cfg = { ...b, punchSpeed: b.punchSpeed * s, moveSpeed: b.moveSpeed * Math.pow(s, 0.7), defenseSpeed: b.defenseSpeed * s,
       attackEvery: b.attackEvery.map(v => v / s), retreatTime: b.retreatTime / s,
       reactDelay: Array.isArray(b.reactDelay) ? b.reactDelay.map(v => v / s) : b.reactDelay };
-    if (this.kind !== 'libero') m.cfg = { ...m.cfg, reactChance: this.kind === 'combo' ? 0 : m.cfg.reactChance, evade: 0, reflex: 0, feints: 0, counterChance: 0 };
+    if (this.kind !== 'libero') m.cfg = { ...m.cfg, reactChance: this.kind === 'combo' ? 0 : m.cfg.reactChance, evade: 0, reflex: 0, feints: 0, counterChance: 0, readGuard: 0 };   // (readGuard 0: non cambia il colpo chiamato se la tua guardia lo copre)
     if (this.kind === 'combo') m.cfg.moveSpeed *= 0.2;                       // nelle combinazioni sta quasi fermo davanti a te
     if (this.kind === 'difesa') {                                            // in difesa rallenta solo il pugno: passi e ritorno normali
       m.cfg.moveSpeed = b.moveSpeed; m.cfg.retreatTime = b.retreatTime; m.cfg.defenseSpeed = b.defenseSpeed;
