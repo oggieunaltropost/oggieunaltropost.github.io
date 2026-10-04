@@ -33,7 +33,7 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
-import { FIGHTER_IDS } from './fighters.js?v=20261004103857';
+import { FIGHTER_IDS } from './fighters.js?v=20261004105805';
 // Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
@@ -48,7 +48,7 @@ let vbuf = {}, vLang = 'it';
 let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261004103857`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261004105805`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
@@ -162,12 +162,13 @@ export function bell(times = 1) {
 
 // Pubblico del palazzetto: suoni veri generati con AudioGen (tools/gen_crowd_audio.py, tools/make_audio.py)
 const SAMPLES = ['brusio', 'tifo', 'boato_0', 'boato_1', 'boato_2', 'boato_3', 'ooh_0', 'ooh_1', 'ooh_2', 'applauso_0', 'applauso_1',
-  'mare', 'onda_0', 'onda_1', 'onda_2', 'gabbiano_0', 'gabbiano_1', 'elicottero', 'vento'];
+  'mare', 'onda_0', 'onda_1', 'onda_2', 'gabbiano_0', 'gabbiano_1', 'elicottero', 'vento',
+  'sacco_0', 'sacco_1', 'sacco_2', 'sacco_3', 'catena_0', 'catena_1', 'catena_2'];
 const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261004103857`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261004105805`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
   loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (windWanted && (!wind || wind.synth)) { if (wind) { wind.s.stop(); wind = null; } windAmbient(true); } });   // vento vero appena caricato
   return loading;
@@ -314,4 +315,51 @@ export function cheer(kind, gain = 0.8) {
 export function crowd(gain = 0.15) {
   if (!ctx) return; const t = ctx.currentTime;
   noise(t, 0.9, 900, 0.4, gain, 'bandpass', 600);
+}
+
+// ---------------------------------------------------------------- sacco pesante (allenamento)
+// suono che arriva da un punto (HRTF): il sacco e' li', a destra/sinistra, vicino
+function spot(pos, ref = 1.0) {
+  const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = ref; p.rolloffFactor = 1;
+  if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);
+  p.connect(master); return p;
+}
+function playAt(b, pos, gain, rate = 1, delay = 0) {
+  const s = ctx.createBufferSource(); s.buffer = b; s.playbackRate.value = rate;
+  const g = ctx.createGain(); g.gain.value = gain;
+  s.connect(g); g.connect(spot(pos)); s.start(ctx.currentTime + delay);
+}
+// colpo sul sacco: power 0..1.5 (0,3 = tocco, 1 = colpo pieno). Campione vero + tonfo grave + schiocco del cuoio, poi
+// la catena che tintinna (piu' forte se il colpo e' forte)
+export function bagHit(power, pos, cam) {
+  if (!ctx || ctx.state !== 'running') return;
+  setListener(cam);
+  const P = Math.max(0.15, Math.min(1.5, power)), t = ctx.currentTime;
+  const hits = ['sacco_0', 'sacco_1', 'sacco_2', 'sacco_3'].filter(n => buf[n]);
+  if (hits.length) playAt(buf[hits[Math.floor(Math.random() * hits.length)]], pos, 0.35 + 0.65 * Math.min(1, P), 1.06 - 0.12 * Math.min(1, P) + Math.random() * 0.05);
+  const out = spot(pos);
+  // tonfo: la massa del sacco (piu' basso e lungo se il colpo e' forte)
+  const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(95 - 25 * Math.min(1, P), t); o.frequency.exponentialRampToValueAtTime(38, t + 0.22);
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.7 * P, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+  o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.32);
+  // schiocco del cuoio (solo i colpi decisi)
+  if (P > 0.45) {
+    const s = ctx.createBufferSource(); s.buffer = noiseBuf;
+    const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2400 + 900 * Math.random(); f.Q.value = 0.9;
+    const gg = ctx.createGain(); gg.gain.setValueAtTime(0.0001, t); gg.gain.exponentialRampToValueAtTime(0.35 * (P - 0.3), t + 0.003); gg.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    s.connect(f); f.connect(gg); gg.connect(out); s.start(t, Math.random() * 0.5); s.stop(t + 0.08);
+  }
+  const ch = ['catena_0', 'catena_1', 'catena_2'].filter(n => buf[n]);
+  if (ch.length && P > 0.35) playAt(buf[ch[Math.floor(Math.random() * ch.length)]], pos.clone ? pos.clone().setY(pos.y + 0.8) : pos, 0.08 + 0.22 * Math.min(1, P - 0.2), 0.95 + Math.random() * 0.1, 0.05);
+}
+// scricchiolio del gancio quando il sacco oscilla forte (al punto di inversione)
+export function bagCreak(level, pos, cam) {
+  if (!ctx || ctx.state !== 'running' || level < 0.05) return;
+  setListener(cam);
+  const t = ctx.currentTime, out = spot(pos);
+  const o = ctx.createOscillator(); o.type = 'sawtooth'; const f0 = 520 + Math.random() * 300;
+  o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f0 * 0.82, t + 0.18);
+  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f0 * 2; bp.Q.value = 6;
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05 * Math.min(1, level), t + 0.04); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+  o.connect(bp); bp.connect(g); g.connect(out); o.start(t); o.stop(t + 0.25);
 }

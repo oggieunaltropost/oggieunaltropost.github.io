@@ -10,13 +10,15 @@ const FLOOR = -1.0;
 const WALK_SPEED = 0.42;                       // m/s (come la clip "cammina" di Blender)
 // giro attorno al ring (fuori dalla pedana, dai gradini e dai sacchi)
 const PATH = [[-3.8, -3.6], [0, -3.9], [3.8, -3.6], [4.3, 0], [3.9, 3.4], [0, 3.5], [-3.9, 3.4], [-4.3, 0]];
+const PATH_TRAIN = [[3.9, 3.4], [4.3, 0], [3.8, -3.6], [0, -3.9], [3.8, -3.6], [4.3, 0]];   // allenamento: lontano dal tuo sacco
+const BAG_SPOT = [-5.2, 0];                    // allenamento: qui pende il tuo sacco (spazio libero sul lato ovest)
 
 export class Gym {
   constructor() {
     this.group = new THREE.Group(); this.group.name = 'palestra';
     this.t = 0; this.bags = [];
     const L = new GLTFLoader();
-    L.load('assets/palestra.glb?v=20261004103857', g => {
+    L.load('assets/palestra.glb?v=20261004105805', g => {
       g.scene.traverse(o => {
         if (!o.isMesh) return;
         const m = o.material;
@@ -27,11 +29,11 @@ export class Gym {
       this.group.add(g.scene);
       this.loaded = true; if (this.onLoad) this.onLoad();
     });
-    L.load('assets/inserviente.glb?v=20261004103857', g => this._janitor(g));
+    L.load('assets/inserviente.glb?v=20261004105805', g => this._janitor(g));
   }
 
   _janitor(g) {
-    const J = g.scene; J.position.set(PATH[0][0], FLOOR, PATH[0][1]);
+    const J = g.scene, P0 = (this.path || PATH)[0]; J.position.set(P0[0], FLOOR, P0[1]);
     J.traverse(o => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = false; if (o.material) o.material.envMapIntensity = 0.4; } });
     this.group.add(J);
     this.jMixer = new THREE.AnimationMixer(J);
@@ -58,7 +60,7 @@ export class Gym {
 
   _updJanitor(dt) {
     const J = this.J; if (!J) return;
-    const tgt = PATH[(this.wp + 1) % PATH.length];
+    const P = this.path || PATH, tgt = P[(this.wp + 1) % P.length];
     if (this.state === 'lava') {
       if ((this.stateT -= dt) <= 0) this.state = 'cammina';
     } else {
@@ -70,7 +72,7 @@ export class Gym {
         const v = WALK_SPEED * Math.min(1, d / 0.4);
         J.position.x += Math.sin(J.rotation.y) * v * dt; J.position.z += Math.cos(J.rotation.y) * v * dt;
       }
-      if (d < 0.08) { this.wp = (this.wp + 1) % PATH.length; this.state = 'lava'; this.stateT = 7 + Math.random() * 8; }
+      if (d < 0.08) { this.wp = (this.wp + 1) % P.length; this.state = 'lava'; this.stateT = 7 + Math.random() * 8; }
     }
     // dissolvenza tra "lava" e "cammina"
     this.blend += ((this.state === 'cammina' ? 1 : 0) - this.blend) * Math.min(1, dt * 3);
@@ -88,6 +90,15 @@ export class Gym {
       this.mop.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
       this.mop.visible = true;
     }
+  }
+
+  // allenamento: la palestra si sposta e gira perche' il punto libero BAG_SPOT finisca sul sacco davanti a te,
+  // con il pavimento a quota 0 (dove stai davvero); l'uomo delle pulizie lavora dall'altra parte
+  setTraining(on, bagZ) {
+    this.path = on ? PATH_TRAIN : PATH;
+    if (on) { this.group.rotation.y = -Math.PI / 2; this.group.position.set(0, 1, bagZ - BAG_SPOT[0]); }
+    else { this.group.rotation.y = 0; this.group.position.set(0, 0, 0); }
+    if (this.J) { this.wp = 0; this.J.position.set(this.path[0][0], FLOOR, this.path[0][1]); this.state = 'lava'; this.stateT = 3; }
   }
 
   update(dt) {
