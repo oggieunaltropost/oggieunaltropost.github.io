@@ -582,7 +582,7 @@ export class Mike {
         if (rest > 0) armT = THREE.MathUtils.clamp(Math.asin(Math.min(1, rest / (0.55 * sc))), 0, 0.8);
       }
     }
-    const punching = this.punch && !this.punch.move && this.state === 'attack';
+    const punching = this.enabled && !this.down && this.punch && !this.punch.move && this.state === 'attack';   // (a fine incontro o a terra: niente)
     if (punching) {
       // si fissa al lancio; si ricalcola una volta quando e' pronto il punto scelto (arriva un fotogramma dopo)
       const aimed = this.lockFor === this.punch;
