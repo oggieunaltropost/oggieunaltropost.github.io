@@ -6,8 +6,8 @@
 // Durata libera: si va avanti finche' non fermi dalla pausa. La velocita' del partner (colpi, andata e ritorno,
 // spostamenti, parate) si regola trascinando su e giu' il cursore della barra al tuo fianco.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261004235612';
-import { t as tr } from './i18n.js?v=20261004235612';
+import * as sfx from './sfx.js?v=20261005000743';
+import { t as tr } from './i18n.js?v=20261005000743';
 
 // combinazioni chiamate: voce, colpi che tira il partner (non qui) e quello che devi tirare tu
 // codici: 1 jab, 2 diretto, 3 gancio sinistro, 4 gancio destro, 5 montante sinistro, 6 montante destro; 'b' = al corpo
@@ -87,9 +87,12 @@ export class Sparring {
       const tot = S.ok + S.bad;
       cells = [[tr('sp_ok'), S.ok, '#4cff7a'], [tr('sp_wrong'), S.bad, '#ff5a5a'], [tr('speed_acc'), tot ? Math.round(S.ok / tot * 100) + '%' : '—', '#fff']];
     } else if (this.kind === 'difesa') {
-      cells = [[tr('sp_avoided'), S.avoided, '#4cff7a'], [tr('sp_taken'), S.taken, '#ff5a5a'], [tr('sp_guard'), S.guardN ? Math.round(S.guardOk / S.guardN * 100) + '%' : '—', '#fff']];
+      // parati e schivati separati (solo quello che alleni, se ne hai scelto uno)
+      const par = [tr('sp_defended'), S.defBlocked || 0, '#4cb8ff'], sch = [tr('sp_dodged'), S.defDodged || 0, '#4cff7a'];
+      cells = [...(this.defType === 'schiva' ? [sch] : this.defType === 'para' ? [par] : [par, sch]), [tr('sp_taken'), S.taken, '#ff5a5a']];
+      if (this.defGuard !== false) cells.push([tr('sp_guard'), S.guardN ? Math.round(S.guardOk / S.guardN * 100) + '%' : '—', '#fff']);
     } else {
-      cells = [[tr('sp_landed'), S.landed, '#4cff7a'], [tr('sp_taken'), S.taken, '#ff5a5a'], [tr('sp_defended'), S.blocked + S.dodged, '#4cb8ff']];
+      cells = [[tr('sp_landed'), S.landed, '#4cff7a'], [tr('sp_taken'), S.taken, '#ff5a5a'], [tr('sp_defended'), S.blocked, '#4cb8ff'], [tr('sp_dodged'), S.dodged, '#c78bff']];
     }
     const key = `${mm}:${ss}|${cells.map(c => c[1]).join('|')}|${Math.round(this.speed * 100)}`;
     if (key === this.lastDraw) return; this.lastDraw = key;
@@ -102,10 +105,11 @@ export class Sparring {
     g.fillStyle = '#ffd34d'; g.font = '900 100px "Courier New", monospace'; g.fillText(`${mm}:${String(ss).padStart(2, '0')}`, W * 0.25, 205);
     g.fillStyle = '#4cb8ff'; g.fillText(Math.round(this.speed * 100) + '%', W * 0.75, 205);
     g.strokeStyle = '#2a2e36'; g.lineWidth = 3; g.beginPath(); g.moveTo(40, 290); g.lineTo(W - 40, 290); g.stroke();
+    const nc = cells.length;
     cells.forEach(([lab, val, col], i) => {
-      const x = W * (i + 0.5) / 3;
-      g.fillStyle = '#9aa3b6'; g.font = '700 30px system-ui, sans-serif'; g.fillText(lab, x, 335);
-      g.fillStyle = col; g.font = '900 86px "Courier New", monospace'; g.fillText(String(val), x, 425);
+      const x = W * (i + 0.5) / nc;
+      g.fillStyle = '#9aa3b6'; g.font = `700 ${nc > 3 ? 26 : 30}px system-ui, sans-serif`; g.fillText(lab, x, 335);
+      g.fillStyle = col; g.font = `900 ${nc > 3 ? 74 : 86}px "Courier New", monospace`; g.fillText(String(val), x, 425);
     });
     this.btex.needsUpdate = true;
   }
@@ -264,7 +268,7 @@ export class Sparring {
         if (this.task && this.task.kind === 'def') this.task.res = 'hit';
         if (this.kind === 'libero' && S.headTaken % 3 === 0) this._coach('c_bad1');
       }
-      else if (e.type === 'playerBlocked') { S.blocked++; if (this.task && this.task.kind === 'def') this.task.res = 'ok'; }
+      else if (e.type === 'playerBlocked') { S.blocked++; if (this.task && this.task.kind === 'def') { this.task.res = 'ok'; this.task.blocked = true; } }
       else if (e.type === 'playerDodged') { S.dodged++; if (this.task && this.task.kind === 'def') this.task.res = 'ok'; }
     }
     if (this.kind === 'libero') {
@@ -335,7 +339,7 @@ export class Sparring {
     if (!T.res && done && T.t > T.delay + 0.3) T.res = 'ok';               // non ti ha preso: evitato
     if (T.res && !T.judged) {
       T.judged = true;
-      if (T.res === 'ok') S.avoided++;
+      if (T.res === 'ok') { S.avoided++; if (T.blocked) S.defBlocked = (S.defBlocked || 0) + 1; else S.defDodged = (S.defDodged || 0) + 1; }   // evitato con la parata o schivando
       else S.taken += 0;                                                    // (gia' contato dall'evento)
     }
     if (T.judged && this.defGuard === false) {           // opzione "torna in guardia: no": solo para/schiva
