@@ -33,7 +33,7 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261004223937';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261004224610';
 // Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
@@ -55,7 +55,7 @@ let vbuf = {}, vLang = 'it';
 let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261004223937`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261004224610`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
@@ -100,7 +100,7 @@ export function voiceAt(name, pos, cam) {
 }
 // uscendo dal gioco: silenzio totale (si riaccende con initAudio)
 export function stopAll() {
-  crowdAmbient(false); seaAmbient(false); windAmbient(false); snowAmbient(false); lavaAmbient(false); heliStop();
+  crowdAmbient(false); seaAmbient(false); windAmbient(false); snowAmbient(false); lavaAmbient(false); underAmbient(false); heliStop();
   if (ctx && ctx.state === 'running') ctx.suspend();
 }
 
@@ -131,6 +131,12 @@ export function punchHit(strength = 1, mine = true) {
 }
 
 // parata: colpo su guantone, piu' secco e meno profondo
+// menu: il classico "blink blink" da videogioco (due note brevi che salgono)
+export function menuBlip() {
+  if (!ctx) return; const t = ctx.currentTime;
+  tone(t, 0.07, 1046, 0.16, 'square'); tone(t + 0.075, 0.1, 1568, 0.14, 'square');
+  tone(t, 0.07, 2093, 0.04, 'sine'); tone(t + 0.075, 0.1, 3136, 0.035, 'sine');
+}
 export function punchBlock() {
   if (!ctx) return; const t = ctx.currentTime;
   noise(t, 0.07, 2600, 1.2, 0.6, 'bandpass');
@@ -182,14 +188,15 @@ const SAMPLES = ['brusio', 'tifo', 'boato_0', 'boato_1', 'boato_2', 'boato_3', '
   'sacco_0', 'sacco_1', 'sacco_2', 'sacco_3', 'catena_0', 'catena_1', 'catena_2',
   'pera_0', 'pera_1', 'pera_2', 'pera_3', 'pera_4', 'pera_5', 'pera_6', 'pera_7', 'aquila_0', 'aquila_1', 'aquila_2',
   'ululato_0', 'ululato_1', 'ululato_2', 'ululato_3', 'passineve_0', 'passineve_1', 'passineve_2', 'passineve_3', 'passineve_4', 'passineve_5', 'ventoneve',
-  'lavaloop', 'eruzione_0', 'eruzione_1', 'eruzione_2', 'eruzione_3', 'schizzo_0', 'schizzo_1', 'schizzo_2', 'schizzo_3', 'schizzo_4', 'schizzo_5'];
+  'lavaloop', 'eruzione_0', 'eruzione_1', 'eruzione_2', 'eruzione_3', 'schizzo_0', 'schizzo_1', 'schizzo_2', 'schizzo_3', 'schizzo_4', 'schizzo_5',
+  'sottacqua', 'bolle_0', 'bolle_1', 'bolle_2', 'bolle_3'];
 const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261004223937`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261004224610`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
-  loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (snowWanted && !snowW) snowAmbient(true); if (lavaWanted && !lavaW) lavaAmbient(true); if (windWanted && (!wind || wind.synth)) { if (wind) { wind.s.stop(); wind = null; } windAmbient(true); } });   // vento vero appena caricato
+  loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (snowWanted && !snowW) snowAmbient(true); if (lavaWanted && !lavaW) lavaAmbient(true); if (underWanted && !underW) underAmbient(true); if (windWanted && (!wind || wind.synth)) { if (wind) { wind.s.stop(); wind = null; } windAmbient(true); } });   // vento vero appena caricato
   return loading;
 }
 function loopSrc(b, gain) {
@@ -494,6 +501,19 @@ export function wolfHowl(pos, cam) {
   playSpatial(['ululato_0', 'ululato_1', 'ululato_2', 'ululato_3'], pos, cam, 0.9, 6, 0.97 + Math.random() * 0.06);
 }
 
+// ---------------------------------------------------------------- sotto il mare: ambiente subacqueo (loop), sbuffi di bolle
+let underW = null, underWanted = false;
+export function underAmbient(on) {
+  underWanted = on;
+  if (!ctx) return;
+  if (on && !underW) {
+    if (!buf.sottacqua) { loadSamples(); return; }
+    underW = loopSrc(buf.sottacqua, 0.0); underW.g.gain.setTargetAtTime(0.55, ctx.currentTime, 1.2);
+  } else if (!on && underW) { const w = underW; underW = null; w.g.gain.setTargetAtTime(0, ctx.currentTime, 0.3); setTimeout(() => { try { w.s.stop(); } catch (e) {} }, 1200); }
+}
+export function bubbles(pos, cam) {
+  playSpatial(['bolle_0', 'bolle_1', 'bolle_2', 'bolle_3'], pos, cam, 0.6, 2.5, 0.85 + Math.random() * 0.3);
+}
 // ---------------------------------------------------------------- vulcano: lava che ribolle (loop), boati dell'eruzione, schizzi
 let lavaW = null, lavaWanted = false;
 export function lavaAmbient(on) {
