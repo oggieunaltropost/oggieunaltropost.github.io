@@ -9,10 +9,10 @@
 //    (poca gravita' e niente aria: traiettorie pulite) e ricade piano, anello di polvere; resta il cratere
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261005003339';
+import * as sfx from './sfx.js?v=20261005003741';
 
 const EYE = 1.65, R_FADE0 = 10, R_FADE1 = 16, G = 1.62;          // gravita' lunare
-const SUN = new THREE.Vector3(-0.4851, 0.2419, 0.8403).normalize();  // dalla foto (Blender (0.8403,-0.4851,0.2419))
+const SUN = new THREE.Vector3(-0.4532, 0.4226, 0.7849).normalize();  // dalla foto (Blender (0.7849,-0.4532,0.4226))
 const EARTH = new THREE.Vector3(0.7686, 0.5299, -0.3584).normalize();
 const _v = new THREE.Vector3(), _w = new THREE.Vector3();
 const ss = (a, b, x) => { const t = THREE.MathUtils.clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -30,7 +30,7 @@ export class Moon {
     this.sunDir = SUN.clone(); this.earthDir = EARTH.clone();
     this.t = 0;
     this._craters = [];                                             // crateretti vicini (x, z, raggio)
-    for (let k = 0; k < 26; k++) {
+    for (let k = 0; k < 0; k++) {                                     // (nessuno: nella foto li' non ci sono, si vedeva lo stacco)
       const a = Math.random() * Math.PI * 2, d = 4.5 + Math.random() * 11, R = 0.3 + Math.random() ** 2 * 1.6;
       this._craters.push([Math.cos(a) * d, Math.sin(a) * d, R]);
     }
@@ -42,7 +42,7 @@ export class Moon {
     const img = new Image();
     const tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     img.onload = () => { tex.needsUpdate = true; this.skyLoaded = true; this._tintGround(img); if (this.onSkyLoad) this.onSkyLoad(); };
-    img.src = 'assets/luna_panorama.jpg?v=20261005003339';
+    img.src = 'assets/luna_panorama.jpg?v=20261005003741';
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false, uniforms: { uPano: { value: tex } },
@@ -67,7 +67,7 @@ export class Moon {
       h += 0.06 * R * Math.exp(-(((d - 1) / 0.25) ** 2));
     }
     const r = Math.hypot(x, z);
-    return h * ss(3.2, 4.5, r) + 0.02 * Math.sin(x * 2.3 + Math.sin(z * 1.7)) * Math.sin(z * 1.9) * ss(3, 5, r);
+    return h * ss(3.2, 4.5, r);                                        // piatta come la foto (li' il terreno e' piano)
   }
   _ground() {
     const RS = 70, AS = 200, geo = new THREE.BufferGeometry(), pos = [], uv = [], idx = [];
@@ -92,8 +92,9 @@ export class Moon {
       g.fillStyle = `rgb(${150 + Math.random() * 50 | 0},${148 + Math.random() * 45 | 0},${140 + Math.random() * 40 | 0})`; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
     }
     const tex = new THREE.CanvasTexture(c); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
-    const mat = new THREE.MeshStandardMaterial({ map: tex, vertexColors: true, transparent: true, roughness: 1, metalness: 0 });
-    const gm = new THREE.Mesh(geo, mat); gm.renderOrder = -5; gm.receiveShadow = true; this.group.add(gm);
+    // senza luci (come la foto): il colore e' quello del panorama, cosi' al bordo non si vede nessuno stacco
+    const mat = new THREE.MeshBasicMaterial({ map: tex, vertexColors: true, transparent: true, toneMapped: false });
+    const gm = new THREE.Mesh(geo, mat); gm.renderOrder = -5; this.group.add(gm);
   }
   // il colore della foto ai bordi (la grana vicina resta), e l'alpha che sfuma nella foto
   _tintGround(img) {
@@ -113,7 +114,7 @@ export class Moon {
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i), z = pos.getZ(i), r = Math.hypot(x, z), s = sample(x, z);
       // vicino: luce media della foto (cosi' il terreno ha la stessa luminosita'); verso il bordo: il pixel esatto
-      const far = ss(6, R_FADE1 - 1, r), cc = [0, 1, 2].map(k => (avg[k] * (1 - far) + s[k] * far) / tex);
+      const far = ss(2, 6, r), cc = [0, 1, 2].map(k => (avg[k] * (1 - far) + s[k] * far) / tex);   // (subito il pixel della foto)
       col.setXYZW(i, cc[0], cc[1], cc[2], 1 - ss(R_FADE0, R_FADE1, r));
     }
     col.needsUpdate = true;
@@ -166,7 +167,7 @@ export class Moon {
     const ladder = new THREE.Group(); ladder.position.set(2.45, 0.9, 0); ladder.rotation.z = 0.35; L.add(ladder);
     for (const s of [-0.25, 0.25]) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.9, 0.05), foil); r.position.z = s; ladder.add(r); }
     for (let k = 0; k < 6; k++) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.5), foil); r.position.y = -0.8 + k * 0.32; ladder.add(r); }
-    L.position.set(-17, 0, -21); L.rotation.y = 0.6; L.scale.setScalar(0.9);
+    L.position.set(-17, -0.12, -21); L.rotation.y = 0.6; L.scale.setScalar(0.9);   // (zampe appena affondate nella polvere)
     L.traverse(o => { if (o.isMesh) { o.castShadow = true; } });
     this.group.add(L);
   }
