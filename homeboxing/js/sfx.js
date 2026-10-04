@@ -33,7 +33,7 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
-import { FIGHTER_IDS } from './fighters.js?v=20261004105805';
+import { FIGHTER_IDS } from './fighters.js?v=20261004110713';
 // Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
@@ -48,7 +48,7 @@ let vbuf = {}, vLang = 'it';
 let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261004105805`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261004110713`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
@@ -168,7 +168,7 @@ const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261004105805`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261004110713`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
   loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (windWanted && (!wind || wind.synth)) { if (wind) { wind.s.stop(); wind = null; } windAmbient(true); } });   // vento vero appena caricato
   return loading;
@@ -363,3 +363,44 @@ export function bagCreak(level, pos, cam) {
   const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05 * Math.min(1, level), t + 0.04); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
   o.connect(bp); bp.connect(g); g.connect(out); o.start(t); o.stop(t + 0.25);
 }
+
+// ---------------------------------------------------------------- corda per saltare
+// schiocco della corda di cuoio sul pavimento (a ogni giro, sotto i piedi)
+export function ropeSlap(power, pos, cam) {
+  if (!ctx || ctx.state !== 'running') return;
+  setListener(cam);
+  const t = ctx.currentTime, out = spot(pos), P = Math.max(0.2, Math.min(1.2, power));
+  const s = ctx.createBufferSource(); s.buffer = noiseBuf;
+  const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1400 + 600 * Math.random(); f.Q.value = 1.2;
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5 * P, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
+  s.connect(f); f.connect(g); g.connect(out); s.start(t, Math.random() * 0.5); s.stop(t + 0.07);
+  const o = ctx.createOscillator(); o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(70, t + 0.05);
+  const g2 = ctx.createGain(); g2.gain.setValueAtTime(0.0001, t); g2.gain.exponentialRampToValueAtTime(0.18 * P, t + 0.003); g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+  o.connect(g2); g2.connect(out); o.start(t); o.stop(t + 0.08);
+}
+// la corda colpisce le caviglie: schiocco sordo
+export function ropeTrip(pos, cam) {
+  if (!ctx || ctx.state !== 'running') return;
+  setListener(cam);
+  const t = ctx.currentTime, out = spot(pos);
+  const s = ctx.createBufferSource(); s.buffer = noiseBuf;
+  const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 700;
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.6, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+  s.connect(f); f.connect(g); g.connect(out); s.start(t, Math.random() * 0.5); s.stop(t + 0.15);
+}
+// fruscio dell'aria mentre gira (piu' forte e acuto quando gira veloce, a ondate a ogni giro)
+let ropeAir = null;
+export function ropeWhoosh(level, phaseGain) {
+  if (!ctx || ctx.state !== 'running') return;
+  if (!ropeAir) {
+    const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true;
+    const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.4; f.frequency.value = 600;
+    const g = ctx.createGain(); g.gain.value = 0;
+    s.connect(f); f.connect(g); g.connect(master); s.start();
+    ropeAir = { s, f, g };
+  }
+  const L = Math.max(0, Math.min(1, level));
+  ropeAir.g.gain.setTargetAtTime(0.16 * L * L * (0.35 + 0.65 * phaseGain), ctx.currentTime, 0.02);
+  ropeAir.f.frequency.setTargetAtTime(450 + 1100 * L, ctx.currentTime, 0.05);
+}
+export function ropeWhooshStop() { if (ropeAir) { ropeAir.g.gain.setTargetAtTime(0, ctx.currentTime, 0.05); } }
