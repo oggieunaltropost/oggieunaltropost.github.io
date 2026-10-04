@@ -8,7 +8,7 @@
 //  - l'eruzione sul vulcano lontano: bagliore del cratere che pulsa, lapilli incandescenti che salgono e ricadono,
 //    nuvole di fumo che escono e salgono; ogni tanto un'esplosione piu' forte col boato.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261004171606';
+import * as sfx from './sfx.js?v=20261004172701';
 
 const EYE = 1.65;
 const R_FADE0 = 11, R_FADE1 = 17;
@@ -31,7 +31,7 @@ export class Volcano {
     this.group = new THREE.Group(); this.group.name = 'vulcano';
     this.keyDir = CRATER_DIR.clone().setY(0.35).normalize();
     this.t = 0;
-    this._sky(); this._ground(); this._rivers(); this._sparks(); this._smoke(); this._eruption();
+    this._sky(); this._riverCurves(); this._ground(); this._rivers(); this._rocks(); this._sparks(); this._smoke(); this._eruption();
     this.nextSplash = 2; this.nextBoom = 8 + Math.random() * 10;
   }
   // ---------------------------------------------------------------- foto a 360 gradi
@@ -39,7 +39,7 @@ export class Volcano {
     const img = new Image();
     const tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     img.onload = () => { tex.needsUpdate = true; this.skyLoaded = true; this._tintGround(img); if (this.onSkyLoad) this.onSkyLoad(); };
-    img.src = 'assets/vulcano_panorama.jpg?v=20261004171606';
+    img.src = 'assets/vulcano_panorama.jpg?v=20261004172701';
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false, uniforms: { uPano: { value: tex } },
@@ -56,13 +56,14 @@ export class Volcano {
   }
   // ---------------------------------------------------------------- terra lavica vicina
   _ground() {
-    const RS = 36, AS = 96, geo = new THREE.BufferGeometry(), pos = [], uv = [], idx = [];
+    const RS = 60, AS = 200, geo = new THREE.BufferGeometry(), pos = [], uv = [], idx = [];
     for (let i = 0; i <= RS; i++) for (let j = 0; j <= AS; j++) {
-      const a = j / AS * Math.PI * 2, r = i === 0 ? 0 : 0.6 + Math.pow(i / RS, 1.6) * (R_FADE1 - 0.6), x = Math.cos(a) * r, z = Math.sin(a) * r;
-      pos.push(x, -0.004, z); uv.push(x / 6, z / 6);
+      const a = j / AS * Math.PI * 2, r = i === 0 ? 0 : 0.6 + Math.pow(i / RS, 1.4) * (R_FADE1 - 0.6), x = Math.cos(a) * r, z = Math.sin(a) * r;
+      pos.push(x, r < 2.8 ? -0.004 : this._lump(x, z) - 0.004, z); uv.push(x / 2.2, z / 2.2);
     }
     for (let i = 0; i < RS; i++) for (let j = 0; j < AS; j++) { const a = i * (AS + 1) + j, b = a + AS + 1; idx.push(a, b, a + 1, a + 1, b, b + 1); }
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx);
+    geo.computeVertexNormals();
     const n = geo.attributes.position.count, col = new Float32Array(n * 4);
     for (let i = 0; i < n; i++) { col[i * 4] = 0.03; col[i * 4 + 1] = 0.025; col[i * 4 + 2] = 0.022; col[i * 4 + 3] = 1; }
     geo.setAttribute('color', new THREE.BufferAttribute(col, 4));
@@ -113,17 +114,43 @@ export class Volcano {
     const cracks = new THREE.CanvasTexture(c2); cracks.wrapS = cracks.wrapT = THREE.RepeatWrapping;
     return [rock, cracks];
   }
+  // terreno lavico a placche e cordoni (rilievo di pochi centimetri, piatto sotto e vicino al ring)
+  _lump(x, z) {
+    const r = Math.hypot(x, z), k = Math.min(1, Math.max(0, (r - 3) / 2));
+    const dR = this.riverPts ? this._riverDist(x, z) : 9;                  // vicino ai fiumi il terreno scende: la lava sta nel suo letto
+    const bed = dR < 0.6 ? -0.06 * (1 - Math.max(0, dR) / 0.6) : 0;
+    return bed + k * Math.min(1, Math.max(0, dR / 1.2)) * (0.05 * Math.sin(x * 2.1 + Math.sin(z * 1.3) * 1.7) * Math.sin(z * 1.7 + Math.sin(x * 0.9) * 2.0) + 0.025 * Math.sin(x * 5.3 + z * 4.1));
+  }
+  // distanza dal fiume piu' vicino (per la luce rossa della lava sulle rocce attorno)
+  _riverDist(x, z) {
+    let best = 99;
+    for (const R of this.riverPts) for (const p of R.pts) { const d = Math.hypot(p.x - x, p.z - z) - R.w / 2; if (d < best) best = d; }
+    return best;
+  }
+  _riverCurves() {
+    this.riverPts = RIVERS.map(R => {
+      const curve = new THREE.CatmullRomCurve3(R.pts.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal');
+      return { curve, w: R.w, pts: curve.getSpacedPoints(220) };
+    });
+  }
   _tintGround(img) {
     const W = 1024, H = 512, c = document.createElement('canvas'); c.width = W; c.height = H;
     const g = c.getContext('2d'); g.drawImage(img, 0, 0, W, H); const px = g.getImageData(0, 0, W, H).data;
-    const pos = this.groundGeo.attributes.position, col = this.groundGeo.attributes.color;
+    const pos = this.groundGeo.attributes.position, col = this.groundGeo.attributes.color, nor = this.groundGeo.attributes.normal;
+    const L = new THREE.Vector3(0.6, 0.55, 0.3).normalize();
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i), z = pos.getZ(i), r = Math.hypot(x, z);
       _v.set(x, -EYE, z).normalize();
       const u = ((Math.atan2(_v.z, _v.x) / (Math.PI * 2) + 0.5) % 1 + 1) % 1, v = Math.asin(_v.y) / Math.PI + 0.5;
       const pi = (Math.min(H - 1, Math.floor((1 - v) * H)) * W + Math.min(W - 1, Math.floor(u * W))) * 4;
       const lin = k => Math.pow(px[pi + k] / 255, 2.2) / 0.32;              // (la grana del basalto ha media ~0,32)
-      col.setXYZW(i, lin(0), lin(1), lin(2), 1 - ss(R_FADE0, R_FADE1, r));
+      // vicino: basalto (la texture si vede bene) con il rilievo; verso il bordo: il colore della foto
+      const lit = 0.55 + 0.9 * Math.max(0, nor.getX(i) * L.x + nor.getY(i) * L.y + nor.getZ(i) * L.z - 0.55);
+      const far = ss(7, R_FADE1 - 1, r), base = [0.085 * lit, 0.07 * lit, 0.065 * lit];
+      // luce della lava: rosso-arancio sulle rocce fino a ~2,5 m dai fiumi
+      const dR = r < 2.8 ? 99 : this._riverDist(x, z), glow = Math.max(0, 1 - dR / 2.5) ** 2;
+      const c = [0, 1, 2].map(k => base[k] * (1 - far) + lin(k) * far + glow * [0.75, 0.12, 0.02][k] * (1 - far * 0.5));
+      col.setXYZW(i, c[0], c[1], c[2], 1 - ss(R_FADE0, R_FADE1, r));
     }
     col.needsUpdate = true;
   }
@@ -161,20 +188,72 @@ export class Volcano {
         }`,
     });
     this.riverPaths = [];
+    const bankMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, toneMapped: false, side: THREE.DoubleSide });
+    bankMat.vertexAlphas = true;
     for (const R of RIVERS) {
       const curve = new THREE.CatmullRomCurve3(R.pts.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal');
       const N = 160, L = curve.getLength(), P = [], uv = [], ar = [], as = [], idx = [];
       for (let i = 0; i <= N; i++) {
         const t = i / N, p = curve.getPointAt(t), tg = curve.getTangentAt(t), side = new THREE.Vector3(-tg.z, 0, tg.x);
         const w = R.w * (0.85 + 0.25 * Math.sin(t * 13.0 + R.w * 7));
-        for (const s of [-1, 1]) { const q = p.clone().addScaledVector(side, s * w / 2); P.push(q.x, 0.012, q.z); uv.push(t * L, s * w / 2); as.push(s); ar.push(Math.hypot(q.x, q.z)); }
+        for (const s of [-1, 1]) { const q = p.clone().addScaledVector(side, s * w / 2); P.push(q.x, -0.02, q.z); uv.push(t * L, s * w / 2); as.push(s); ar.push(Math.hypot(q.x, q.z)); }
         if (i < N) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
       }
       const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
       geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setAttribute('aR', new THREE.Float32BufferAttribute(ar, 1)); geo.setAttribute('aS', new THREE.Float32BufferAttribute(as, 1)); geo.setIndex(idx);
       const mesh = new THREE.Mesh(geo, this.lavaMat); mesh.renderOrder = -3; this.group.add(mesh);
       this.riverPaths.push({ curve, L, w: R.w });
+      // argini: dal pelo della lava salgono ~10 cm e scendono sul terreno; bordo interno incandescente, fuori nero
+      const B = [], BC = [], BI = [], prof = [[0, -0.02, 0.85], [0.07, 0.08, 0.12], [0.3, 0.06, 0.0], [0.6, 0.0, 0]];   // (solo il bordo sulla lava brilla)
+      for (let i = 0; i <= N; i++) {
+        const t = i / N, p = curve.getPointAt(t), tg = curve.getTangentAt(t), side = new THREE.Vector3(-tg.z, 0, tg.x);
+        const w = R.w * (0.85 + 0.25 * Math.sin(t * 13.0 + R.w * 7)), wob = 0.06 * Math.sin(t * 57 + R.w);
+        for (const sgn of [-1, 1]) for (const [o, h, hot] of prof) {
+          const q = p.clone().addScaledVector(side, sgn * (w / 2 + o + (o > 0 ? wob : 0)));
+          const r = Math.hypot(q.x, q.z), a = 1 - ss(R_FADE0, R_FADE1, r);
+          B.push(q.x, h + (o > 0 ? this._lump(q.x, q.z) * 0.5 : 0), q.z);
+          const gr = 0.7 + 0.6 * Math.abs(Math.sin(q.x * 7.1 + q.z * 5.3));            // crosta a chiazze
+          BC.push(0.03 * gr + hot * 0.9, 0.025 * gr + hot * 0.2, 0.023 * gr + hot * 0.03, a * (o >= 0.6 ? 0 : 1));
+        }
+        if (i < N) for (const sgn of [0, 1]) for (let k = 0; k < 3; k++) {
+          const a = i * 8 + sgn * 4 + k, b = a + 8; BI.push(a, b, a + 1, a + 1, b, b + 1);
+        }
+      }
+      const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.Float32BufferAttribute(B, 3));
+      bg.setAttribute('color', new THREE.Float32BufferAttribute(BC, 4)); bg.setIndex(BI);
+      const bank = new THREE.Mesh(bg, bankMat); bank.renderOrder = -2; this.group.add(bank);
     }
+  }
+  _rocks() {
+    const geo = new THREE.IcosahedronGeometry(1, 1), p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) {                                  // masso irregolare, schiacciato
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i), k = 1 + 0.28 * Math.sin(x * 3.1 + y * 2.3) * Math.sin(z * 2.7 + x * 1.3);
+      p.setXYZ(i, x * k, Math.max(-0.2, y * k * 0.6), z * k);
+    }
+    geo.computeVertexNormals();
+    const mat = new THREE.MeshStandardMaterial({ color: 0x1b1716, roughness: 0.95, metalness: 0, flatShading: true });
+    const list = [];
+    const ok = (x, z, s) => Math.max(Math.abs(x), Math.abs(z)) > 3.0 && this._riverDist(x, z) > s * 0.8 + 0.1;
+    for (const R of this.riverPts) for (let k = 0; k < 26; k++) {           // lungo le rive
+      const t = Math.random(), q = R.curve.getPointAt(t), tg = R.curve.getTangentAt(t), sd = new THREE.Vector3(-tg.z, 0, tg.x);
+      const s = 0.12 + Math.random() * 0.35, off = R.w / 2 + 0.45 + s + Math.random() * 0.8;
+      const x = q.x + sd.x * off * (Math.random() < 0.5 ? -1 : 1), z = q.z + sd.z * off * (Math.random() < 0.5 ? -1 : 1);
+      if (ok(x, z, s) && Math.hypot(x, z) < R_FADE1 - 1) list.push([x, z, s]);
+    }
+    for (let k = 0; k < 140 && list.length < 160; k++) {                  // nella piana
+      const a = Math.random() * Math.PI * 2, r = 4 + Math.random() * (R_FADE1 - 5), x = Math.cos(a) * r, z = Math.sin(a) * r, s = 0.08 + Math.random() ** 2 * 0.6;
+      if (ok(x, z, s)) list.push([x, z, s]);
+    }
+    const im = new THREE.InstancedMesh(geo, mat, list.length), m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+    const col = new THREE.Color();
+    list.forEach(([x, z, s], i) => {
+      e.set(Math.random() * 0.4, Math.random() * 6.28, Math.random() * 0.4); q.setFromEuler(e);
+      m.compose(new THREE.Vector3(x, this._lump(x, z) + s * 0.25, z), q, new THREE.Vector3(s * (0.8 + Math.random() * 0.6), s, s * (0.8 + Math.random() * 0.6)));
+      im.setMatrixAt(i, m);
+      const glow = Math.max(0, 1 - this._riverDist(x, z) / 2.0);              // vicino alla lava: rossiccio
+      im.setColorAt(i, col.setRGB(0.11 + glow * 0.5, 0.09 + glow * 0.1, 0.085));
+    });
+    im.receiveShadow = false; im.castShadow = false; this.group.add(im);
   }
   _onRiver() {                                                         // punto a caso sul pelo della lava (sulla terra 3D)
     for (let k = 0; k < 20; k++) {
