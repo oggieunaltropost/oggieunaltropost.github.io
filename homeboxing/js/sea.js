@@ -12,7 +12,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const SUN = new THREE.Vector3(0.287, 0.927, 0.241).normalize();      // il sole della foto (Blender (0.241,0.287,0.927))
-export const WATER = new THREE.Color(0x0e5a6e);                    // colore dell'acqua lontana (nebbia)
+export const WATER = new THREE.Color(0x0e505a);                    // colore dell'acqua lontana (nebbia)
 const SURF = 14;                                                    // superficie del mare sopra il pavimento
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3();
 const _x = new THREE.Vector3(), _y = new THREE.Vector3(), _z = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
@@ -94,7 +94,7 @@ export class Sea {
   }
 
   _sky() {
-    const tex = new THREE.TextureLoader().load('assets/mare_panorama.jpg?v=20261004225900', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load('assets/mare_panorama.jpg?v=20261004230128', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -181,7 +181,8 @@ export class Sea {
     const m = new THREE.ShaderMaterial({
       transparent: true, fog: true, depthWrite: true,
       uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uTime: { value: 0 }, uR0: { value: this.r0 + 0.05 }, uR1: { value: r1 } }]),
-      vertexShader: `varying vec3 vW; #include <fog_pars_vertex>
+      vertexShader: `varying vec3 vW;
+        #include <fog_pars_vertex>
         void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vec4 mvPosition = viewMatrix * w; gl_Position = projectionMatrix * mvPosition;
           #include <fog_vertex>
         }`,
@@ -190,9 +191,9 @@ export class Sea {
         void main(){
           float r = length(vW.xz);
           float rip = sin(vW.x * 5.0 + sin(vW.z * 1.3) * 2.0) * 0.5 + 0.5;          // increspature
-          vec3 sand = mix(vec3(0.42, 0.47, 0.42), vec3(0.52, 0.56, 0.5), rip * 0.6);
+          vec3 sand = mix(vec3(0.075, 0.12, 0.11), vec3(0.1, 0.15, 0.135), rip * 0.6);   // come la sabbia della foto
           float c = caustic(vW.xz * 1.1, uTime * 0.5);
-          vec3 col = sand * (0.75 + c * 0.55) + vec3(0.2, 0.35, 0.38) * c * 0.25;
+          vec3 col = sand * (0.8 + c * 0.9) + vec3(0.06, 0.12, 0.13) * c * 0.35;
           float a = 1.0 - smoothstep(uR1 * 0.55, uR1, r);                        // sfuma nella foto
           gl_FragColor = vec4(col, a);
           #include <colorspace_fragment>
@@ -272,7 +273,7 @@ export class Sea {
   // tieni fuori dalla sfera (e sopra la sabbia)
   _outside(p, margin) {
     const dx = p.x, dz = p.z, dy = p.y - this.C, d = Math.hypot(dx, dy, dz), m = this.R + margin;
-    if (d < m) p.set(dx, dy, dz).multiplyScalar(m / Math.max(d, 1e-3)).add(_p.set(0, this.C, 0));
+    if (d < m) { const k = m / Math.max(d, 1e-3); p.set(dx * k, dy * k + this.C, dz * k); }   // (prima usava _p, che e' p stesso: finivano al centro della sfera)
     p.y = Math.max(0.15, p.y);
     return p;
   }
@@ -313,7 +314,7 @@ export class Sea {
   _sharks() {
     // corpo affusolato (profilo ruotato) lungo x, schiacciato ai lati; pinne dorsale, pettorali, caudale alta
     const prof = [[0, 1.3], [0.12, 1.2], [0.22, 0.95], [0.28, 0.6], [0.3, 0.2], [0.27, -0.2], [0.2, -0.6], [0.11, -0.95], [0.05, -1.2], [0, -1.3]].map(([r, z]) => new THREE.Vector2(r, z));
-    const body = new THREE.LatheGeometry(prof, 16); body.rotateZ(-Math.PI / 2); body.scale(1, 1, 0.8);   // asse lungo x
+    const body = new THREE.LatheGeometry(prof, 16); body.rotateZ(-Math.PI / 2); body.scale(1, 0.85, 0.68);   // asse lungo x, snello
     const dors = triFin([0.35, 0.22, 0], [-0.25, 0.2, 0], [-0.05, 0.75, 0]);
     const pecL = triFin([0.45, -0.12, 0.18], [0.0, -0.12, 0.2], [-0.1, -0.35, 0.75]);
     const pecR = triFin([0.45, -0.12, -0.18], [-0.1, -0.35, -0.75], [0.0, -0.12, -0.2]);
@@ -322,7 +323,7 @@ export class Sea {
     const dors2 = triFin([-0.8, 0.1, 0], [-0.98, 0.08, 0], [-0.95, 0.22, 0]);
     const parts = [body, dors, pecL, pecR, tailU, tailD, dors2].map(g => { if (g.attributes.uv) g.deleteAttribute('uv'); g.deleteAttribute('normal'); return g.index ? g.toNonIndexed() : g; });
     const geo = mergeGeometries(parts); geo.computeVertexNormals();
-    paint(geo, (x, y) => y < -0.06 ? [0.86, 0.87, 0.88] : [0.36, 0.42, 0.47]);
+    paint(geo, (x, y, z) => y < -0.1 + 0.04 * Math.sin(x * 3) ? [0.8, 0.82, 0.83] : (y < -0.04 ? [0.42, 0.47, 0.5] : [0.2, 0.25, 0.29]));   // dorso scuro, fianchi grigi, pancia chiara
     this.sharks = [];
     for (let i = 0; i < 2; i++) {
       const mat = swimMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.05, side: THREE.DoubleSide }, { instanced: false, head: 1.0, len: 2.6, freq: 4.2, k: 1.6, amp: 0.22 });
