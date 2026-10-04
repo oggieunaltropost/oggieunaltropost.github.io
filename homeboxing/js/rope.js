@@ -6,8 +6,9 @@
 // corda si ferma sulle caviglie: errore.
 // Sistema: quello del ring (arena), pavimento a 0, il giocatore in (0, 0, playerZ) guarda verso -Z.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261004110713';
-import { t as tr } from './i18n.js?v=20261004110713';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as sfx from './sfx.js?v=20261004111715';
+import { t as tr } from './i18n.js?v=20261004111715';
 
 const SEG = 48, RAD = 6, ROPE_R = 0.0055;
 const G = 9.81, DRAG = 0.35;
@@ -60,6 +61,18 @@ export class RopeTraining {
       this.hands[side] = { handle, wrap, prevQ: new THREE.Quaternion(), center: new THREE.Vector3(), prevP: new THREE.Vector3(), init: false, rate: 0 };
     }
     this._board();
+    // mani vere fasciate con la manopola (blender/create_hands.py): appena caricate prendono il posto di quelle semplici
+    new GLTFLoader().load('assets/mani_fasce.glb?v=20261004111715', g => {
+      for (const [side, nm] of [['right', 'mano_d'], ['left', 'mano_s']]) {
+        const node = g.scene.getObjectByName(nm); if (!node) continue;
+        node.removeFromParent(); node.position.set(0, 0, 0); node.quaternion.identity();
+        node.traverse(o => { if (o.isMesh) { o.frustumCulled = false; if (o.material.map) o.material.map.anisotropy = 4; } });
+        const H = this.hands[side];
+        node.visible = H.wrap.visible; scene.add(node);
+        H.real = node; node.traverse(o => { if (o !== node && /^punta/.test(o.name)) H.tip = o; });
+        H.wrap.visible = H.handle.visible = false;
+      }
+    });
   }
 
   _board() {
@@ -96,12 +109,12 @@ export class RopeTraining {
   start(playerZ) {
     this.group.visible = true;
     this.board.position.set(0, 2.35, playerZ - 3.5); this.board.rotation.set(0, 0, 0);
-    for (const h of Object.values(this.hands)) { h.handle.visible = h.wrap.visible = true; h.init = false; }
+    for (const h of Object.values(this.hands)) { if (h.real) h.real.visible = true; else h.handle.visible = h.wrap.visible = true; h.init = false; }
     this.reset();
   }
   stop() {
     this.group.visible = false;
-    for (const h of Object.values(this.hands)) h.handle.visible = h.wrap.visible = false;
+    for (const h of Object.values(this.hands)) { h.handle.visible = h.wrap.visible = false; if (h.real) h.real.visible = false; }
     sfx.ropeWhooshStop();
   }
   reset() {
@@ -113,6 +126,10 @@ export class RopeTraining {
   // pose delle mani: manopola nel pugno, fasce attorno; restituisce la punta (dove esce la corda), in coordinate arena
   _hand(side, g, handsMode) {
     const H = this.hands[side], q = g.mesh.quaternion, p = g.mesh.position;
+    if (H.real) {                                     // mano vera: segue il polso, la corda esce dalla punta della manopola
+      H.real.position.copy(p); H.real.quaternion.copy(q); H.real.updateMatrixWorld(true);
+      return this.parent.worldToLocal(H.tip.getWorldPosition(new THREE.Vector3()));
+    }
     H.wrap.position.copy(p); H.wrap.quaternion.copy(q);
     // asse della manopola: con il controller lungo il "davanti" del controller, con le mani di traverso nel pugno
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(q), lat = new THREE.Vector3(side === 'left' ? 1 : -1, 0, 0).applyQuaternion(q);
