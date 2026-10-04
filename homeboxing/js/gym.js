@@ -5,12 +5,14 @@
 // la retta delle sue due mani fino a terra, cosi' resta sempre in mano.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { buildRing, RING_SIZE } from './ring.js?v=20261004144809';
 
 const FLOOR = -1.0;
 const WALK_SPEED = 0.42;                       // m/s (come la clip "cammina" di Blender)
 // giro attorno al ring (fuori dalla pedana, dai gradini e dai sacchi)
 const PATH = [[-3.8, -3.6], [0, -3.9], [3.8, -3.6], [4.3, 0], [3.9, 3.4], [0, 3.5], [-3.9, 3.4], [-4.3, 0]];
-const PATH_TRAIN = [[3.9, 3.4], [4.3, 0], [3.8, -3.6], [0, -3.9], [3.8, -3.6], [4.3, 0]];   // allenamento: lontano dal tuo sacco
+// allenamento: il giro completo attorno al ring, dal tuo lato passa tra la pedana e te (a ~1 m: lo vedi da vicino)
+const PATH_TRAIN = [[3.9, 3.4], [0, 3.5], [-3.3, 3.2], [-3.3, 0], [-3.3, -3.3], [0, -3.9], [3.8, -3.6], [4.3, 0]];
 const BAG_SPOT = [-5.2, 0];                    // allenamento: qui pende il tuo sacco (spazio libero sul lato ovest)
 
 export class Gym {
@@ -18,7 +20,7 @@ export class Gym {
     this.group = new THREE.Group(); this.group.name = 'palestra';
     this.t = 0; this.bags = [];
     const L = new GLTFLoader();
-    L.load('assets/palestra.glb?v=20261004141415', g => {
+    L.load('assets/palestra.glb?v=20261004144809', g => {
       g.scene.traverse(o => {
         if (!o.isMesh) return;
         const m = o.material;
@@ -29,12 +31,21 @@ export class Gym {
       this.group.add(g.scene);
       this.loaded = true; if (this.onLoad) this.onLoad();
     });
-    L.load('assets/inserviente.glb?v=20261004141415', g => this._janitor(g));
+    L.load('assets/inserviente.glb?v=20261004144809', g => this._janitor(g));
+    // in allenamento il ring del gioco sparisce: sulla pedana restano corde, pali e angoli (girano con la palestra)
+    this.ring = buildRing(RING_SIZE); this.ring.visible = false; this.group.add(this.ring);
   }
 
   _janitor(g) {
     const J = g.scene, P0 = (this.path || PATH)[0]; J.position.set(P0[0], FLOOR, P0[1]);
     J.traverse(o => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = false; if (o.material) o.material.envMapIntensity = 0.4; } });
+    // pelle e occhi arrivano "trasparenti" da MakeHuman: disegnati in ordine sbagliato sparivano pezzi di faccia.
+    // Opachi; capelli e sopracciglia con il taglio netto (alphaTest) invece della trasparenza
+    J.traverse(o => { if (!o.isMesh || !o.material || !o.material.transparent) return;
+      const m = o.material, cut = /short|eyebrow|hair|high-poly|eye/i.test(o.name + m.name);
+      m.transparent = false; m.depthWrite = true; m.alphaTest = cut ? 0.5 : 0; m.side = THREE.FrontSide; m.needsUpdate = true; });
+    J.traverse(o => { if (o.isMesh && o.material && o.material.name === 'Cappellino') {          // rosso scuro opaco (con il velluto sembrava rosa)
+      o.material.color.setRGB(0.2, 0.025, 0.02); o.material.roughness = 0.85; if ('sheen' in o.material) o.material.sheen = 0; o.material.needsUpdate = true; } });
     this.group.add(J);
     this.jMixer = new THREE.AnimationMixer(J);
     const clip = n => g.animations.find(a => a.name === n);
@@ -56,12 +67,25 @@ export class Gym {
     }
     this.mop = mop; this.group.add(mop);
     this.J = J; this.wp = 0; this.state = 'lava'; this.stateT = 4 + Math.random() * 4; this.blend = 0;
+    this.headB = J.getObjectByName('head'); this.neckB = J.getObjectByName('neck_01'); this.look = 0; this.lookYaw = 0;
+    this.nextWatch = 12 + Math.random() * 15;
   }
 
-  _updJanitor(dt) {
+  _updJanitor(dt, watchW) {
     const J = this.J; if (!J) return;
     const P = this.path || PATH, tgt = P[(this.wp + 1) % P.length];
-    if (this.state === 'lava') {
+    // ogni tanto si ferma, si appoggia al mocio e guarda te (o il match) per qualche secondo
+    this.nextWatch -= dt;
+    if (watchW && this.nextWatch <= 0 && this.state !== 'guarda') { this.prevState = this.state; this.state = 'guarda'; this.stateT = 4 + Math.random() * 4; }
+    const wl = watchW ? this.group.worldToLocal(watchW.clone()) : null;
+    if (this.state === 'guarda') {
+      if (wl) {                                                   // si gira verso di te
+        const want = Math.atan2(wl.x - J.position.x, wl.z - J.position.z);
+        const dy = Math.atan2(Math.sin(want - J.rotation.y), Math.cos(want - J.rotation.y));
+        J.rotation.y += Math.max(-1.0 * dt, Math.min(1.0 * dt, dy * 0.6));
+      }
+      if ((this.stateT -= dt) <= 0) { this.state = this.prevState || 'lava'; this.stateT = 2 + Math.random() * 3; this.nextWatch = 20 + Math.random() * 25; }
+    } else if (this.state === 'lava') {
       if ((this.stateT -= dt) <= 0) this.state = 'cammina';
     } else {
       const dx = tgt[0] - J.position.x, dz = tgt[1] - J.position.z, d = Math.hypot(dx, dz);
@@ -77,8 +101,23 @@ export class Gym {
     // dissolvenza tra "lava" e "cammina"
     this.blend += ((this.state === 'cammina' ? 1 : 0) - this.blend) * Math.min(1, dt * 3);
     this.aWalk.setEffectiveWeight(this.blend); this.aMop.setEffectiveWeight(1 - this.blend);
-    this.jMixer.update(dt);
+    this.look += ((this.state === 'guarda' ? 1 : 0) - this.look) * Math.min(1, dt * 2.5);
+    this.jMixer.update(dt * (1 - 0.92 * this.look));            // fermo a guardare: il mocio quasi immobile
     J.updateMatrixWorld(true);
+    // testa e collo verso di te (oltre a quanto si e' girato col corpo)
+    if (this.headB && wl && this.look > 0.01) {
+      const hp = this.headB.getWorldPosition(new THREE.Vector3()), to = watchW.clone().sub(hp);
+      const fw = new THREE.Vector3(0, 0, 1).applyQuaternion(J.getWorldQuaternion(new THREE.Quaternion()));
+      let yaw = Math.atan2(to.x, to.z) - Math.atan2(fw.x, fw.z); yaw = Math.atan2(Math.sin(yaw), Math.cos(yaw));
+      yaw = Math.max(-1.0, Math.min(1.0, yaw)) * this.look;
+      for (const [b, k] of [[this.neckB, 0.4], [this.headB, 0.6]]) {   // rotazione attorno alla verticale del mondo
+        if (!b) continue;
+        const wq = b.getWorldQuaternion(new THREE.Quaternion());
+        const nw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw * k).multiply(wq);
+        const pinv = b.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+        b.quaternion.copy(pinv.multiply(nw)); b.updateMatrixWorld(true);
+      }
+    }
     // mocio lungo la retta delle mani (dal pugno destro, in basso, verso il sinistro), fino a terra
     const grip = (h, m) => h.getWorldPosition(new THREE.Vector3()).lerp(m.getWorldPosition(new THREE.Vector3()), 0.6);
     const R = this.group.worldToLocal(grip(this.handR, this.midR)), Lh = this.group.worldToLocal(grip(this.handL, this.midL));
@@ -96,17 +135,18 @@ export class Gym {
   // con il pavimento a quota 0 (dove stai davvero); l'uomo delle pulizie lavora dall'altra parte
   setTraining(on, bagZ) {
     this.path = on ? PATH_TRAIN : PATH;
+    this.ring.visible = !!on;
     if (on) { this.group.rotation.y = -Math.PI / 2; this.group.position.set(0, 1, bagZ - BAG_SPOT[0]); }
     else { this.group.rotation.y = 0; this.group.position.set(0, 0, 0); }
     if (this.J) { this.wp = 0; this.J.position.set(this.path[0][0], FLOOR, this.path[0][1]); this.state = 'lava'; this.stateT = 3; }
   }
 
-  update(dt) {
+  update(dt, watchW = null) {
     this.t += dt;
     for (const b of this.bags) {                             // i sacchi oscillano appena (qualcuno li ha colpiti)
       b.o.rotation.x = Math.sin(this.t * 1.7 + b.ph) * b.amp;
       b.o.rotation.z = Math.sin(this.t * 1.3 + b.ph * 1.7) * b.amp * 0.7;
     }
-    this._updJanitor(dt);
+    this._updJanitor(dt, watchW);
   }
 }

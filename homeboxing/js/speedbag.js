@@ -5,8 +5,8 @@
 // verso la pera, le arriva vicino e il braccio torna indietro senza averla toccata.
 // Sistema: quello del ring (arena): il giocatore in (0, 0, playerZ) guarda verso -Z, pavimento a 0.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261004141415';
-import { t as tr } from './i18n.js?v=20261004141415';
+import * as sfx from './sfx.js?v=20261004144809';
+import { t as tr } from './i18n.js?v=20261004144809';
 
 const M = 0.3, PUNCH_MASS = 2.4, E_HIT = 0.5, E_BOARD = 0.62;
 const LC = 0.15, RB = 0.1;                    // dal girello al centro della pera, raggio (parte larga)
@@ -53,7 +53,7 @@ export class SpeedBagTraining {
     this.bag = new THREE.Group(); this.pivot.add(this.bag);
     const loop = new THREE.Mesh(new THREE.TorusGeometry(0.014, 0.004, 6, 12), chrome); loop.position.y = -0.03; this.bag.add(loop);
     const prof = [[0.0, -0.04], [0.022, -0.042], [0.03, -0.06], [0.06, -0.1], [0.092, -0.14], [RB, -0.17], [0.098, -0.2], [0.085, -0.235], [0.055, -0.262], [0.0, -0.272]]
-      .map(([r, y]) => new THREE.Vector2(r, y));
+      .map(([r, y]) => new THREE.Vector2(r, y)).reverse();     // dal basso in alto: facce verso l'esterno (al contrario si vedeva l'interno)
     const body = new THREE.Mesh(new THREE.LatheGeometry(prof, 40), new THREE.MeshPhysicalMaterial({ map: leather(), roughness: 0.38, clearcoat: 0.4, clearcoatRoughness: 0.3 }));
     body.rotation.y = -Math.PI / 2; this.bag.add(body);
   }

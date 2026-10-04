@@ -6,8 +6,8 @@
 // Durata libera: si va avanti finche' non fermi dalla pausa. La velocita' del partner (colpi, andata e ritorno,
 // spostamenti, parate) si regola trascinando su e giu' il cursore della barra al tuo fianco.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261004141415';
-import { t as tr } from './i18n.js?v=20261004141415';
+import * as sfx from './sfx.js?v=20261004144809';
+import { t as tr } from './i18n.js?v=20261004144809';
 
 // combinazioni chiamate: voce, colpi che tira il partner (non qui) e quello che devi tirare tu
 // codici: 1 jab, 2 diretto, 3 gancio sinistro, 4 gancio destro, 5 montante sinistro, 6 montante destro; 'b' = al corpo
@@ -19,11 +19,17 @@ const CALLS = [
   { v: 'c_k_b', seq: ['b'], lvl: 0 }, { v: 'c_k_12b', seq: ['1', '2b'], lvl: 1 },
 ];
 // difesa: cosa annuncia l'allenatore e cosa tira il partner
-const ATTACKS = [
-  { v: 'c_d_slip', combo: ['jab'] }, { v: 'c_d_slip', combo: ['cross'] }, { v: 'c_d_block', combo: ['jab'] },
-  { v: 'c_d_block', combo: ['cross'] }, { v: 'c_d_duck', combo: ['hook_l'] }, { v: 'c_d_duck', combo: ['hook_r'] },
-  { v: 'c_d_body', combo: ['body_r'] }, { v: 'c_d_body', combo: ['body_l'] },
-];
+// per colpo (si possono scegliere dal menu della difesa): l'allenatore dice come difendersi, il partner tira quello
+export const DEF_KINDS = {
+  jab: [{ v: 'c_d_slip', combo: ['jab'] }, { v: 'c_d_block', combo: ['jab'] }],
+  cross: [{ v: 'c_d_slip', combo: ['cross'] }, { v: 'c_d_block', combo: ['cross'] }],
+  hook_l: [{ v: 'c_d_duck', combo: ['hook_l'] }, { v: 'c_d_block', combo: ['hook_l'] }],
+  hook_r: [{ v: 'c_d_duck', combo: ['hook_r'] }, { v: 'c_d_block', combo: ['hook_r'] }],
+  upper_l: [{ v: 'c_d_block', combo: ['uppercut_l'] }],
+  upper_r: [{ v: 'c_d_block', combo: ['uppercut_r'] }],
+  body: [{ v: 'c_d_body', combo: ['body_r'] }, { v: 'c_d_body', combo: ['body_l'] }],
+};
+const ALL_ATTACKS = Object.values(DEF_KINDS).flat();
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const GOOD = ['c_good1', 'c_good2', 'c_good3', 'c_good4'];
 
@@ -257,7 +263,7 @@ export class Sparring {
     const m = this.mike, S = this.st;
     if (!this.task) {
       if (this.next > 0 || sfx.voiceBusy() || m.state !== 'stalk') return;
-      const a = pick(ATTACKS);
+      const a = pick(this.defKinds && this.defKinds.length ? this.defKinds.flatMap(k => DEF_KINDS[k] || []) : ALL_ATTACKS);   // casuale o i colpi scelti
       sfx.announce(a.v);
       this.task = { kind: 'def', a, t: 0, thrown: false, res: null, delay: sfx.voiceDur(a.v) + 0.35 / this.speed, after: 0 };
       return;

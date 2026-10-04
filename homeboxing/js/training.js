@@ -5,8 +5,8 @@
 // Tabellone sul muro dietro al sacco: tempo, colpi a segno, colpo piu' forte, colpi al minuto.
 // Sistema: quello del ring (arena): il giocatore sta in (0, 0, playerZ) e guarda verso -Z; il pavimento e' a 0.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261004141415';
-import { t as tr } from './i18n.js?v=20261004141415';
+import * as sfx from './sfx.js?v=20261004144809';
+import { t as tr } from './i18n.js?v=20261004144809';
 
 const M = 45, R = 0.19, H = 1.3;              // massa, raggio, altezza del sacco
 const HOOK = 2.72;                             // gancio (perno)
@@ -160,7 +160,7 @@ export class BagTraining {
   start(playerZ) {
     this.group.visible = true;
     this.group.position.set(0, 0, playerZ - 0.85);
-    this.board.position.set(1.55, 2.6, -2.6); this.board.rotation.set(0, -0.45, 0);    // sul muro, a destra del sacco, girato verso di te
+    this.board.position.set(1.35, 2.25, -1.5); this.board.rotation.set(0, -0.5, 0);    // a destra del sacco, staccato dal muro (prima ci finiva dentro), girato verso di te
     this.reset();
   }
   stop() { this.group.visible = false; }
@@ -225,7 +225,7 @@ export class BagTraining {
       const vb = new THREE.Vector3().crossVectors(this.w, r);
       const vg = g.vel.clone().applyQuaternion(this.group.getWorldQuaternion(new THREE.Quaternion()).invert());
       const vrel = vg.sub(vb), vn = -vrel.dot(nrm);                      // velocita' verso il sacco
-      if (!this.inside[side] && vn > 0.7) {
+      if (!this.inside[side] && vn > 1.2) {
         // urto: impulso lungo la normale (massa efficace del pugno contro l'inerzia del sacco nel punto)
         const rxn = new THREE.Vector3().crossVectors(r, nrm);
         const k = 1 / PUNCH_MASS + rxn.clone().applyMatrix3(this.IwInv).cross(r).dot(nrm);
@@ -235,7 +235,7 @@ export class BagTraining {
         const vt = vrel.clone().addScaledVector(nrm, vn);
         if (vt.length() > 0.2) this._impulse(p, vt.normalize().multiplyScalar(Math.min(0.35 * J, PUNCH_MASS * 0.5 * vt.length())));
         const kmh = vn * 3.6;
-        if (vn > 1.8) { this.hits++; this.best = Math.max(this.best, kmh); }
+        if (vn > 2.2) { this.hits++; this.best = Math.max(this.best, kmh); }   // colpo vero solo da 8 km/h in su
         const wp = this.group.localToWorld(p.clone());
         sfx.bagHit(Math.min(1.5, vn / 7), wp, cam);
         player.pulse(side, Math.min(1, 0.25 + vn / 9), 35 + vn * 6);
@@ -244,6 +244,13 @@ export class BagTraining {
         // appoggio / spinta: molla morbida (si sposta il sacco spingendo)
         const pen = rr - dist;
         this._impulse(p, nrm.clone().multiplyScalar(-Math.min(900 * pen, 250) * dt));
+        // presa: con il guantone appoggiato il sacco segue la mano (lo fermi, lo inclini, lo accompagni); non e' un colpo
+        const sp = vrel.length();
+        if (sp > 1e-3) {
+          const d = vrel.clone().divideScalar(sp), rxd = new THREE.Vector3().crossVectors(r, d);
+          const meff = 1 / Math.max(1e-4, rxd.clone().applyMatrix3(this.IwInv).cross(r).dot(d));
+          this._impulse(p, d.multiplyScalar(sp * meff * Math.min(1, dt * 10)));
+        }
         this.inside[side] = true;
       }
       // il guantone si ferma sulla superficie

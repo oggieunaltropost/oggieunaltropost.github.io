@@ -809,7 +809,7 @@ export class Mike {
     this.setState('approach');
     this.counter = true;
   }
-  attackDist() { const a = this.aimPunch(); return a ? a.dist - 0.03 : this.cfg.attackDist; }
+  attackDist() { const a = this.aimPunch(); return (a ? a.dist - 0.03 : this.cfg.attackDist) + (this.reachExtra || 0); }   // reachExtra: sparring in difesa, tira da un po' piu' lontano
 
   // ---- mira ai punti scoperti: da dove arriva ogni colpo e se un tuo guantone e' sulla traiettoria
   punchPath(name, player) {

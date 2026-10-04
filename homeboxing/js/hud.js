@@ -1,6 +1,6 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261004141415';
+import { t as tr } from './i18n.js?v=20261004144809';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
 let RAYS = [];
@@ -195,6 +195,7 @@ export class PauseMenu {
       { id: 'resume', tk: 'resume', color: 0x1f8a4c, x: -0.29 },
       { id: 'restart', tk: 'restart', color: 0x1d4fc4, x: 0 },
       { id: 'exit', tk: 'menu_btn', color: 0xc4161f, x: 0.29 },
+      { id: 'change', tk: 'pause_change', color: 0x8a5a1a, x: 0.11 },          // (solo in allenamento: torna alla scelta)
     ].map(b => {
       const g = new THREE.Group(); g.position.set(b.x, -0.06, 0.02);
       const base = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.22, 0.04),
@@ -263,7 +264,7 @@ export class PauseMenu {
     for (const b of this.buttons) paint(b.label, tr(b.tk));
   }
   // result (solo a fine incontro): { win: true/false/null (pari), how: 'KO'... }
-  open(head, yaw, end = false, result = null) {
+  open(head, yaw, end = false, result = null, change = false) {
     if (end && result) {
       this.setTitle(tr(result.win === true ? 'res_win' : result.win === false ? 'res_lose' : 'res_draw'),
         result.win === true ? '#ffd34d' : result.win === false ? '#ff5a5a' : '#ffffff');
@@ -272,8 +273,10 @@ export class PauseMenu {
     this.medal.visible = !!(end && result && result.win === true); this.medalT = 0;
     this.buttons[0].group.visible = !end;
     // fine incontro: solo due pulsanti, centrati
-    const xs = end ? { restart: -0.145, exit: 0.145 } : { resume: -0.29, restart: 0, exit: 0.29 };
-    for (const b of this.buttons) if (xs[b.id] !== undefined) { b.x = xs[b.id]; b.group.position.x = b.x; }
+    const ch = change && !end;
+    const xs = end ? { restart: -0.145, exit: 0.145 } : ch ? { resume: -0.33, restart: -0.11, change: 0.11, exit: 0.33 } : { resume: -0.29, restart: 0, exit: 0.29 };
+    for (const b of this.buttons) if (xs[b.id] !== undefined) { b.x = xs[b.id]; b.group.position.x = b.x; b.group.scale.x = ch ? 0.8 : 1; }
+    this.buttons[3].group.visible = ch;
     // fine incontro: due soli pulsanti -> pannello stretto e tutto un po' piu' piccolo; "RIGIOCA" invece di "RICOMINCIA"
     this.panel.scale.x = end ? 0.68 : 1; this.group.scale.setScalar(end ? 0.78 : 1);
     const rb = this.buttons.find(b => b.id === 'restart'); rb.tk = end ? 'replay' : 'restart';
