@@ -6,8 +6,8 @@
 // Durata libera: si va avanti finche' non fermi dalla pausa. La velocita' del partner (colpi, andata e ritorno,
 // spostamenti, parate) si regola trascinando su e giu' il cursore della barra al tuo fianco.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261004224610';
-import { t as tr } from './i18n.js?v=20261004224610';
+import * as sfx from './sfx.js?v=20261004225738';
+import { t as tr } from './i18n.js?v=20261004225738';
 
 // combinazioni chiamate: voce, colpi che tira il partner (non qui) e quello che devi tirare tu
 // codici: 1 jab, 2 diretto, 3 gancio sinistro, 4 gancio destro, 5 montante sinistro, 6 montante destro; 'b' = al corpo
@@ -338,7 +338,10 @@ export class Sparring {
       if (T.res === 'ok') S.avoided++;
       else S.taken += 0;                                                    // (gia' contato dall'evento)
     }
-    if (T.judged) {
+    if (T.judged && this.defGuard === false) {           // opzione "torna in guardia: no": solo para/schiva
+      this._coach(T.res === 'ok' ? pick(GOOD) : 'c_bad1', true);
+      this.task = null; this.next = 1.2 / Math.sqrt(this.speed);
+    } else if (T.judged) {
       // torni in guardia? (tutti e due i guantoni vicino al viso) mentre lui ritira il pugno
       T.after += dt;
       const up = Object.values(player.gloves).every(g => g.mesh.visible && g.center.distanceTo(player.head) < 0.32);

@@ -2,33 +2,33 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261004224610';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261004224610';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261004224610';
-import { Player, SimInput } from './player.js?v=20261004224610';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261004224610';
-import { Room } from './room.js?v=20261004224610';
-import { Arena } from './arena.js?v=20261004224610';
-import { Beach } from './beach.js?v=20261004224610';
-import { Rooftop } from './rooftop.js?v=20261004224610';
-import { Desert } from './desert.js?v=20261004224610';
-import { Snow } from './snow.js?v=20261004224610';
-import { Volcano } from './volcano.js?v=20261004224610';
-import { Sea, WATER } from './sea.js?v=20261004224610';
-import { Gym } from './gym.js?v=20261004224610';
-import { BagTraining } from './training.js?v=20261004224610';
-import { RopeTraining } from './rope.js?v=20261004224610';
-import { SpeedBagTraining } from './speedbag.js?v=20261004224610';
-import { DoubleEndTraining } from './doubleend.js?v=20261004224610';
-import { Sparring } from './sparring.js?v=20261004224610';
-import { RingGirl } from './ringgirl.js?v=20261004224610';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261004224610';
-import * as sfx from './sfx.js?v=20261004224610';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261004224610';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261004224610';
-import { Tournament, BracketView } from './tournament.js?v=20261004224610';
-import { CpuMatch } from './cpu_match.js?v=20261004224610';
-import { TowerView } from './tower.js?v=20261004224610';
+import { buildRing, RING_SIZE } from './ring.js?v=20261004225738';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261004225738';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261004225738';
+import { Player, SimInput } from './player.js?v=20261004225738';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261004225738';
+import { Room } from './room.js?v=20261004225738';
+import { Arena } from './arena.js?v=20261004225738';
+import { Beach } from './beach.js?v=20261004225738';
+import { Rooftop } from './rooftop.js?v=20261004225738';
+import { Desert } from './desert.js?v=20261004225738';
+import { Snow } from './snow.js?v=20261004225738';
+import { Volcano } from './volcano.js?v=20261004225738';
+import { Sea, WATER } from './sea.js?v=20261004225738';
+import { Gym } from './gym.js?v=20261004225738';
+import { BagTraining } from './training.js?v=20261004225738';
+import { RopeTraining } from './rope.js?v=20261004225738';
+import { SpeedBagTraining } from './speedbag.js?v=20261004225738';
+import { DoubleEndTraining } from './doubleend.js?v=20261004225738';
+import { Sparring } from './sparring.js?v=20261004225738';
+import { RingGirl } from './ringgirl.js?v=20261004225738';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261004225738';
+import * as sfx from './sfx.js?v=20261004225738';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261004225738';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261004225738';
+import { Tournament, BracketView } from './tournament.js?v=20261004225738';
+import { CpuMatch } from './cpu_match.js?v=20261004225738';
+import { TowerView } from './tower.js?v=20261004225738';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -341,7 +341,7 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261004224610`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261004225738`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -420,14 +420,17 @@ let defSel = new Set(['jab', 'cross']);
 try { const v = JSON.parse(localStorage.getItem('hb-def-kinds') || 'null'); if (Array.isArray(v) && v.length) defSel = new Set(v.filter(k => DEF_IDS.includes(k))); } catch (e) {}
 let defType = 'entrambi';                          // cosa alleni: para, schiva o entrambi
 try { const v = localStorage.getItem('hb-def-type'); if (['para', 'schiva', 'entrambi'].includes(v)) defType = v; } catch (e) {}
-const defMenu = new MenuPanel({ title: t('sp_difesa'), titleTk: 'sp_difesa', titleH: 0.1, width: 1.0, height: 1.2, draggable: true, rows: withText([
+let defGuard = true;                               // dopo ogni colpo devi tornare in guardia? (si puo' togliere)
+try { defGuard = localStorage.getItem('hb-def-guard') !== 'no'; } catch (e) {}
+const defMenu = new MenuPanel({ title: t('sp_difesa'), titleTk: 'sp_difesa', titleH: 0.1, width: 1.0, height: 1.32, draggable: true, rows: withText([
   { label: t('dm_type'), tk: 'dm_type', y: 0.33, h: 0.1, buttons: [{ id: 'dt:para', tk: 'dt_para', w: 0.22, color: 0x5a3a8a }, { id: 'dt:schiva', tk: 'dt_schiva', w: 0.22, color: 0x5a3a8a }, { id: 'dt:entrambi', tk: 'dt_entrambi', w: 0.22, color: 0x5a3a8a }] },
   { y: 0.16, h: 0.11, buttons: [{ id: 'dm:casuale', tk: 'dm_random', w: 0.6, color: 0x2e7a3a }] },
   { label: t('dm_pick'), tk: 'dm_pick', y: -0.05, h: 0.11, buttons: DEF_IDS.slice(0, 4).map(k => ({ id: 'dk:' + k, tk: 'dk_' + k, w: 0.21, color: 0x1f4f6f })) },
   { y: -0.2, h: 0.11, buttons: DEF_IDS.slice(4).map(k => ({ id: 'dk:' + k, tk: 'dk_' + k, w: 0.21, color: 0x1f4f6f })) },
-  { y: -0.44, h: 0.11, buttons: [{ id: 'back_spar', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'dm:start', tk: 'dm_start', w: 0.42, color: 0x9a1418 }] },
+  { label: t('dm_guard'), tk: 'dm_guard', y: -0.36, h: 0.1, buttons: [{ id: 'dg:si', tk: 'yes', w: 0.2, color: 0x5a3a8a }, { id: 'dg:no', tk: 'no', w: 0.2, color: 0x5a3a8a }] },
+  { y: -0.53, h: 0.11, buttons: [{ id: 'back_spar', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'dm:start', tk: 'dm_start', w: 0.42, color: 0x9a1418 }] },
 ]) });
-const defSelect = () => defMenu.select([...[...defSel].map(k => 'dk:' + k), 'dt:' + defType]);
+const defSelect = () => defMenu.select([...[...defSel].map(k => 'dk:' + k), 'dt:' + defType, defGuard ? 'dg:si' : 'dg:no']);
 let lastTrainMenu = null;                          // per "Cambia allenamento": il menu da cui eri partito
 const MENUS = [rootMenu, arcadeMenu, tourMenu, survMenu, trainMenu, sparMenu, defMenu];
 for (const m of MENUS) { m.group.scale.setScalar(0.88); scene.add(m.group); }
@@ -1209,7 +1212,7 @@ function sparSounds(ev) {
   }
 }
 // ---- sparring: il partner (caschetto, alto come te) prende il posto dell'avversario sul ring della palestra
-const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261004224610', evenSkin: false,
+const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261004225738', evenSkin: false,
   band: { bg: '#1a1a1c', line: '#c4122a', text: '#f2ece0', label: 'SPARRING' } };
 let spar = null, partner = null, savedMike = null, sparLoading = false;
 async function startSparring(kind, defKinds = null) {
@@ -1237,7 +1240,7 @@ async function startSparring(kind, defKinds = null) {
   mike.lightHits = true;                                         // sparring: contano anche i colpi leggeri
   mike.footwork = kind === 'libero'; mike.fw = null;            // negli esercizi resta davanti a te
   mike.quickRecover = kind === 'difesa';                          // in difesa: braccio disteso -> rientra subito, alla stessa velocita'
-  spar.defKinds = defKinds; spar.defType = defType;
+  spar.defKinds = defKinds; spar.defType = defType; spar.defGuard = defGuard;
   if (headOutOfRing()) recenterPlayer();
   const eye = new THREE.Vector3(0, 1.6, playerZ).applyMatrix4(arena.matrixWorld);
   spar.start(kind, mike, arena, new THREE.Vector3(ringSize / 2 + 0.15, 1.95, -ringSize / 2 - 0.1),
@@ -1282,6 +1285,7 @@ function setStage(st) {
 let fightStarting = false;
 async function startFight(opponentId) {
   closeMenus(); fightStarting = true;
+  if (mike && opponentId !== fighterId) mike.root.visible = false;   // il pugile di prima non si vede mentre arriva il nuovo
   setStage(pickStage());
   await setFighter(opponentId);
   girl.pick().catch(e => console.warn('ragazza del ring', e));   // una ragazza a caso, la stessa per tutto l'incontro
@@ -1449,7 +1453,8 @@ function previewFighter() {
   const m = arcadeMenu.group.visible ? arcadeMenu : null;      // (solo dove scegli l'avversario)
   if (!mike) return;
   if (!m) { if (mike.previewing) { placeMikeStart(); mike.root.visible = false; } return; }
-  mike.root.visible = true;
+  // appena scegli un altro pugile quello vecchio sparisce (finche' il nuovo non e' caricato)
+  mike.root.visible = !(pendingFighter && pendingFighter.id !== fighterId) && !fighterLoading;
   const q = m.group.getWorldQuaternion(new THREE.Quaternion());
   const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q).setY(0).normalize();
   const back = new THREE.Vector3(0, 0, -1).applyQuaternion(q).setY(0).normalize();
@@ -1482,6 +1487,7 @@ function updateMainMenu(dt, gloves) {
   if (id === 'sp:difesa') { openMenu(defMenu); defSelect(); return; }
   if (id === 'back_spar') { openMenu(sparMenu); return; }
   if (id === 'back_train') { openMenu(trainMenu); return; }
+  if (id.startsWith('dg:')) { defGuard = id === 'dg:si'; try { localStorage.setItem('hb-def-guard', defGuard ? 'si' : 'no'); } catch (e) {} defSelect(); return; }
   if (id.startsWith('dt:')) { defType = id.slice(3); try { localStorage.setItem('hb-def-type', defType); } catch (e) {} defSelect(); return; }
   if (id.startsWith('dk:')) {                                  // colpo scelto / tolto
     const k = id.slice(3); if (defSel.has(k)) defSel.delete(k); else defSel.add(k);
