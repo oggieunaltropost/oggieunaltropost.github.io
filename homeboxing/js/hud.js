@@ -1,6 +1,6 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261004234910';
+import { t as tr } from './i18n.js?v=20261004234948';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
 // ogni raggio: { o, d, hit, sel (grilletto / pizzico tenuto), click (appena premuto) }
@@ -317,11 +317,12 @@ export class PauseMenu {
       if (!b.group.visible) continue;
       const p = b.group.getWorldPosition(new THREE.Vector3());
       const on = aimed.has(b) || gloves.some(g => g.mesh.visible && g.center.distanceTo(p) < 0.14);
+      const need = b.id === 'exit' ? 1.5 : 0.6;       // uscire va tenuto premuto; gli altri sono rapidi
       b.hold = on ? b.hold + dt : Math.max(0, b.hold - dt * 2);
-      if (aimed.clicked.has(b)) b.hold = 1.5;                  // grilletto / pizzico: subito
-      b.fill.scale.y = Math.max(0.001, Math.min(1, b.hold / 1.5));
+      if (aimed.clicked.has(b) && b.id !== 'exit') b.hold = need;   // grilletto / pizzico: subito (non per uscire)
+      b.fill.scale.y = Math.max(0.001, Math.min(1, b.hold / need));
       b.fill.position.y = -0.11 + 0.11 * b.fill.scale.y;
-      if (b.hold >= 1.5) { b.hold = 0; return b.id; }
+      if (b.hold >= need) { b.hold = 0; return b.id; }
     }
     return null;
   }
@@ -330,7 +331,7 @@ export class PauseMenu {
 // Menu fluttuante del gioco (dentro il visore): pulsanti che si premono tenendoci sopra un guantone.
 // spec: { title, rows: [{ y, buttons: [{ id, text, w, color, group? }] }] }
 export class MenuPanel {
-  constructor(spec, holdTime = 0.45) {
+  constructor(spec, holdTime = 0.3) {   // (piu' rapidi: prima 0,45 s)
     this.hold = holdTime;
     this.group = new THREE.Group(); this.group.name = 'menu'; this.group.visible = false;
     const W = spec.width || 0.95, H = spec.height || 0.7;
@@ -471,12 +472,13 @@ export class MenuPanel {
       if (b.disabled || !b.g.visible || b.car) continue;       // (non ancora disponibile o nascosto; le voci a scorrimento non si "premono")
       const p = b.g.getWorldPosition(new THREE.Vector3());
       const on = aimed.has(b) || gloves.some(g => g.mesh.visible && g.center.distanceTo(p) < Math.max(0.09, b.w / 2));
+      const hold = b.hold || this.hold;             // (b.hold: pulsanti da tenere premuti a lungo, es. Esci dal gioco)
       b.t = on ? b.t + dt : Math.max(0, b.t - dt * 3);
-      if (aimed.clicked.has(b) && b.t >= 0) b.t = this.hold;  // grilletto / pizzico: subito
-      b.fill.scale.x = Math.max(0.001, Math.min(1, b.t / this.hold));
+      if (aimed.clicked.has(b) && b.t >= 0 && !b.hold) b.t = hold;  // grilletto / pizzico: subito (non per quelli da tenere)
+      b.fill.scale.x = Math.max(0.001, Math.min(1, b.t / hold));
       b.fill.position.x = -b.w / 2 * (1 - b.fill.scale.x);
       b.fill.visible = b.t > 0.01;                 // vuota: niente righina bianca al centro
-      if (b.t >= this.hold) {
+      if (b.t >= hold) {
         b.t = -0.5;                                  // pausa breve prima di poterlo ripremere
         const m = /^__car(\d+)([+-])$/.exec(b.id);
         if (m) { const c = this.carousels[+m[1]]; c.goal = Math.max(0, Math.min(c.items.length - 1, c.idx + (m[2] === '+' ? 1 : -1))); b.t = this.hold * 0.55; continue; }

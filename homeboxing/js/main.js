@@ -2,33 +2,33 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261004234910';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261004234910';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261004234910';
-import { Player, SimInput } from './player.js?v=20261004234910';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261004234910';
-import { Room } from './room.js?v=20261004234910';
-import { Arena } from './arena.js?v=20261004234910';
-import { Beach } from './beach.js?v=20261004234910';
-import { Rooftop } from './rooftop.js?v=20261004234910';
-import { Desert } from './desert.js?v=20261004234910';
-import { Snow } from './snow.js?v=20261004234910';
-import { Volcano } from './volcano.js?v=20261004234910';
-import { Sea, WATER } from './sea.js?v=20261004234910';
-import { Gym } from './gym.js?v=20261004234910';
-import { BagTraining } from './training.js?v=20261004234910';
-import { RopeTraining } from './rope.js?v=20261004234910';
-import { SpeedBagTraining } from './speedbag.js?v=20261004234910';
-import { DoubleEndTraining } from './doubleend.js?v=20261004234910';
-import { Sparring } from './sparring.js?v=20261004234910';
-import { RingGirl } from './ringgirl.js?v=20261004234910';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261004234910';
-import * as sfx from './sfx.js?v=20261004234910';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261004234910';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261004234910';
-import { Tournament, BracketView } from './tournament.js?v=20261004234910';
-import { CpuMatch } from './cpu_match.js?v=20261004234910';
-import { TowerView } from './tower.js?v=20261004234910';
+import { buildRing, RING_SIZE } from './ring.js?v=20261004234948';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261004234948';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261004234948';
+import { Player, SimInput } from './player.js?v=20261004234948';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261004234948';
+import { Room } from './room.js?v=20261004234948';
+import { Arena } from './arena.js?v=20261004234948';
+import { Beach } from './beach.js?v=20261004234948';
+import { Rooftop } from './rooftop.js?v=20261004234948';
+import { Desert } from './desert.js?v=20261004234948';
+import { Snow } from './snow.js?v=20261004234948';
+import { Volcano } from './volcano.js?v=20261004234948';
+import { Sea, WATER } from './sea.js?v=20261004234948';
+import { Gym } from './gym.js?v=20261004234948';
+import { BagTraining } from './training.js?v=20261004234948';
+import { RopeTraining } from './rope.js?v=20261004234948';
+import { SpeedBagTraining } from './speedbag.js?v=20261004234948';
+import { DoubleEndTraining } from './doubleend.js?v=20261004234948';
+import { Sparring } from './sparring.js?v=20261004234948';
+import { RingGirl } from './ringgirl.js?v=20261004234948';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261004234948';
+import * as sfx from './sfx.js?v=20261004234948';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261004234948';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261004234948';
+import { Tournament, BracketView } from './tournament.js?v=20261004234948';
+import { CpuMatch } from './cpu_match.js?v=20261004234948';
+import { TowerView } from './tower.js?v=20261004234948';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -341,8 +341,8 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261004234910`); t.colorSpace = THREE.SRGBColorSpace; return t; };
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261004234910`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261004234948`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261004234948`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -446,8 +446,8 @@ const rootMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.0, 
   // opzioni: difficolta', round, regole, puntatore (un menu a parte)
   { y: -0.1, h: 0.19, buttons: [{ id: 'gm:options', tk: 'options', w: 0.3, color: 0x1f4f7a, img: modeArt('options') }] },
   { label: t('language'), tk: 'language', y: -0.345, h: 0.08, buttons: [{ id: 'g:it', text: 'Italiano', w: 0.24 }, { id: 'g:en', text: 'English', w: 0.24 }] },
-  // esci: piccolo, in basso a sinistra (lontano dalle scelte)
-  { y: -0.44, h: 0.06, x: -0.47, buttons: [{ id: 'quit', tk: 'quit', w: 0.2, color: 0x8a1a20 }] },
+  // esci: in basso al centro, da tenere premuto 2 secondi (si riempie piano: niente uscite per sbaglio)
+  { y: -0.455, h: 0.065, buttons: [{ id: 'quit', tk: 'quit', w: 0.26, color: 0x8a1a20, hold: 2.0 }] },
 ]) });
 // Arcade: stage, avversario e opzioni dell'incontro
 // avversari a righe da 4 (pulsanti grandi); con piu' pugili le righe si aggiungono da sole e il pannello si allunga
@@ -1292,7 +1292,7 @@ function sparSounds(ev) {
   }
 }
 // ---- sparring: il partner (caschetto, alto come te) prende il posto dell'avversario sul ring della palestra
-const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261004234910', evenSkin: false,
+const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261004234948', evenSkin: false,
   band: { bg: '#1a1a1c', line: '#c4122a', text: '#f2ece0', label: 'SPARRING' } };
 let spar = null, partner = null, savedMike = null, sparLoading = false;
 async function startSparring(kind, defKinds = null) {
