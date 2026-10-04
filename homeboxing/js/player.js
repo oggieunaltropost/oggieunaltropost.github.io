@@ -203,6 +203,7 @@ export class Player {
     this.head = new THREE.Vector3();
     this.mode = '—';
     this.sources = [];       // {hand, grip, ray, handedness}
+    this.fist = { left: false, right: false };   // pugno chiuso (mani) o tasto di presa tenuto (controller): accende il raggio dei menu
     for (let i = 0; i < 2; i++) {
       const hand = renderer.xr.getHand(i), grip = renderer.xr.getControllerGrip(i), ray = renderer.xr.getController(i);
       scene.add(hand); scene.add(grip); scene.add(ray);
@@ -250,6 +251,10 @@ export class Player {
           const iv = I.getWorldPosition(new THREE.Vector3()).sub(w), pv = P.getWorldPosition(new THREE.Vector3()).sub(w);
           const back = s.handedness === 'right' ? new THREE.Vector3().crossVectors(pv, iv) : new THREE.Vector3().crossVectors(iv, pv);
           g.setPose(w, fwd.normalize(), back.normalize());
+          // pugno chiuso: le punte di indice, medio e anulare vicine al polso (aperta ~18 cm, chiusa ~9 cm)
+          let dsum = 0, nt = 0;
+          for (const n of ['index-finger-tip', 'middle-finger-tip', 'ring-finger-tip']) { const T = j[n]; if (T && T.visible) { dsum += T.getWorldPosition(new THREE.Vector3()).distanceTo(w); nt++; } }
+          if (nt) { const dm = dsum / nt; this.fist[s.handedness] = this.fist[s.handedness] ? dm < 0.13 : dm < 0.11; }   // (isteresi: non sfarfalla)
           modes.push('mani');
         } else {
           if (!s.grip.visible) continue;
@@ -258,6 +263,8 @@ export class Player {
           const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(_q);
           const back = new THREE.Vector3(0, 1, 0).applyQuaternion(_q);
           g.setPose(p.addScaledVector(fwd, -0.05), fwd, back);
+          const b = s.gamepad && s.gamepad.buttons;
+          this.fist[s.handedness] = !!(b && b[1] && b[1].pressed);   // tasto laterale di presa
           modes.push('controller');
         }
       }

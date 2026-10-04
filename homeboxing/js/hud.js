@@ -1,6 +1,6 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261004154129';
+import { t as tr } from './i18n.js?v=20261004154743';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
 // ogni raggio: { o, d, hit, sel (grilletto / pizzico tenuto), click (appena premuto) }
@@ -37,7 +37,8 @@ function updateDragBar(D, group, dt, gloves) {
       // come le finestre del Quest: resta attaccato al raggio finche' tieni premuto (grilletto o pizzico),
       // sempre girato verso di te; lasci e resta li'
       const r = RAYS[G.ray];
-      if (!r || !r.sel) { D.grab = null; D.t = -0.3; D.bar.material.color.setHex(0x9aa3b6); return false; }
+      // si lascia: raggio sparito (mano aperta) o, se preso col grilletto/pizzico, grilletto lasciato
+      if (!r || (G.bySel && !r.sel)) { D.grab = null; D.t = -0.3; D.bar.material.color.setHex(0x9aa3b6); return false; }
       group.position.copy(rayPoint(r, G.dist)).add(G.offset);
       if (HEAD) group.rotation.set(0, Math.atan2(HEAD.x - group.position.x, HEAD.z - group.position.z), 0);
       return true;
@@ -62,8 +63,8 @@ function updateDragBar(D, group, dt, gloves) {
   });
   D.t = src ? D.t + dt : Math.max(Math.min(D.t, 0), D.t - dt);
   D.bar.material.color.setHex(src ? 0xffd34d : 0x9aa3b6);
-  if (src && src.ray !== undefined && RAYS[src.ray].click) {          // raggio sulla barra + grilletto/pizzico: preso subito
-    D.grab = { ...src, offset: group.position.clone().sub(src.p), last: src.p.clone(), still: 0 };
+  if (src && src.ray !== undefined && (RAYS[src.ray].click || D.t > 0.5)) {   // raggio sulla barra + grilletto (o mezzo secondo a pugno chiuso)
+    D.grab = { ...src, bySel: !!RAYS[src.ray].click, offset: group.position.clone().sub(src.p), last: src.p.clone(), still: 0 };
     D.t = 0; return true;
   }
   if (src && src.ray === undefined && D.t > 0.4) {                     // col guantone: tienilo sulla barra
@@ -278,6 +279,7 @@ export class PauseMenu {
   }
   // result (solo a fine incontro): { win: true/false/null (pari), how: 'KO'... }
   open(head, yaw, end = false, result = null, change = false) {
+    this.age = 0;
     if (end && result) {
       this.setTitle(tr(result.win === true ? 'res_win' : result.win === false ? 'res_lose' : 'res_draw'),
         result.win === true ? '#ffd34d' : result.win === false ? '#ff5a5a' : '#ffffff');
@@ -308,7 +310,9 @@ export class PauseMenu {
     if (this.medal.visible) { this.medalT += dt; this.medal.rotation.y = Math.sin(this.medalT * 1.6) * 0.35; }   // la medaglia oscilla
     this.group.updateMatrixWorld(true);
     if (updateDragBar(this.drag, this.group, dt, gloves)) return null;      // lo stai spostando
-    const aimed = pointed(this.group, this.buttons.filter(b => b.group.visible), 0.04, b => [b.x, -0.06, 0.125, 0.11], [0.45, 0.31]);
+    this.age = (this.age || 0) + dt;
+    const aimed = this.age < 0.7 ? Object.assign(new Set(), { clicked: new Set() }) :      // appena aperto: il raggio non preme ancora
+      pointed(this.group, this.buttons.filter(b => b.group.visible), 0.04, b => [b.x, -0.06, 0.125, 0.11], [0.45, 0.31]);
     for (const b of this.buttons) {
       if (!b.group.visible) continue;
       const p = b.group.getWorldPosition(new THREE.Vector3());
@@ -446,6 +450,7 @@ export class MenuPanel {
   }
   setTitle(text) { if (text !== this.titleText) { this.titleText = text; this._paint(this.title, text, this.title.userData.color); } }
   open(head, yaw, dist = 0.55, drop = 0.2) {
+    this.age = 0;
     this.group.position.set(head.x - Math.sin(yaw) * dist, head.y - drop, head.z - Math.cos(yaw) * dist);
     this.group.rotation.set(-0.25, yaw, 0, 'YXZ');
     this.group.visible = true;
@@ -458,7 +463,9 @@ export class MenuPanel {
     this.glow.material.opacity = 0.55 + 0.45 * Math.sin(this.time * 2.2);    // bagliore che pulsa
     this.group.updateMatrixWorld(true);
     if (this.drag && this._updateDrag(dt, gloves)) return null;            // lo stai spostando: niente pulsanti
-    const aimed = pointed(this.group, this.buttons, 0.035, b => [b.g.position.x, b.g.position.y, b.w / 2 * b.g.scale.x, b.bh / 2 * b.g.scale.y], [this.W / 2 + 0.05, this.H / 2 + 0.05]);
+    this.age = (this.age || 0) + dt;
+    const aimed = this.age < 0.7 ? Object.assign(new Set(), { clicked: new Set() }) :      // appena aperto: il raggio non preme ancora
+      pointed(this.group, this.buttons, 0.035, b => [b.g.position.x, b.g.position.y, b.w / 2 * b.g.scale.x, b.bh / 2 * b.g.scale.y], [this.W / 2 + 0.05, this.H / 2 + 0.05]);
     for (const c of this.carousels) { const id = this._updateCarousel(c, dt, gloves, aimed); if (id) return id; }
     for (const b of this.buttons) {
       if (b.disabled || !b.g.visible || b.car) continue;       // (non ancora disponibile o nascosto; le voci a scorrimento non si "premono")
