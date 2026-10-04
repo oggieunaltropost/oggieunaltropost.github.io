@@ -5,8 +5,8 @@
 // verso la pera, le arriva vicino e il braccio torna indietro senza averla toccata.
 // Sistema: quello del ring (arena): il giocatore in (0, 0, playerZ) guarda verso -Z, pavimento a 0.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261004112524';
-import { t as tr } from './i18n.js?v=20261004112524';
+import * as sfx from './sfx.js?v=20261004113220';
+import { t as tr } from './i18n.js?v=20261004113220';
 
 const M = 0.3, PUNCH_MASS = 2.4, E_HIT = 0.5, E_BOARD = 0.62;
 const LC = 0.15, RB = 0.1;                    // dal girello al centro della pera, raggio (parte larga)
@@ -97,7 +97,7 @@ export class SpeedBagTraining {
     this.pivot.position.set(0, py, 0);
     this.boardMesh.position.set(0, py + 0.0225, -0.02); this.rim.position.copy(this.boardMesh.position);
     this.arm.position.set(0, py + 0.07, -0.3); this.post.scale.y = py + 0.1; this.post.position.set(0, (py + 0.1) / 2, -0.55); this.base.position.z = -0.55;
-    this.board.position.set(1.6, 2.2, playerZ - 3.2); this.board.rotation.set(0, -0.4, 0);
+    this.board.position.set(1.6, 2.65, playerZ - 3.2); this.board.rotation.set(0, -0.4, 0);
     this.reset();
   }
   stop() { this.group.visible = false; }
