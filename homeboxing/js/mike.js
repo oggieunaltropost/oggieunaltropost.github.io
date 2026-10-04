@@ -34,6 +34,7 @@ export const MIKE = {
 // Combinazioni della boxe. Numeri: 1 jab, 2 diretto, 3 gancio sinistro, 4 gancio destro,
 // 5 montante sinistro, 6 montante destro; "b" = al corpo. Dentro ci possono stare schivate e abbassate.
 const C = {
+  // (2026-10-05: per i nuovi pugili) '3': ['hook_l'], '4': ['hook_r'], '1-3-4': ['jab', 'hook_l', 'hook_r'], '2-1-2': ['cross', 'jab', 'cross'], '1-1-2-schivata-2': ['jab', 'jab', 'cross', 'slip_r', 'cross'], '5': ['uppercut_l'], '6': ['uppercut_r'], '2-5': ['cross', 'uppercut_l'], '1-2-5': ['jab', 'cross', 'uppercut_l'], '3-6': ['hook_l', 'uppercut_r'], '1-schivata-6': ['jab', 'slip_r', 'uppercut_r'], '2b-3': ['body_r', 'hook_l'], '3b-4b': ['body_l', 'body_r'], '2-3b-2': ['cross', 'body_l', 'cross'], '1-2-3b-3': ['jab', 'cross', 'body_l', 'hook_l'], '4b-3': ['body_r', 'hook_l'], '1-2-1-2': ['jab', 'cross', 'jab', 'cross'], '2-3-2-3': ['cross', 'hook_l', 'cross', 'hook_l'], '1-1-2-3': ['jab', 'jab', 'cross', 'hook_l'], '1-2-1-2-3': ['jab', 'cross', 'jab', 'cross', 'hook_l'],
   '1': ['jab'], '2': ['cross'], '1-1': ['jab', 'jab'], '1-2': ['jab', 'cross'], '1-1-2': ['jab', 'jab', 'cross'],
   '1-2-3': ['jab', 'cross', 'hook_l'], '1-2-3-2': ['jab', 'cross', 'hook_l', 'cross'], '3-2': ['hook_l', 'cross'],
   '2-3': ['cross', 'hook_l'], '3-2-3': ['hook_l', 'cross', 'hook_l'], '2-3-2': ['cross', 'hook_l', 'cross'],

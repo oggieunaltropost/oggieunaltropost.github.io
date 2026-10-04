@@ -1,6 +1,6 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261005001856';
+import { t as tr } from './i18n.js?v=20261005003339';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
 // ogni raggio: { o, d, hit, sel (grilletto / pizzico tenuto), click (appena premuto) }
@@ -289,7 +289,8 @@ export class PauseMenu {
     this.buttons[0].group.visible = !end;
     // fine incontro: solo due pulsanti, centrati
     const ch = change && !end;
-    const xs = end ? { restart: -0.145, exit: 0.145 } : ch ? { resume: -0.33, restart: -0.11, change: 0.11, exit: 0.33 } : { resume: -0.29, restart: 0, exit: 0.29 };
+    // (come in tutti i menu: uscire a sinistra, continuare/rigiocare a destra)
+    const xs = end ? { exit: -0.145, restart: 0.145 } : ch ? { exit: -0.33, change: -0.11, restart: 0.11, resume: 0.33 } : { exit: -0.29, restart: 0, resume: 0.29 };
     for (const b of this.buttons) if (xs[b.id] !== undefined) { b.x = xs[b.id]; b.group.position.x = b.x; b.group.scale.x = ch ? 0.8 : 1; }
     this.buttons[3].group.visible = ch;
     // fine incontro: due soli pulsanti -> pannello stretto e tutto un po' piu' piccolo; "RIGIOCA" invece di "RICOMINCIA"
