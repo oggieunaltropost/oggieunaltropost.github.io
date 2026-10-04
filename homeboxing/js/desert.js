@@ -3,21 +3,23 @@
 // fotografica red_sand portata al colore della foto, sfuma nella foto entro pochi metri) e ogni tanto uno
 // scorpione che esce dalla sabbia, cammina un po' e si risotterra. Le rocce e i cespugli sono quelli veri della foto.
 import * as THREE from 'three';
+import * as sfx from './sfx.js?v=20261004121714';
 
 const PANO_U = 0.0;
 const SUN = new THREE.Vector3(0.522, 0.744, 0.417).normalize();      // il sole della foto
 
 const _gw = new THREE.Vector3();
+const SC_RMIN = 2.5, SC_RMAX = 4.2, SC_RING = 2.2;      // scorpione: tra il ring (lato 3,2 m + grembiule) e il bordo della sabbia piena
 
 export class Desert {
   constructor() {
     this.group = new THREE.Group(); this.group.name = 'deserto';
     this.sunDir = SUN.clone();
-    this._sky(); this._sand(); this._scorpion();
+    this._sky(); this._sand(); this._scorpion(); this._eagles();
     this.t = 0;
   }
   _sky() {
-    const tex = new THREE.TextureLoader().load('assets/deserto_panorama.jpg?v=20261004120106', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load('assets/deserto_panorama.jpg?v=20261004121714', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -37,7 +39,7 @@ export class Desert {
   // sabbia vicina: foto di sabbia rossa (colore = quello del terreno della foto), il bordo sfuma tra 5 e 9 m
   _sand() {
     const L = new THREE.TextureLoader();
-    const tex = L.load('assets/sabbia_rossa_colore.jpg?v=20261004120106'); tex.colorSpace = THREE.SRGBColorSpace;
+    const tex = L.load('assets/sabbia_rossa_colore.jpg?v=20261004121714'); tex.colorSpace = THREE.SRGBColorSpace;
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(6, 6); tex.anisotropy = 8;
     const a = document.createElement('canvas'); a.width = a.height = 256; const ga = a.getContext('2d');
     const gr = ga.createRadialGradient(128, 128, 128 * 5 / 9, 128, 128, 128); gr.addColorStop(0, '#fff'); gr.addColorStop(1, '#000');
@@ -45,7 +47,7 @@ export class Desert {
     const sand = new THREE.Mesh(new THREE.CircleGeometry(9, 64), new THREE.MeshBasicMaterial({ map: tex, alphaMap: new THREE.CanvasTexture(a), transparent: true, depthWrite: true, toneMapped: false }));   // (scrive la profondita': lo scorpione sotto la sabbia non si vede)
     sand.rotation.x = -Math.PI / 2; sand.position.y = -0.005; sand.renderOrder = -5; this.group.add(sand);
     // sotto il ring: opaca e illuminata (riceve le ombre dei pugili)
-    const nor = L.load('assets/sabbia_rossa_rilievo.jpg?v=20261004120106'); nor.wrapS = nor.wrapT = THREE.RepeatWrapping; nor.repeat.set(3, 3);
+    const nor = L.load('assets/sabbia_rossa_rilievo.jpg?v=20261004121714'); nor.wrapS = nor.wrapT = THREE.RepeatWrapping; nor.repeat.set(3, 3);
     const t2 = tex.clone(); t2.repeat.set(3, 3); t2.needsUpdate = true;
     const under = new THREE.Mesh(new THREE.CircleGeometry(4.5, 48), new THREE.MeshStandardMaterial({ map: t2, normalMap: nor, roughness: 0.95 }));
     under.rotation.x = -Math.PI / 2; under.position.y = -0.003; under.receiveShadow = true; this.group.add(under);
@@ -138,16 +140,86 @@ export class Desert {
     this.spray.material.opacity = Math.max(0, 0.9 - Math.max(0, this.sprayT - 0.5) * 1.2);
     if (this.sprayT > 1.3) this.spray.visible = false;
   }
-  update(dt) {
+  // ---- aquile reali che planano sulle termiche (apertura alare ~2 m): ali con le "dita" delle remiganti,
+  // coda a ventaglio, testa dorata, becco giallo; virano inclinate, ogni tanto qualche battito; gridano (audio spaziale)
+  _eagleModel() {
+    const E = new THREE.Group();
+    const dark = new THREE.Color(0x2e2117), mid = new THREE.Color(0x5a3d24), gold = new THREE.Color(0x9a7038);
+    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, side: THREE.DoubleSide });
+    const paint = (geo, f) => { const p = geo.attributes.position, c = new Float32Array(p.count * 3);
+      for (let i = 0; i < p.count; i++) { const col = f(p.getX(i), p.getY(i), p.getZ(i)); c[i * 3] = col.r; c[i * 3 + 1] = col.g; c[i * 3 + 2] = col.b; }
+      geo.setAttribute('color', new THREE.BufferAttribute(c, 3)); return geo; };
+    // ala (sagoma vista dall'alto, x = apertura verso l'esterno, y = corda: + bordo d'attacco)
+    const w = new THREE.Shape();
+    w.moveTo(0, 0.13); w.lineTo(0.35, 0.17); w.lineTo(0.62, 0.15); w.lineTo(0.82, 0.1);
+    const fingers = [[0.98, 0.06], [0.9, 0.02], [1.0, -0.01], [0.9, -0.04], [0.97, -0.08], [0.86, -0.1], [0.9, -0.15], [0.78, -0.15]];
+    for (const [x, y] of fingers) w.lineTo(x, y);                             // le "dita" delle penne primarie
+    w.lineTo(0.62, -0.2); w.lineTo(0.4, -0.24); w.lineTo(0.18, -0.22); w.lineTo(0, -0.16); w.closePath();
+    const wg = paint(new THREE.ShapeGeometry(w, 6), (x, y) => x > 0.7 ? dark : y > 0.05 ? gold.clone().lerp(mid, 0.6) : mid);
+    wg.rotateX(-Math.PI / 2);                                                   // in piano (y del disegno -> -z del mondo)
+    this.eWings = [];
+    for (const s of [1, -1]) {
+      const hinge = new THREE.Group(); hinge.position.set(s * 0.06, 0.02, 0.02);
+      const m = new THREE.Mesh(wg, mat); m.scale.set(s, 1, 1); hinge.add(m); E.add(hinge);
+      this.eWings.push({ hinge, s });
+    }
+    const body = new THREE.Mesh(paint(new THREE.CapsuleGeometry(0.075, 0.42, 6, 12), (x, y) => y > 0.12 ? mid : dark), mat);
+    body.rotation.x = Math.PI / 2; E.add(body);                                // lungo z (testa verso -z)
+    const head = new THREE.Mesh(paint(new THREE.SphereGeometry(0.065, 14, 10), () => gold), mat); head.position.set(0, 0.03, -0.31); head.scale.set(1, 0.95, 1.2); E.add(head);
+    const beak = new THREE.Mesh(paint(new THREE.ConeGeometry(0.022, 0.07, 8), () => new THREE.Color(0xd4a020)), mat); beak.rotation.x = -Math.PI / 2; beak.position.set(0, 0.015, -0.39); E.add(beak);
+    const t = new THREE.Shape(); t.moveTo(-0.05, 0); t.lineTo(-0.13, 0.27); t.lineTo(0.13, 0.27); t.lineTo(0.05, 0); t.closePath();
+    const tg = paint(new THREE.ShapeGeometry(t), () => dark); tg.rotateX(Math.PI / 2);
+    const tail = new THREE.Mesh(tg, mat); tail.position.set(0, 0, 0.24); E.add(tail);
+    E.scale.setScalar(1.05);
+    return E;
+  }
+  _eagles() {
+    this.eagles = [];
+    for (let k = 0; k < 2; k++) {
+      const m = this._eagleModel(); this.group.add(m);
+      const a = Math.random() * Math.PI * 2, d = 25 + Math.random() * 40;
+      this.eagles.push({ m, c: new THREE.Vector3(Math.cos(a) * d, 0, Math.sin(a) * d), R: 15 + Math.random() * 25, h: 18 + Math.random() * 22,
+        ang: Math.random() * 6.28, dir: Math.random() < 0.5 ? 1 : -1, v: 10 + Math.random() * 3, flap: 0, flapT: 4 + Math.random() * 10, drift: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).multiplyScalar(1.2) });
+      this.eWingsAll = (this.eWingsAll || []).concat([this.eWings]);
+    }
+    this.cryT = 6 + Math.random() * 10;
+  }
+  _updEagles(dt, cam) {
+    this.eagles.forEach((E, i) => {
+      const w = E.v / E.R;
+      E.ang += E.dir * w * dt;
+      E.c.addScaledVector(E.drift, dt);                                       // la termica si sposta piano
+      if (E.c.length() > 80) E.drift.negate();
+      const x = E.c.x + Math.cos(E.ang) * E.R, z = E.c.z + Math.sin(E.ang) * E.R, y = E.h + Math.sin(this.t * 0.2 + i) * 4;
+      E.m.position.set(x, y, z);
+      const vx = -Math.sin(E.ang) * E.dir, vz = Math.cos(E.ang) * E.dir;     // direzione del volo
+      const bank = Math.atan(E.v * E.v / (9.81 * E.R)) * E.dir;               // inclinazione in virata
+      E.m.rotation.set(0, Math.atan2(-vx, -vz), 0); E.m.rotateZ(-bank);
+      // ali: planata (leggermente a V) con qualche serie di battiti
+      E.flapT -= dt;
+      if (E.flapT <= 0 && E.flap <= 0) { E.flap = 1.6; E.flapT = 8 + Math.random() * 14; }
+      let wingA = 0.12;
+      if (E.flap > 0) { E.flap -= dt; wingA = 0.12 + Math.sin((1.6 - E.flap) * Math.PI * 2 * 1.8) * 0.45; }
+      for (const W of this.eWingsAll[i]) W.hinge.rotation.z = W.s * wingA;
+    });
+    this.cryT -= dt;
+    if (this.cryT <= 0 && cam) {
+      const E = this.eagles[Math.floor(Math.random() * this.eagles.length)];
+      sfx.eagleCry(E.m.getWorldPosition(new THREE.Vector3()), cam); this.cryT = 12 + Math.random() * 18;
+    }
+  }
+
+  update(dt, cam) {
     this.t += dt;
+    this._updEagles(dt, cam);
     this._updSpray(dt);
     const S = this.scorp;
     this.clip.constant = -this.group.getWorldPosition(_gw).y - 0.001;
     if (!this.sc) {
       if ((this.nextSc -= dt) > 0) return;
-      // dove: sulla sabbia 3D attorno al ring (fuori dal quadrato del ring, entro 6,5 m)
+      // dove: solo sulla sabbia 3D piena attorno al ring (oltre i 4,5 m la sabbia sfuma nella foto: li' no)
       let x, z;
-      do { const a = Math.random() * Math.PI * 2, r = 3.4 + Math.random() * 3; x = Math.cos(a) * r; z = Math.sin(a) * r; } while (Math.max(Math.abs(x), Math.abs(z)) < 3.1);
+      do { const a = Math.random() * Math.PI * 2, r = SC_RMIN + Math.random() * (SC_RMAX - SC_RMIN - 0.3); x = Math.cos(a) * r; z = Math.sin(a) * r; } while (Math.max(Math.abs(x), Math.abs(z)) < SC_RING);
       this.sc = { phase: 'su', t: 0, x, z, yaw: Math.random() * Math.PI * 2, turn: 0, walk: 4 + Math.random() * 5 };
       S.position.set(x, -0.06, z); S.rotation.set(-0.5, this.sc.yaw, 0); S.visible = true;
       this._burst(S.position, 1);
@@ -166,8 +238,8 @@ export class Desert {
       C.yaw += C.turn * dt * (go ? 1 : 0.3);
       // resta sulla sabbia 3D e fuori dal ring
       const r = Math.hypot(C.x, C.z);
-      if (r > 6.6) C.yaw = Math.atan2(-C.x, -C.z);
-      else if (Math.max(Math.abs(C.x), Math.abs(C.z)) < 3.0) C.yaw = Math.atan2(C.x, C.z);
+      if (r > SC_RMAX) C.yaw = Math.atan2(-C.x, -C.z);                       // torna verso il ring (resta sulla sabbia piena)
+      else if (Math.max(Math.abs(C.x), Math.abs(C.z)) < SC_RING) C.yaw = Math.atan2(C.x, C.z);   // non sale sul ring
       C.x += Math.sin(C.yaw) * speed * dt; C.z += Math.cos(C.yaw) * speed * dt;
       S.position.set(C.x, 0, C.z); S.rotation.set(0, C.yaw, 0);
       if (C.t > C.walk && go) { C.phase = 'giu'; C.t = 0; this._burst(S.position, 0.8); }
