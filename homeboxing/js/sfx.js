@@ -33,7 +33,7 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
-import { FIGHTER_IDS } from './fighters.js?v=20261004113220';
+import { FIGHTER_IDS } from './fighters.js?v=20261004120106';
 // Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
@@ -43,12 +43,17 @@ const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).ma
   'win_opp_ko', 'win_opp_tko', 'win_opp_points', 'win_opp_dq',
   // torneo: benvenuto, nome del turno, campione, eliminato
   'tour_intro', 'tour_r0', 'tour_r1', 'tour_r2', 'tour_r3', 'tour_r4', 'tour_champ', 'tour_out',
-  ...FIGHTER_IDS.flatMap(id => [`intro_${id}`, `name_${id}`])];
+  ...FIGHTER_IDS.flatMap(id => [`intro_${id}`, `name_${id}`]),
+  // l'allenatore dello sparring
+  'c_start', 'c_free', 'c_combo', 'c_defense', 'c_k_1', 'c_k_2', 'c_k_11', 'c_k_12', 'c_k_112', 'c_k_123', 'c_k_32', 'c_k_23', 'c_k_1232',
+  'c_k_16', 'c_k_63', 'c_k_34', 'c_k_b', 'c_k_12b', 'c_d_slip', 'c_d_block', 'c_d_duck', 'c_d_body', 'c_backguard',
+  'c_good1', 'c_good2', 'c_good3', 'c_good4', 'c_bad1', 'c_bad2', 'c_bad3', 'c_bad4', 'c_bad5',
+  'c_tip_guard', 'c_tip_body', 'c_tip_def', 'c_tip_miss', 'c_tip_combo', 'c_end'];
 let vbuf = {}, vLang = 'it';
 let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261004113220`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261004120106`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
@@ -169,7 +174,7 @@ const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261004113220`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261004120106`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
   loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (windWanted && (!wind || wind.synth)) { if (wind) { wind.s.stop(); wind = null; } windAmbient(true); } });   // vento vero appena caricato
   return loading;

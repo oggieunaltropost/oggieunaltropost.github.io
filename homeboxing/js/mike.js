@@ -723,6 +723,7 @@ export class Mike {
     // 2) attacco
     switch (this.state) {
       case 'stalk':
+        if (this.noAttack) break;                          // sparring a esercizi: attacca solo quando lo chiama l'allenatore
         this.nextAttack -= dt;
         {
           // ti scopri (guantoni lontani dal viso) o hai appena tirato a vuoto: Mike ne approfitta
@@ -762,6 +763,8 @@ export class Mike {
   }
 
   setState(s) { this.state = s; this.stateT = 0; }
+  // sparring: tira questa combinazione adesso (nomi dei colpi, es. ['jab', 'cross'])
+  throwCombo(list) { this.combo = [...list]; this.counter = false; this.setState('approach'); }
 
   // quale difesa usare contro questo pugno
   chooseDefense(g, zone) {

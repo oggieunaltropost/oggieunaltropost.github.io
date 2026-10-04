@@ -5,8 +5,8 @@
 // Tabellone sul muro dietro al sacco: tempo, colpi a segno, colpo piu' forte, colpi al minuto.
 // Sistema: quello del ring (arena): il giocatore sta in (0, 0, playerZ) e guarda verso -Z; il pavimento e' a 0.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261004113220';
-import { t as tr } from './i18n.js?v=20261004113220';
+import * as sfx from './sfx.js?v=20261004120106';
+import { t as tr } from './i18n.js?v=20261004120106';
 
 const M = 45, R = 0.19, H = 1.3;              // massa, raggio, altezza del sacco
 const HOOK = 2.72;                             // gancio (perno)
