@@ -1033,7 +1033,7 @@ export class Mike {
     const towardMike = this.forward().negate();
     const gl = { l: this.glove('l'), r: this.glove('r') };
     for (const g of Object.values(player.gloves)) {
-      if (!g.mesh.visible || g.cooldown > 0 || g.peakSpeed() < 1.8) continue;
+      if (!g.mesh.visible || g.cooldown > 0 || g.peakSpeed() < (this.lightHits ? 1.4 : 1.8)) continue;   // (in allenamento valgono anche i colpi leggeri)
       if (g.vel.dot(towardMike) < -0.3) continue;          // non mentre torna indietro
       if (g.travel(towardMike) < 0.12 && g.travelAny() < 0.14) continue;   // deve essere partito davvero (non Mike che ci finisce contro); i ganci arrivano di lato
       const [a, b] = g.segment();
