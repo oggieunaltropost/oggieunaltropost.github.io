@@ -75,7 +75,7 @@ const MOVES = new Set(['slip_l', 'slip_r', 'duck']);
 // toughness = quanto danno incassa dai tuoi colpi (1 = normale).
 export const LEVELS = {
   facile: { label: 'Facile', readGuard: 0.45, evade: 0.05, reflex: 0.0, toughness: 1.3, guardReach: -0.03, stalkDist: 0.85, openFactor: 0.1, reactChance: 0.35, reactDelay: [0.14, 0.24],
-    attackEvery: [2.6, 4.2], retreatTime: 0.9, punchSpeed: 0.75, moveSpeed: 0.6, defenseSpeed: 1.1, threatDist: 0.8,
+    attackEvery: [2.6, 4.2], retreatTime: 0.9, punchSpeed: 0.4, moveSpeed: 0.6, defenseSpeed: 1.1, threatDist: 0.8,
     threatSpeed: 1.6, smart: false, chain: false, counterChance: 0.1, blockReach: 0.07, bodyBias: 0.15, feints: 0, lowGuard: 0.6,
     combos: combos('1', '2', '1-2', '1-1', '1-1-2', '2-3') },
   normale: { label: 'Normale', readGuard: 0.8, evade: 0.38, reflex: 0.12, toughness: 1.0, guardReach: 0.0, stalkDist: 0.9, openFactor: 0.25, reactChance: 0.68, reactDelay: [0.05, 0.13],
@@ -870,7 +870,7 @@ export class Mike {
         if (this.punch && (this.punch.layer.out || this.stateT > 3 / Math.max(0.05, c.punchSpeed))) { this.punch = null; this.combo = []; this.setState('retreat'); break; }
         // sparring in difesa: dopo l'impatto il resto (seguito e rientro in guardia) accelera fino a durare quanto
         // l'andata: niente pausa col braccio fuori e niente salti (prima si saltava un pezzo e il braccio "scattava")
-        if (this.quickRecover && this.punch && !this.punch.move && !this.punch.fast && PUNCH[this.punch.name]) {
+        if ((this.quickRecover || this.cfg.punchSpeed < 0.6) && this.punch && !this.punch.move && !this.punch.fast && PUNCH[this.punch.name]) {
           const sp = PUNCH[this.punch.name], L = this.punch.layer, imp = (sp.from + sp.to) / 2 / 30;
           if (L.t >= imp) { this.punch.fast = true; L.ts = L.ts * Math.max(1, (L.dur - imp) / imp); L.action.timeScale = L.ts; }
         }
