@@ -769,6 +769,13 @@ export class Mike {
         }
         break;
       case 'attack':
+        // pugno interrotto da un'altra animazione (parata, colpo preso): prima restava "in attacco" per sempre,
+        // con la direzione bloccata (non si girava piu' verso di te) e senza tornare in guardia
+        if (this.punch && (this.punch.layer.out || this.stateT > 3 / Math.max(0.05, c.punchSpeed))) { this.punch = null; this.combo = []; this.setState('retreat'); break; }
+        // ritorno in guardia piu' svelto (sparring in difesa: lento solo l'andata del pugno)
+        if (this.recoverSpeed && this.punch && !this.punch.fast && this.punch.layer.t > this.punch.layer.dur * 0.45) {
+          this.punch.fast = true; this.punch.layer.ts = Math.max(this.punch.layer.ts, this.recoverSpeed); this.punch.layer.action.timeScale = this.punch.layer.ts;
+        }
         if (this.punch && this.punch.layer.t > this.punch.layer.dur * (this.punch.move ? 0.5 : 0.72)) {
           if (this.combo.length && this.stun <= 0) this.nextPunch();
           else { this.punch = null; this.setState('retreat'); }
