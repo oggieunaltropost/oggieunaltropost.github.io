@@ -6,8 +6,8 @@
 // Durata libera: si va avanti finche' non fermi dalla pausa. La velocita' del partner (colpi, andata e ritorno,
 // spostamenti, parate) si regola trascinando su e giu' il cursore della barra al tuo fianco.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261004201022';
-import { t as tr } from './i18n.js?v=20261004201022';
+import * as sfx from './sfx.js?v=20261004201951';
+import { t as tr } from './i18n.js?v=20261004201951';
 
 // combinazioni chiamate: voce, colpi che tira il partner (non qui) e quello che devi tirare tu
 // codici: 1 jab, 2 diretto, 3 gancio sinistro, 4 gancio destro, 5 montante sinistro, 6 montante destro; 'b' = al corpo
@@ -283,16 +283,17 @@ export class Sparring {
       const c = pick(CALLS.filter(x => x.lvl <= maxLvl));
       sfx.announce(c.v);
       this.task = { kind: 'combo', c, got: [], wait: sfx.voiceDur(c.v) + 0.15, t: 0, step: 0, stepT: 0 };
-      this.cueS.visible = false;
+      // il numero compare insieme alla voce (non dopo: se no partivi prima di vederlo)
+      this._placeCue(); this.cueS.visible = true; this._drawCue(c.seq[0], 1, 'go');
       return;
     }
     const T = this.task; T.t += dt;
     // guardia aperta dove devi colpire: giu' per i colpi alla testa, su (corpo scoperto) per quelli al corpo
     const want = T.c.seq[Math.min(T.step || 0, T.c.seq.length - 1)], toBody = want === 'b' || want.endsWith('b');
     m.lowTarget = toBody ? 0 : 1; m.low += (m.lowTarget - m.low) * Math.min(1, dt * 6);
-    if (T.t < T.wait * 0.6) return;                           // (i colpi contano da quando sta finendo di chiamare)
     const seq = T.c.seq, sp = Math.sqrt(this.speed);
-    const win = (T.step === 0 ? 1.6 : 0.75) / sp;             // tempo per questo colpo
+    // tempo per questo colpo (il primo ha in piu' il tempo della chiamata: il numero e' gia' li' dall'inizio)
+    const win = (T.step === 0 ? 1.6 / sp + T.wait * 0.6 : 0.75 / sp);
     const match = (x, g) => x === 'b' ? g.body : x.endsWith('b') ? (g.body && g.n === x[0]) : (g.n === x && !g.body);
     let res = null;
     for (const p of punches) {

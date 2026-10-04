@@ -533,7 +533,12 @@ export class Mike {
     const idleW = free * Math.max(0, 1 - locoSum);
     this.idle.setEffectiveWeight(idleW * (1 - this.low));
     this.idleLow.setEffectiveWeight(idleW * this.low);
+    // il mixer riscrive un osso solo se il valore dell'animazione cambia: nei tratti fermi le piegature aggiunte qui
+    // sotto (busto verso la tua testa, braccio, fiatone) si sommavano a ogni fotogramma (capriola all'indietro).
+    // Si riparte sempre dalla posa dell'animazione
+    if (this._animQ) for (const [b, q] of this._animQ) b.quaternion.copy(q);
     this.mixer.update(dt);
+    this._animQ = ['spine_01', 'spine_02', 'spine_03', 'upperarm_l', 'upperarm_r'].filter(n => this.bones[n]).map(n => [this.bones[n], this.bones[n].quaternion.clone()]);
     this.updateFace(dt);
     this.root.updateMatrixWorld(true);
     this._reachBend(dt);
@@ -1042,7 +1047,7 @@ export class Mike {
       const belt = this.bonePos('pelvis').y + 0.10;          // bordo alto dei calzoncini
       const groin = this.bonePos('pelvis').addScaledVector(this.forward(), 0.13).add(new THREE.Vector3(0, -0.13, 0));
       if (this.lowBlowAllowed && g.center.y < belt && distPointSeg(groin, a, b) < g.radius + 0.14) {
-        g.cooldown = 0.6; g.contactPoint.copy(g.center);
+        g.cooldown = 0.6; g.contactPoint.copy(g.center); g.hist.length = 0;   // (storia azzerata: per contarne un altro serve un pugno nuovo)
         this.emit('lowBlow', { side: g.side });
         continue;
       }
@@ -1070,7 +1075,7 @@ export class Mike {
           ev = { type: mv.startsWith('block') ? 'mikeBlocked' : 'mikeDodged' };
         }
       }
-      g.cooldown = 0.45; g.contactPoint.copy(g.center);
+      g.cooldown = 0.45; g.contactPoint.copy(g.center); g.hist.length = 0;
       ev.side = g.side; ev.speed = g.peakSpeed();
       const lp = this.root.worldToLocal(g.center.clone()), lh = this.root.worldToLocal(hc.clone());
       ev.why = `t+${this.defending ? (this.time - this.defending.start).toFixed(2) : '-'} hx${lh.x.toFixed(2)} gx${lp.x.toFixed(2)} gy${(lp.y - lh.y).toFixed(2)} ${this.state}${this.defending ? '/' + this.defending.type : ''}${this.time < this.openUntil ? '/aperto' : ''}${this.punch ? '/pugno' : ''}`;

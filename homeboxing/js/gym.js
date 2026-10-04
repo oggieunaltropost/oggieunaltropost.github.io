@@ -5,7 +5,7 @@
 // la retta delle sue due mani fino a terra, cosi' resta sempre in mano.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261004201022';
+import { buildRing, RING_SIZE } from './ring.js?v=20261004201951';
 
 const FLOOR = -1.0;
 const WALK_SPEED = 0.42;                       // m/s (come la clip "cammina" di Blender)
@@ -22,7 +22,7 @@ export class Gym {
     this.group = new THREE.Group(); this.group.name = 'palestra';
     this.t = 0; this.bags = [];
     const L = new GLTFLoader();
-    L.load('assets/palestra.glb?v=20261004201022', g => {
+    L.load('assets/palestra.glb?v=20261004201951', g => {
       g.scene.traverse(o => {
         if (!o.isMesh) return;
         const m = o.material;
@@ -33,7 +33,7 @@ export class Gym {
       this.group.add(g.scene);
       this.loaded = true; if (this.onLoad) this.onLoad();
     });
-    L.load('assets/inserviente.glb?v=20261004201022', g => this._janitor(g));
+    L.load('assets/inserviente.glb?v=20261004201951', g => this._janitor(g));
     // in allenamento il ring del gioco sparisce: sulla pedana restano corde, pali e angoli (girano con la palestra)
     this.ring = buildRing(RING_SIZE); this.ring.visible = false; this.group.add(this.ring);
   }
@@ -73,6 +73,7 @@ export class Gym {
     this.mopPrev = null;
     this.J = J; this.wp = 0; this.state = 'lava'; this.stateT = 4 + Math.random() * 4; this.blend = 0;
     this.headB = J.getObjectByName('head'); this.neckB = J.getObjectByName('neck_01'); this.look = 0; this.lookYaw = 0;
+    this.restQ = [this.neckB, this.headB].filter(Boolean).map(b => [b, b.quaternion.clone()]);   // collo e testa dritti (le animazioni non li muovono)
     // dove guarda la faccia, nel sistema dell'osso della testa (a riposo la faccia guarda avanti come il corpo)
     J.updateMatrixWorld(true);
     if (this.headB) this.faceLocal = new THREE.Vector3(0, 0, 1).applyQuaternion(J.getWorldQuaternion(new THREE.Quaternion())).applyQuaternion(this.headB.getWorldQuaternion(new THREE.Quaternion()).invert());
@@ -127,6 +128,7 @@ export class Gym {
     this.blend += ((this.state === 'cammina' ? 1 : 0) - this.blend) * Math.min(1, dt * 3);
     this.aWalk.setEffectiveWeight(this.blend); this.aMop.setEffectiveWeight(1 - this.blend);
     this.look += ((this.state === 'guarda' ? 1 : 0) - this.look) * Math.min(1, dt * 2.5);
+    for (const [bn, q] of this.restQ || []) bn.quaternion.copy(q);   // si riparte dritti: se no la girata verso di te restava (collo piegato)
     this.jMixer.update(dt * (1 - 0.92 * this.look));            // fermo a guardare: il mocio quasi immobile
     J.updateMatrixWorld(true);
     // testa e collo verso di te (oltre a quanto si e' girato col corpo)
