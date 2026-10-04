@@ -640,12 +640,26 @@ export class Mike {
     const want = Math.atan2(toP.x, toP.z) - (aimP ? aimP.yaw : 0);
     let dy = want - this.root.rotation.y;
     dy = Math.atan2(Math.sin(dy), Math.cos(dy));
-    this.root.rotation.y += Math.max(-9 * dt, Math.min(9 * dt, dy));
+    // pugno partito: non cambia piu' direzione (se ti sposti, lo schivi). Nella combinazione, a ogni nuovo colpo
+    // puo' correggere la mira di poco (al massimo ~20 gradi); quando non colpisce torna a seguirti
+    const punching = this.enabled && this.punch && !this.punch.move && this.state === 'attack';
+    if (punching) {
+      if (this.lockFor !== this.punch) {
+        this.lockFor = this.punch;
+        this.lockYaw = this.root.rotation.y + Math.max(-0.35, Math.min(0.35, dy));
+        this.lockDir = new THREE.Vector3(Math.sin(this.lockYaw + (aimP ? aimP.yaw : 0)), 0, Math.cos(this.lockYaw + (aimP ? aimP.yaw : 0)));
+      }
+      const dl = Math.atan2(Math.sin(this.lockYaw - this.root.rotation.y), Math.cos(this.lockYaw - this.root.rotation.y));
+      this.root.rotation.y += Math.max(-9 * dt, Math.min(9 * dt, dl));
+    } else {
+      this.lockFor = null;
+      this.root.rotation.y += Math.max(-9 * dt, Math.min(9 * dt, dy));
+    }
 
     if (this.enabled) {
       this.checkPlayerPunches(player);
       this.think(dt, player, dist);
-      this.move(dt, dist, toP.clone().normalize());
+      this.move(dt, dist, punching && this.lockDir ? this.lockDir : toP.clone().normalize());   // (colpendo: passo nella direzione di partenza)
     } else if (this.holdDist && !this.down) this.move(dt, dist, toP.clone().normalize());   // si allontana (angolo neutro)
     else this.vel.set(0, 0, 0);
     this.animate(dt);
