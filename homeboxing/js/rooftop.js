@@ -4,24 +4,28 @@
 // La citta' si muove (city_life.js): auto, battelli, navi, uccelli, aerei. Ogni tanto passa un elicottero (il suono lo fa sfx.heli, spaziale: piu' forte quando e' vicino).
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
 import * as THREE from 'three';
-import { CityLife } from './city_life.js?v=20261004212919';
+import { CityLife } from './city_life.js?v=20261004220606';
 
 const PANO_U = 0.0;               // rotazione del panorama (il sole della foto a sinistra, un po' dietro)
 const TOWER_H = 260;              // dal tetto alla strada
 const SUN = new THREE.Vector3(-0.643, 0.624, -0.445).normalize();   // il sole della foto (bella giornata: u 0,096, alto 39 gradi)
+const MOON = new THREE.Vector3(-0.65, 0.53, 0.545).normalize();     // la luna della foto di notte (blender/create_city_notte.py)
 
 export class Rooftop {
-  constructor(ringSize) {
-    this.group = new THREE.Group(); this.group.name = 'grattacielo';
-    this.sunDir = SUN.clone();
+  // night: lo stesso stage di notte ("Citta' di notte"): panorama notturno, finestre accese, fari sul ring
+  constructor(ringSize, night = false) {
+    this.group = new THREE.Group(); this.group.name = night ? 'notte' : 'grattacielo';
+    this.night = night;
+    this.sunDir = (night ? MOON : SUN).clone();
     this.S = ringSize + 1.5;                       // lato del tetto: poco piu' del ring
     this._sky(); this._roof(); this._tower(); this._heli();
-    this.life = new CityLife(this.group, PANO_U);       // auto, battelli, navi, uccelli, aereo
+    if (night) this._floods();
+    this.life = new CityLife(this.group, PANO_U, night);   // auto, battelli, navi, uccelli, aereo
     this.t = 0;
   }
 
   _sky() {
-    const tex = new THREE.TextureLoader().load('assets/citta_panorama.jpg?v=20261004212919', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load(this.night ? 'assets/citta_notte_panorama.jpg?v=20261004220606' : 'assets/citta_panorama.jpg?v=20261004220606', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -80,7 +84,7 @@ export class Rooftop {
     g.fillStyle = '#1a2230'; g.fillRect(0, 0, 256, 1024);
     const floors = 64, cols = 6, fh = 1024 / floors, cw = 256 / cols;
     for (let f = 0; f < floors; f++) for (let k = 0; k < cols; k++) {
-      const on = Math.random() < 0.07;
+      const on = Math.random() < (this.night ? 0.3 : 0.07);
       g.fillStyle = on ? (Math.random() < 0.5 ? '#ffcf86' : '#ffe2b0') : (Math.random() < 0.5 ? '#26324a' : '#2e3a52');
       g.fillRect(k * cw + 3, f * fh + 3, cw - 6, fh - 5);
     }
@@ -88,10 +92,27 @@ export class Rooftop {
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.repeat.set(1, TOWER_H / (floors * 3.6)); tex.anisotropy = 8;
     const em = tex.clone(); em.needsUpdate = true;
-    const mat = new THREE.MeshStandardMaterial({ map: tex, emissiveMap: em, emissive: 0xffffff, emissiveIntensity: 0.55, metalness: 0.4, roughness: 0.25 });
+    const mat = new THREE.MeshStandardMaterial({ map: tex, emissiveMap: em, emissive: 0xffffff, emissiveIntensity: this.night ? 1.0 : 0.55, metalness: 0.4, roughness: 0.25 });
     const body = new THREE.Mesh(new THREE.BoxGeometry(w, TOWER_H, w), mat);
     body.position.y = -0.3 - TOWER_H / 2; this.group.add(body);
     this.towerMat = mat;
+  }
+
+  // notte: quattro fari sui pali agli angoli che illuminano il ring (la luce vera la da' la luce principale, qui i corpi
+  // luminosi e il cono di luce appena visibile)
+  _floods() {
+    const h = this.S / 2, metal = new THREE.MeshStandardMaterial({ color: 0x2a2d33, metalness: 0.7, roughness: 0.4 });
+    const lens = new THREE.MeshBasicMaterial({ color: 0xfff3dc, toneMapped: false });
+    const cone = new THREE.MeshBasicMaterial({ color: 0xfff0d0, transparent: true, opacity: 0.012, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.FrontSide });
+    for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      const x = sx * (h - 0.15), z = sz * (h - 0.15);
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 3.2, 8), metal); pole.position.set(x, 1.6, z); this.group.add(pole);
+      const head = new THREE.Group(); head.position.set(x, 3.25, z); head.lookAt(0, 0.4, 0); this.group.add(head);
+      const box = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.3, 0.2), metal); head.add(box);
+      const l = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.24), lens); l.position.z = 0.101; head.add(l);
+      const d = Math.hypot(x, 3.25 - 0.4, z), c = new THREE.Mesh(new THREE.ConeGeometry(1.1, d, 20, 1, true), cone);
+      c.rotation.x = -Math.PI / 2; c.position.z = d / 2 + 0.1; c.renderOrder = 6; head.add(c);
+    }
   }
 
   // elicottero: fusoliera affusolata bianca con fascia rossa, cabina vetrata, cofano motore, coda con impennaggi,

@@ -45,10 +45,13 @@ const UP = new THREE.Vector3(0, 1, 0);
 const _haze = new THREE.Color(0.78, 0.83, 0.9);
 
 export class CityLife {
-  constructor(group, panoU) {
-    this.group = group; this.t = 0;
-    this.depth = new DepthPano('assets/citta_profondita.png', panoU);
+  // night: stessa citta' di notte (auto coi fari, battelli illuminati, niente uccelli, foschia scura)
+  constructor(group, panoU, night = false) {
+    this.group = group; this.t = 0; this.night = night;
+    this.haze = night ? new THREE.Color(0.03, 0.025, 0.025) : _haze;
+    this.depth = new DepthPano('assets/citta_profondita.png', panoU);   // (la citta' e' la stessa: profondita' uguale)
     this._cars(); this._boats(); this._ships(); this._birds(); this._plane();
+    if (night) for (const b of this.birds) b.B.visible = false;
   }
 
   // posiziona un oggetto: P (gioco) -> se lontano lo avvicina e lo rimpicciolisce; ritorna [posizione, scala, distanza vera]
@@ -88,6 +91,18 @@ export class CityLife {
     }
     this.segs = null;
     this.group.add(this.carMesh);
+    if (this.night) {                          // fari davanti e luci rosse dietro: stesse posizioni delle auto
+      const lp = [];
+      for (const z of [-0.6, 0.6]) {
+        const f = new THREE.BoxGeometry(0.12, 0.22, 0.42).toNonIndexed(); f.translate(2.18, 0.62, z); lp.push(paint(f, [1.6, 1.5, 1.3]));
+        const r = new THREE.BoxGeometry(0.12, 0.2, 0.4).toNonIndexed(); r.translate(-2.18, 0.68, z); lp.push(paint(r, [1.4, 0.08, 0.04]));
+      }
+      const lg = mergeGeometries(lp); lg.scale(2.2, 2.2, 2.2);          // (da 260 m le luci vere sarebbero invisibili)
+      this.carLights = new THREE.InstancedMesh(lg, new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }), N);
+      this.carLights.instanceMatrix = this.carMesh.instanceMatrix; this.carLights.frustumCulled = false;
+      this.carMesh.material.color.setScalar(0.35);
+      this.group.add(this.carLights);
+    }
   }
   _carXYs(axis, line, s) { return axis === 0 ? [s, line] : [line, s]; }
   _roadOk(axis, road, x, y) {
@@ -168,6 +183,14 @@ export class CityLife {
       const cb = new THREE.Mesh(new THREE.BoxGeometry(L * w, L * h, L * 0.18), new THREE.MeshLambertMaterial({ color: col }));
       cb.position.set(L * x, L * (0.09 + h / 2), 0); B.add(cb);
     }
+    if (this.night) for (const [x, w, h] of cabins) {                     // oblo' e finestre accese
+      const lw = new THREE.Mesh(new THREE.BoxGeometry(L * w * 0.9, L * h * 0.35, L * 0.185), new THREE.MeshBasicMaterial({ color: 0xffd9a0, toneMapped: false }));
+      lw.position.set(L * x, L * (0.09 + h * 0.55), 0); B.add(lw);
+    }
+    if (this.night) for (const [px, col] of [[0.5, 0x40ff60], [-0.5, 0xffffff]]) {
+      const nl = new THREE.Mesh(new THREE.SphereGeometry(Math.max(0.5, L * 0.012), 6, 4), new THREE.MeshBasicMaterial({ color: col, toneMapped: false }));
+      nl.position.set(L * px, L * 0.2, 0); B.add(nl);
+    }
     const wake = new THREE.Mesh(new THREE.PlaneGeometry(L * 3, L * 0.5), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, depthWrite: false, map: this._wakeTex() }));
     wake.rotation.x = -Math.PI / 2; wake.position.set(-L * 1.9, 0.3, 0); B.add(wake);
     const mats = new Set(); B.traverse(o => { if (o.isMesh) mats.add(o.material); });
@@ -217,7 +240,7 @@ export class CityLife {
     for (const { m } of B.userData.mats) { m.clippingPlanes = bridge !== null ? B.userData.clip : null; m.clipIntersection = true; }
     // lontano si confonde con la foschia del mare (come nella foto)
     const f = (1 - Math.exp(-d / 5000)) * 0.85;
-    for (const { m, base } of B.userData.mats) if (m.color) m.color.copy(base).lerp(_haze, f);
+    for (const { m, base } of B.userData.mats) if (m.color) m.color.copy(base).lerp(this.haze, f);
     _s.y += 4; B.visible = bridge !== null || !this._hidden(_s, d, d0 + d * 0.02);
   }
   _updBoats(dt) {
@@ -329,6 +352,6 @@ export class CityLife {
 
   update(dt) {
     this.t += dt;
-    this._updCars(dt); this._updBoats(dt); this._updBirds(dt); this._updPlane(dt);
+    this._updCars(dt); this._updBoats(dt); if (!this.night) this._updBirds(dt); this._updPlane(dt);
   }
 }
