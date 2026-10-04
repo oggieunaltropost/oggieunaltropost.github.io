@@ -6,8 +6,8 @@
 // Durata libera: si va avanti finche' non fermi dalla pausa. La velocita' del partner (colpi, andata e ritorno,
 // spostamenti, parate) si regola trascinando su e giu' il cursore della barra al tuo fianco.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261004155720';
-import { t as tr } from './i18n.js?v=20261004155720';
+import * as sfx from './sfx.js?v=20261004162517';
+import { t as tr } from './i18n.js?v=20261004162517';
 
 // combinazioni chiamate: voce, colpi che tira il partner (non qui) e quello che devi tirare tu
 // codici: 1 jab, 2 diretto, 3 gancio sinistro, 4 gancio destro, 5 montante sinistro, 6 montante destro; 'b' = al corpo
@@ -302,7 +302,11 @@ export class Sparring {
     const m = this.mike, S = this.st;
     if (!this.task) {
       if (this.next > 0 || sfx.voiceBusy() || m.state !== 'stalk') return;
-      const a = pick(this.defKinds && this.defKinds.length ? this.defKinds.flatMap(k => DEF_KINDS[k] || []) : ALL_ATTACKS);   // casuale o i colpi scelti
+      let pool = this.defKinds && this.defKinds.length ? this.defKinds.flatMap(k => DEF_KINDS[k] || []) : ALL_ATTACKS;   // casuale o i colpi scelti
+      // para / schiva: solo gli esercizi di quel tipo (se per i colpi scelti non ce ne sono, restano tutti)
+      const want = this.defType === 'para' ? ['c_d_block', 'c_d_body'] : this.defType === 'schiva' ? ['c_d_slip', 'c_d_duck'] : null;
+      if (want) { const f = pool.filter(x => want.includes(x.v)); if (f.length) pool = f; }
+      const a = pick(pool);
       sfx.announce(a.v);
       this.task = { kind: 'def', a, t: 0, thrown: false, res: null, delay: sfx.voiceDur(a.v) + 0.35 / Math.sqrt(this.speed), after: 0 };
       return;

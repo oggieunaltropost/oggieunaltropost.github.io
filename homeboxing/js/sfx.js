@@ -33,7 +33,7 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261004155720';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261004162517';
 // Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
@@ -55,7 +55,7 @@ let vbuf = {}, vLang = 'it';
 let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261004155720`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261004162517`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
@@ -100,7 +100,7 @@ export function voiceAt(name, pos, cam) {
 }
 // uscendo dal gioco: silenzio totale (si riaccende con initAudio)
 export function stopAll() {
-  crowdAmbient(false); seaAmbient(false); windAmbient(false); snowAmbient(false); heliStop();
+  crowdAmbient(false); seaAmbient(false); windAmbient(false); snowAmbient(false); lavaAmbient(false); heliStop();
   if (ctx && ctx.state === 'running') ctx.suspend();
 }
 
@@ -181,14 +181,15 @@ const SAMPLES = ['brusio', 'tifo', 'boato_0', 'boato_1', 'boato_2', 'boato_3', '
   'mare', 'onda_0', 'onda_1', 'onda_2', 'gabbiano_0', 'gabbiano_1', 'elicottero', 'vento',
   'sacco_0', 'sacco_1', 'sacco_2', 'sacco_3', 'catena_0', 'catena_1', 'catena_2',
   'pera_0', 'pera_1', 'pera_2', 'pera_3', 'pera_4', 'pera_5', 'pera_6', 'pera_7', 'aquila_0', 'aquila_1', 'aquila_2',
-  'ululato_0', 'ululato_1', 'ululato_2', 'ululato_3', 'passineve_0', 'passineve_1', 'passineve_2', 'passineve_3', 'passineve_4', 'passineve_5', 'ventoneve'];
+  'ululato_0', 'ululato_1', 'ululato_2', 'ululato_3', 'passineve_0', 'passineve_1', 'passineve_2', 'passineve_3', 'passineve_4', 'passineve_5', 'ventoneve',
+  'lavaloop', 'eruzione_0', 'eruzione_1', 'eruzione_2', 'eruzione_3', 'schizzo_0', 'schizzo_1', 'schizzo_2', 'schizzo_3', 'schizzo_4', 'schizzo_5'];
 const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261004155720`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261004162517`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
-  loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (snowWanted && !snowW) snowAmbient(true); if (windWanted && (!wind || wind.synth)) { if (wind) { wind.s.stop(); wind = null; } windAmbient(true); } });   // vento vero appena caricato
+  loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (snowWanted && !snowW) snowAmbient(true); if (lavaWanted && !lavaW) lavaAmbient(true); if (windWanted && (!wind || wind.synth)) { if (wind) { wind.s.stop(); wind = null; } windAmbient(true); } });   // vento vero appena caricato
   return loading;
 }
 function loopSrc(b, gain) {
@@ -491,4 +492,21 @@ export function snowStep(pos, cam) {
 }
 export function wolfHowl(pos, cam) {
   playSpatial(['ululato_0', 'ululato_1', 'ululato_2', 'ululato_3'], pos, cam, 0.9, 6, 0.97 + Math.random() * 0.06);
+}
+
+// ---------------------------------------------------------------- vulcano: lava che ribolle (loop), boati dell'eruzione, schizzi
+let lavaW = null, lavaWanted = false;
+export function lavaAmbient(on) {
+  lavaWanted = on;
+  if (!ctx) return;
+  if (on && !lavaW) {
+    if (!buf.lavaloop) { loadSamples(); return; }
+    lavaW = loopSrc(buf.lavaloop, 0.0); lavaW.g.gain.setTargetAtTime(0.5, ctx.currentTime, 1.2);
+  } else if (!on && lavaW) { const w = lavaW; lavaW = null; w.g.gain.setTargetAtTime(0, ctx.currentTime, 0.3); setTimeout(() => { try { w.s.stop(); } catch (e) {} }, 1200); }
+}
+export function eruption(pos, cam, gain = 1.0) {
+  playSpatial(['eruzione_0', 'eruzione_1', 'eruzione_2', 'eruzione_3'], pos, cam, 1.4 * gain, 400, 0.9 + Math.random() * 0.15);
+}
+export function lavaSplash(pos, cam) {
+  playSpatial(['schizzo_0', 'schizzo_1', 'schizzo_2', 'schizzo_3', 'schizzo_4', 'schizzo_5'], pos, cam, 0.7, 2.5, 0.85 + Math.random() * 0.3);
 }

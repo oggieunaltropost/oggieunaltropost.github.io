@@ -169,7 +169,7 @@ export class Mike {
     if (this.cfg0.skinTint) this.model.traverse(o => { if (o.isMesh && o.material.name === 'Pelle') o.material.color.setHex(this.cfg0.skinTint); });
     const bone = n => this.model.getObjectByName(n);
     this.bones = {};
-    for (const n of ['head', 'neck_01', 'spine_01', 'spine_02', 'spine_03', 'hand_l', 'hand_r', 'lowerarm_l', 'lowerarm_r', 'pelvis'])
+    for (const n of ['head', 'neck_01', 'spine_01', 'spine_02', 'spine_03', 'hand_l', 'hand_r', 'lowerarm_l', 'lowerarm_r', 'upperarm_l', 'upperarm_r', 'pelvis'])
       this.bones[n] = bone(n);
 
     this.mixer = new THREE.AnimationMixer(this.model);
@@ -536,7 +536,80 @@ export class Mike {
     this.mixer.update(dt);
     this.updateFace(dt);
     this.root.updateMatrixWorld(true);
+    this._reachBend(dt);
     this.lookAtEyes(dt);
+  }
+
+  // punto da colpire, scelto al lancio: centro del viso, mento, fronte o una tempia, quello piu' lontano dai tuoi guantoni
+  // (i ganci prendono la tempia dal lato da cui arrivano). Ai livelli bassi sbaglia spesso e mira al centro.
+  chooseAim(player, name) {
+    const spec = PUNCH[name]; if (!spec || !player) return null;
+    const H = player.head, toMe = _c.copy(this.root.getWorldPosition(_e)).sub(H).setY(0).normalize();
+    const right = new THREE.Vector3(0, 1, 0).cross(toMe).normalize();      // tua destra / sinistra vista da lui
+    if (spec.zone === 'body') return null;
+    const C = [[0, 0, 'centro'], [0, -0.09, 'mento'], [0, 0.07, 'fronte'], [0.08, 0.01, 'tempia'], [-0.08, 0.01, 'tempia']];
+    let cands = C.map(([x, y]) => H.clone().addScaledVector(right, x).add(new THREE.Vector3(0, y, 0)));
+    if (name.startsWith('hook')) {                                          // il gancio arriva di lato: prende quella tempia
+      const s = name === 'hook_l' ? -1 : 1; cands = [H.clone().addScaledVector(right, 0.08 * s).add(new THREE.Vector3(0, 0.01, 0)), H.clone().add(new THREE.Vector3(0, -0.07, 0))];
+    }
+    const skill = this.cfg.readGuard ?? 0.6;
+    if (Math.random() > skill) return cands[0];
+    const gl = Object.values(player.gloves).filter(g => g.mesh.visible);
+    let best = cands[0], bs = -1;
+    for (const p of cands) {
+      const sc = Math.min(...gl.map(g => g.center.distanceTo(p)), 0.4) + Math.random() * 0.02;
+      if (sc > bs) { bs = sc; best = p; }
+    }
+    return best;
+  }
+
+  // colpi al volto all'altezza della TUA testa (anche se sei piu' basso o abbassato in guardia): se il pugno
+  // passerebbe sopra, si piega in avanti col busto quanto serve (al massimo ~25 gradi); se sei piu' alto si raddrizza
+  // all'indietro (poco) e alza il braccio che colpisce dalla spalla (fino a ~34 gradi).
+  // A pugno partito resta l'inclinazione della partenza (se ti abbassi all'ultimo, il colpo puo' andare a vuoto)
+  _reachBend(dt) {
+    const P = this.lastPlayer, ap = this.enabled && !this.down ? this.aimPunch() : null;
+    const name = this.punch ? this.punch.name : (this.combo.length ? this.combo[0] : null), sp = name && PUNCH[name];
+    let target = 0, armT = 0;
+    if (P && ap && sp && sp.zone === 'head') {
+      const rp = this.root.getWorldPosition(_e), sc = this.root.getWorldScale(_d).y;
+      const aimY = this.aimPt && this.punch && this.lockFor === this.punch ? this.aimPt.y : P.head.y - 0.03;
+      const d = rp.y + ap.y * sc - aimY;                                // quanto il pugno passerebbe sopra (+) o sotto (-) il punto scelto
+      const L = Math.max(0.4, Math.hypot(ap.dist, ap.y - 1.0) * sc);   // dal giro vita al pugno
+      target = THREE.MathUtils.clamp(Math.asin(THREE.MathUtils.clamp(d / L, -1, 1)), -0.2, 0.45);
+      if (d < 0) {                                                     // sei piu' alto: quello che manca lo fa il braccio
+        const rest = -d - L * Math.sin(0.2);
+        if (rest > 0) armT = THREE.MathUtils.clamp(Math.asin(Math.min(1, rest / (0.55 * sc))), 0, 0.8);
+      }
+    }
+    const punching = this.punch && !this.punch.move && this.state === 'attack';
+    if (punching) {
+      // si fissa al lancio; si ricalcola una volta quando e' pronto il punto scelto (arriva un fotogramma dopo)
+      const aimed = this.lockFor === this.punch;
+      if (this.bendFor !== this.punch || (aimed && !this.bendAimed)) { this.bendFor = this.punch; this.bendAimed = aimed; this.bendLock = target; this.armLock = armT; }
+      target = this.bendLock; armT = this.armLock;
+    }
+    else this.bendFor = null;
+    this.bend = (this.bend || 0) + (target - (this.bend || 0)) * Math.min(1, dt * 8);
+    this.armUp = (this.armUp || 0) + ((punching ? armT : 0) - (this.armUp || 0)) * Math.min(1, dt * 10);
+    if (Math.abs(this.bend) < 0.003 && this.armUp < 0.003) return;
+    const fwd = _c.set(0, 0, 1).applyQuaternion(this.root.getWorldQuaternion(_q)).setY(0).normalize();
+    const axis = new THREE.Vector3(0, 1, 0).cross(fwd).normalize();   // ruotando di + attorno a questo, il busto va avanti e giu'
+    for (const [n, k] of [['spine_01', 0.55], ['spine_02', 0.45]]) {
+      const b = this.bones[n]; if (!b || !b.parent) continue;
+      const wq = b.getWorldQuaternion(new THREE.Quaternion());
+      const nw = new THREE.Quaternion().setFromAxisAngle(axis, this.bend * k).multiply(wq);
+      b.quaternion.copy(b.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(nw)); b.updateMatrixWorld(true);
+    }
+    // braccio che colpisce alzato dalla spalla (attorno allo stesso asse laterale, verso l'alto)
+    if (this.armUp > 0.003 && this.punch && PUNCH[this.punch.name]) {
+      const b = this.bones['upperarm_' + PUNCH[this.punch.name].side];
+      if (b && b.parent) {
+        const wq = b.getWorldQuaternion(new THREE.Quaternion());
+        const nw = new THREE.Quaternion().setFromAxisAngle(axis, -this.armUp).multiply(wq);
+        b.quaternion.copy(b.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(nw)); b.updateMatrixWorld(true);
+      }
+    }
   }
 
   // occhi mobili: i bulbi (mesh "high-poly", legati alla testa) passano a due ossa nuove, una per occhio, con il
@@ -646,7 +719,11 @@ export class Mike {
     if (punching) {
       if (this.lockFor !== this.punch) {
         this.lockFor = this.punch;
-        this.lockYaw = this.root.rotation.y + Math.max(-0.35, Math.min(0.35, dy));
+        // dove colpire: il punto piu' scoperto (lontano dai tuoi guantoni), girandosi quel poco che serve
+        this.aimPt = this.chooseAim(player, this.punch.name);
+        let dyA = dy;
+        if (this.aimPt) { const rp = this.root.getWorldPosition(_e); dyA = Math.atan2(this.aimPt.x - rp.x, this.aimPt.z - rp.z) - (aimP ? aimP.yaw : 0) - this.root.rotation.y; dyA = Math.atan2(Math.sin(dyA), Math.cos(dyA)); }
+        this.lockYaw = this.root.rotation.y + Math.max(-0.35, Math.min(0.35, dyA));
         this.lockDir = new THREE.Vector3(Math.sin(this.lockYaw + (aimP ? aimP.yaw : 0)), 0, Math.cos(this.lockYaw + (aimP ? aimP.yaw : 0)));
       }
       const dl = Math.atan2(Math.sin(this.lockYaw - this.root.rotation.y), Math.cos(this.lockYaw - this.root.rotation.y));
