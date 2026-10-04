@@ -730,7 +730,7 @@ export class Mike {
       this.root.rotation.y += Math.max(-9 * dt, Math.min(9 * dt, dl));
     } else {
       this.lockFor = null;
-      this.root.rotation.y += Math.max(-9 * dt, Math.min(9 * dt, dy));
+      this.root.rotation.y += Math.max(-6 * dt, Math.min(6 * dt, dy));      // (non piu' di ~340 gradi/s: prima dopo una schivata si rigirava di scatto)
     }
 
     if (this.enabled) {
@@ -960,7 +960,9 @@ export class Mike {
       this.punch = { name, layer, resolved: true, move: true };
       return;
     }
-    const layer = this.play(name, this.cfg.punchSpeed * (1 - 0.2 * (this.fatigue || 0)));
+    let ts = this.cfg.punchSpeed * (1 - 0.2 * (this.fatigue || 0));
+    if (this.evenImpact && PUNCH[name]) ts *= ((PUNCH[name].from + PUNCH[name].to) / 2 / 30) / 0.3;   // tutti all'impatto in 0,3 s (a velocita' piena)
+    const layer = this.play(name, ts);
     this.punch = { name, layer, resolved: false, inRange: false };
     this.emit('mikeThrows', { name });
   }
@@ -1033,7 +1035,7 @@ export class Mike {
     for (const g of Object.values(player.gloves)) {
       if (!g.mesh.visible || g.cooldown > 0 || g.peakSpeed() < 1.8) continue;
       if (g.vel.dot(towardMike) < -0.3) continue;          // non mentre torna indietro
-      if (g.travel(towardMike) < 0.12) continue;           // deve essere partito davvero (non Mike che ci finisce contro)
+      if (g.travel(towardMike) < 0.12 && g.travelAny() < 0.14) continue;   // deve essere partito davvero (non Mike che ci finisce contro); i ganci arrivano di lato
       const [a, b] = g.segment();
       let ev = null;
       // colpo basso: il pugno arriva sotto la cintura (vale solo finche' Mike ha almeno meta' energia)

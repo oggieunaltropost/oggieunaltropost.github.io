@@ -146,6 +146,12 @@ class Glove {
     for (const h of this.hist) best = Math.max(best, _v.subVectors(this.center, h.p).dot(dir));
     return best;
   }
+  // strada fatta negli ultimi 0,25 s in qualunque direzione (i ganci ai fianchi arrivano di lato)
+  travelAny() {
+    let best = 0;
+    for (const h of this.hist) best = Math.max(best, this.center.distanceTo(h.p));
+    return best;
+  }
 
   // wrist = polso, fwd = verso le nocche, back = dorso della mano
   setPose(wrist, fwd, back) {

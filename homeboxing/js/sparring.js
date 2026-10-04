@@ -6,8 +6,8 @@
 // Durata libera: si va avanti finche' non fermi dalla pausa. La velocita' del partner (colpi, andata e ritorno,
 // spostamenti, parate) si regola trascinando su e giu' il cursore della barra al tuo fianco.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261004172701';
-import { t as tr } from './i18n.js?v=20261004172701';
+import * as sfx from './sfx.js?v=20261004193229';
+import { t as tr } from './i18n.js?v=20261004193229';
 
 // combinazioni chiamate: voce, colpi che tira il partner (non qui) e quello che devi tirare tu
 // codici: 1 jab, 2 diretto, 3 gancio sinistro, 4 gancio destro, 5 montante sinistro, 6 montante destro; 'b' = al corpo
@@ -25,8 +25,8 @@ export const DEF_KINDS = {
   cross: [{ v: 'c_d_slip', combo: ['cross'] }, { v: 'c_d_block', combo: ['cross'] }],
   hook_l: [{ v: 'c_d_duck', combo: ['hook_l'] }, { v: 'c_d_block', combo: ['hook_l'] }],
   hook_r: [{ v: 'c_d_duck', combo: ['hook_r'] }, { v: 'c_d_block', combo: ['hook_r'] }],
-  upper_l: [{ v: 'c_d_block', combo: ['uppercut_l'] }],
-  upper_r: [{ v: 'c_d_block', combo: ['uppercut_r'] }],
+  upper_l: [{ v: 'c_d_block', combo: ['uppercut_l'] }, { v: 'c_d_slip', combo: ['uppercut_l'] }],
+  upper_r: [{ v: 'c_d_block', combo: ['uppercut_r'] }, { v: 'c_d_slip', combo: ['uppercut_r'] }],
   body: [{ v: 'c_d_body', combo: ['body_r'] }, { v: 'c_d_body', combo: ['body_l'] }],
 };
 const ALL_ATTACKS = Object.values(DEF_KINDS).flat();
@@ -229,7 +229,7 @@ export class Sparring {
       const towards = g.vel.dot(fwd);
       if (landed[side]) {                                              // a segno: il colpo e' questo, subito
         const body = landed[side] === 'body';
-        out.push({ n: T ? kind(side, T) : (side === 'left' ? '1' : '2'), body, side });
+        out.push({ n: T ? kind(side, T) : (side === 'left' ? '1' : '2'), body, side, landed: true });
         this.st.thrown++; this.track[side] = null; this.cool[side] = 0.35; continue;
       }
       if (this.cool[side] > 0) continue;                               // (lo stesso colpo non si conta due volte)
@@ -287,13 +287,16 @@ export class Sparring {
       return;
     }
     const T = this.task; T.t += dt;
-    m.low = 1; m.lowTarget = 1;                               // guardia aperta: tocca a te
+    // guardia aperta dove devi colpire: giu' per i colpi alla testa, su (corpo scoperto) per quelli al corpo
+    const want = T.c.seq[Math.min(T.step || 0, T.c.seq.length - 1)], toBody = want === 'b' || want.endsWith('b');
+    m.lowTarget = toBody ? 0 : 1; m.low += (m.lowTarget - m.low) * Math.min(1, dt * 6);
     if (T.t < T.wait * 0.6) return;                           // (i colpi contano da quando sta finendo di chiamare)
     const seq = T.c.seq, sp = Math.sqrt(this.speed);
     const win = (T.step === 0 ? 1.6 : 0.75) / sp;             // tempo per questo colpo
     const match = (x, g) => x === 'b' ? g.body : x.endsWith('b') ? (g.body && g.n === x[0]) : (g.n === x && !g.body);
     let res = null;
     for (const p of punches) {
+      if (!p.landed) continue;                                // conta solo il colpo andato a segno (non a vuoto)
       T.got.push(p);
       if (!match(seq[T.step], p)) { res = 'wrong'; break; }
       T.step++; T.stepT = 0;
@@ -317,7 +320,7 @@ export class Sparring {
       let pool = this.defKinds && this.defKinds.length ? this.defKinds.flatMap(k => DEF_KINDS[k] || []) : ALL_ATTACKS;   // casuale o i colpi scelti
       // para / schiva: solo gli esercizi di quel tipo (se per i colpi scelti non ce ne sono, restano tutti)
       const want = this.defType === 'para' ? ['c_d_block', 'c_d_body'] : this.defType === 'schiva' ? ['c_d_slip', 'c_d_duck'] : null;
-      if (want) { const f = pool.filter(x => want.includes(x.v)); if (f.length) pool = f; }
+      if (want) { const f = pool.filter(x => want.includes(x.v)); if (f.length) pool = f; }   // (i colpi senza esercizi di quel tipo restano fuori)
       const a = pick(pool);
       sfx.announce(a.v);
       this.task = { kind: 'def', a, t: 0, thrown: false, res: null, delay: sfx.voiceDur(a.v) + 0.35 / Math.sqrt(this.speed), after: 0 };
