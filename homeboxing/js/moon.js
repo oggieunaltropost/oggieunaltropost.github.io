@@ -9,7 +9,7 @@
 //    (poca gravita' e niente aria: traiettorie pulite) e ricade piano, anello di polvere; resta il cratere
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261005202554';
+import * as sfx from './sfx.js?v=20261005203039';
 
 const EYE = 1.65, R_FADE0 = 10, R_FADE1 = 16, G = 1.62;          // gravita' lunare
 const SUN = new THREE.Vector3(-0.4532, 0.4226, 0.7849).normalize();  // dalla foto (Blender (0.7849,-0.4532,0.4226))
@@ -42,7 +42,7 @@ export class Moon {
     const img = new Image();
     const tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     img.onload = () => { tex.needsUpdate = true; this.skyLoaded = true; this._tintGround(img); if (this.onSkyLoad) this.onSkyLoad(); };
-    img.src = 'assets/luna_panorama.jpg?v=20261005202554';
+    img.src = 'assets/luna_panorama.jpg?v=20261005203039';
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false, uniforms: { uPano: { value: tex } },
