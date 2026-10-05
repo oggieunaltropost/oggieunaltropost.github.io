@@ -9,7 +9,9 @@ const GW = 512, GH = 256, SKY = 880;
 
 // clip: raggio (m) attorno al ring dove lo sfondo non si disegna: li' c'e' il terreno 3D del gioco (che porta lupo,
 // impronte, scorpione...) e il terreno della foto, qualche cm piu' alto, lo copriva
-export function panoDepth(url, tex, { eye = 1.65, uU = 0, onReady = null, clip = 0 } = {}) {
+// flat: entro questo raggio il terreno della foto si stende su un pavimento piatto a y = 0 (al posto del terreno 3D
+// separato, che faceva un cerchio di colore diverso): ci camminano sopra lupo, scorpione, impronte
+export function panoDepth(url, tex, { eye = 1.65, uU = 0, onReady = null, clip = 0, flat = 0 } = {}) {
   const mesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.ShaderMaterial({
     fog: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 4, polygonOffsetUnits: 4,   // (dietro al terreno 3D vicino)
     uniforms: { uPano: { value: tex }, uEye: { value: eye }, uU: { value: uU }, uClip: { value: clip } },
@@ -43,7 +45,12 @@ export function panoDepth(url, tex, { eye = 1.65, uU = 0, onReady = null, clip =
         const u = i / GW, lon = (u - 0.5 - uU) * 2 * Math.PI;
         const d = new THREE.Vector3(Math.cos(lat) * Math.cos(lon), Math.sin(lat), Math.cos(lat) * Math.sin(lon));
         let uu = (Math.atan2(d.z, d.x) / (2 * Math.PI) + 0.5 + uU) % 1; if (uu < 0) uu += 1;
-        const R = Math.min(SKY, dist(Math.min(W - 1, (uu * W) | 0), Math.min(H - 1, (j / GH * H) | 0)));
+        let R = Math.min(SKY, dist(Math.min(W - 1, (uu * W) | 0), Math.min(H - 1, (j / GH * H) | 0)));
+        if (flat > 0 && d.y < -0.01) {                       // a terra: sul piano, con un raccordo morbido verso la foto
+          const tp = eye / -d.y, rh = tp * Math.sqrt(1 - d.y * d.y);
+          const k = Math.min(1, Math.max(0, (rh - flat) / 6)), kk = k * k * (3 - 2 * k);
+          if (rh < flat + 6) R = tp + (Math.min(R, SKY) - tp) * kk;
+        }
         const k = ((j * (GW + 1)) + i) * 3;
         pos[k] = d.x * R; pos[k + 1] = eye + d.y * R; pos[k + 2] = d.z * R;
       }

@@ -10,10 +10,10 @@
 //    poi si rialza e riprende a girare a caso.
 //  - vento freddo, passi nella neve e ululato con l'audio spaziale.
 import * as THREE from 'three';
-import { Bear } from './bear.js?v=20261006004601';
-import { panoDepth } from './pano_depth.js?v=20261006004601';
+import { Bear } from './bear.js?v=20261006004832';
+import { panoDepth } from './pano_depth.js?v=20261006004832';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import * as sfx from './sfx.js?v=20261006004601';
+import * as sfx from './sfx.js?v=20261006004832';
 
 const EYE = 1.65;                     // altezza della camera della foto
 const R_FADE0 = 11, R_FADE1 = 17;     // la neve 3D sfuma nella foto tra questi raggi
@@ -26,11 +26,11 @@ const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 
 // dune morbide (stessa formula nello shader dei fiocchi): piatto sotto e attorno al ring
 export function snowH(x, z) {
+  return 0;                                              // (pavimento piatto: la neve vicina e' la foto)
   const r = Math.hypot(x, z);
   return ss(3.0, 5.0, r) * (0.035 * Math.sin(0.9 * x + 0.4 * z) + 0.025 * Math.sin(1.7 * z - 0.6 * x + 1.3) + 0.012 * Math.sin(3.1 * x + 2.2 * z));
 }
-const SNOWH_GLSL = `float snowH(vec2 p){ float r = length(p);
-  return smoothstep(3.0, 5.0, r) * (0.035 * sin(0.9 * p.x + 0.4 * p.y) + 0.025 * sin(1.7 * p.y - 0.6 * p.x + 1.3) + 0.012 * sin(3.1 * p.x + 2.2 * p.y)); }`;
+const SNOWH_GLSL = `float snowH(vec2 p){ return 0.0; }`;
 
 // scheletro del lupo a riposo (coordinate del gioco: muso verso +Z), come in create_wolf.py
 const XF = 0.105, XH = 0.11;
@@ -53,7 +53,7 @@ export class Snow {
     const img = new Image();
     const tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     img.onload = () => { tex.needsUpdate = true; this.skyLoaded = true; this._tintGround(img); if (this.onSkyLoad) this.onSkyLoad(); };
-    img.src = 'assets/neve_panorama.jpg?v=20261006004601';
+    img.src = 'assets/neve_panorama.jpg?v=20261006004832';
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
@@ -68,7 +68,7 @@ export class Snow {
     });
     const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 64, 32), m);
     sky.renderOrder = -10; sky.frustumCulled = false; this.group.add(sky);
-    this.group.add(panoDepth('assets/neve_profondita.png', tex, { eye: EYE, clip: R_FADE0 - 0.5, onReady: () => { sky.visible = false; } }));   // sfondo in 3D vero
+    this.group.add(panoDepth('assets/neve_profondita.png', tex, { eye: EYE, flat: 14, onReady: () => { sky.visible = false; } }));   // sfondo in 3D vero
   }
   // ---------------------------------------------------------------- neve vicina
   _ground() {
@@ -90,6 +90,7 @@ export class Snow {
     const mat = new THREE.MeshBasicMaterial({ map: this._snowTex(), vertexColors: true, transparent: true, depthWrite: true, toneMapped: false });
     mat.vertexAlphas = true;
     const g = new THREE.Mesh(geo, mat); g.renderOrder = -5; this.group.add(g);
+    g.visible = false;                                    // (ora la neve vicina e' la foto stessa, stesa piatta: niente cerchio diverso)
   }
   // grana della neve: quasi bianca, ondine del vento e qualche scintilla (media ~1: il colore lo da' la foto)
   _snowTex() {
@@ -204,7 +205,7 @@ export class Snow {
     g.setTransform(1, 0, 0, 0.5, 0, 16); g.fillStyle = gr; g.fillRect(0, -32, 128, 128);
     const sh = new THREE.Mesh(new THREE.PlaneGeometry(0.75, 1.5), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, opacity: 0.45, color: 0x223355, polygonOffset: true, polygonOffsetFactor: -3 }));
     sh.geometry.rotateX(-Math.PI / 2); sh.geometry.rotateY(Math.PI / 2); sh.renderOrder = -3; this.shadow = sh; this.group.add(sh);
-    new GLTFLoader().load('assets/lupo.glb?v=20261006004601', gl => {
+    new GLTFLoader().load('assets/lupo.glb?v=20261006004832', gl => {
       let skinned = null; gl.scene.traverse(o => { if (o.isSkinnedMesh) skinned = o; });
       if (!skinned) return;
       this.wolf.add(gl.scene);
