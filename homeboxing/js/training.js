@@ -5,8 +5,8 @@
 // Tabellone sul muro dietro al sacco: tempo, colpi a segno, colpo piu' forte, colpi al minuto.
 // Sistema: quello del ring (arena): il giocatore sta in (0, 0, playerZ) e guarda verso -Z; il pavimento e' a 0.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261005211157';
-import { t as tr } from './i18n.js?v=20261005211157';
+import * as sfx from './sfx.js?v=20261005211833';
+import { t as tr } from './i18n.js?v=20261005211833';
 
 const M = 45, R = 0.19, H = 1.3;              // massa, raggio, altezza del sacco
 const HOOK = 2.72;                             // gancio (perno)
@@ -38,8 +38,8 @@ function leather() {
   for (const cx of [W * 0.25, W * 0.75]) {                          // scritta verticale davanti e dietro
     // (un pixel della texture e' 0,58 mm in giro e 1,27 mm in altezza: si compensa, lettere non deformate)
     g.save(); g.translate(cx, Hh / 2); g.scale(1, (2 * Math.PI * R / W) / (H / Hh)); g.rotate(-Math.PI / 2);
-    g.font = '900 112px Impact, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.lineWidth = 14; g.strokeStyle = '#1a0405'; g.strokeText('HOME BOXING', 0, 0);
+    g.font = '900 88px Impact, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';   // (112 sforava sugli orli)
+    g.lineWidth = 11; g.strokeStyle = '#1a0405'; g.strokeText('HOME BOXING', 0, 0);
     g.fillStyle = '#f2ece0'; g.fillText('HOME BOXING', 0, 0);
     g.restore();
     g.fillStyle = '#f2ece0'; g.fillRect(cx - 230, 70, 460, 14); g.fillRect(cx - 230, Hh - 84, 460, 14);
