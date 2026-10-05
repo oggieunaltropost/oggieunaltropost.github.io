@@ -9,8 +9,9 @@
 //    (poca gravita' e niente aria: traiettorie pulite) e ricade piano, anello di polvere; resta il cratere
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
 import * as THREE from 'three';
-import { contactShadow } from './contact_shadow.js?v=20261005210731';
-import * as sfx from './sfx.js?v=20261005210731';
+import { contactShadow } from './contact_shadow.js?v=20261005211157';
+import { panoGround } from './pano_ground.js?v=20261005211157';
+import * as sfx from './sfx.js?v=20261005211157';
 
 const EYE = 1.65, R_FADE0 = 10, R_FADE1 = 16, G = 1.62;          // gravita' lunare
 const SUN = new THREE.Vector3(-0.4532, 0.4226, 0.7849).normalize();  // dalla foto (Blender (0.7849,-0.4532,0.4226))
@@ -43,7 +44,7 @@ export class Moon {
     const img = new Image();
     const tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     img.onload = () => { tex.needsUpdate = true; this.skyLoaded = true; this._tintGround(img); if (this.onSkyLoad) this.onSkyLoad(); };
-    img.src = 'assets/luna_panorama.jpg?v=20261005210731';
+    img.src = 'assets/luna_panorama.jpg?v=20261005211157';
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false, uniforms: { uPano: { value: tex } },
@@ -57,6 +58,7 @@ export class Moon {
     });
     const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 64, 32), m);
     sky.renderOrder = -10; sky.frustumCulled = false; this.group.add(sky);
+    this.group.add(panoGround(tex, { eye: EYE, rIn: R_FADE0 - 1 }));     // la piana lontana alla sua distanza vera
   }
   // ---------------------------------------------------------------- regolite vicina, con i crateretti
   _h(x, z) {
@@ -122,6 +124,7 @@ export class Moon {
   }
   // altezza degli occhi: il bordo della regolite combacia con la foto (fatta da 1,65 m)
   setEye(eye) {
+    return;                                                          // (non serve piu': c'e' il terreno lontano vero)
     if (!(eye > 1.0 && eye < 2.3) || (this.eyeApplied != null && Math.abs(eye - this.eyeApplied) < 0.03)) return;
     this.eyeApplied = eye;
     const off = eye - EYE, p = this.groundGeo.attributes.position.array, b = this.baseY;

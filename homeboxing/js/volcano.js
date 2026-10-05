@@ -8,8 +8,9 @@
 //  - l'eruzione sul vulcano lontano: bagliore del cratere che pulsa, lapilli incandescenti che salgono e ricadono,
 //    nuvole di fumo che escono e salgono; ogni tanto un'esplosione piu' forte col boato.
 import * as THREE from 'three';
-import { contactShadow } from './contact_shadow.js?v=20261005210731';
-import * as sfx from './sfx.js?v=20261005210731';
+import { panoGround } from './pano_ground.js?v=20261005211157';
+import { contactShadow } from './contact_shadow.js?v=20261005211157';
+import * as sfx from './sfx.js?v=20261005211157';
 
 const EYE = 1.65;
 const R_FADE0 = 11, R_FADE1 = 17;
@@ -40,7 +41,7 @@ export class Volcano {
     const img = new Image();
     const tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     img.onload = () => { tex.needsUpdate = true; this.skyLoaded = true; this._tintGround(img); if (this.onSkyLoad) this.onSkyLoad(); };
-    img.src = 'assets/vulcano_panorama.jpg?v=20261005210731';
+    img.src = 'assets/vulcano_panorama.jpg?v=20261005211157';
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false, uniforms: { uPano: { value: tex } },
@@ -54,6 +55,7 @@ export class Volcano {
     });
     const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 64, 32), m);
     sky.renderOrder = -10; sky.frustumCulled = false; this.group.add(sky);
+    this.group.add(panoGround(tex, { eye: EYE, rIn: R_FADE0 - 1 }));     // la piana lontana alla sua distanza vera
   }
   // ---------------------------------------------------------------- terra lavica vicina
   _ground() {
@@ -450,6 +452,7 @@ export class Volcano {
   // altezza dei tuoi occhi dal pavimento: la terra 3D (con fiumi e argini) piega piano verso il bordo per combaciare
   // con lo sfondo, che e' stato fotografato da 1,65 m (senza questo, con occhi diversi, al bordo si vedeva un gradino)
   setEye(eye) {
+    return;                                                          // (non serve piu': c'e' il terreno lontano vero)
     if (!(eye > 1.0 && eye < 2.3) || (this.eyeApplied != null && Math.abs(eye - this.eyeApplied) < 0.03)) return;
     this.eyeApplied = eye;
     const off = eye - EYE;

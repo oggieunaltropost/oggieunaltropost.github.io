@@ -33,11 +33,11 @@ export function fixHumanMaterial(o) {
 // cinque ragazze (blender/create_ringgirl.py var=0..4): stessa struttura e animazioni, cambiano pelle, capelli,
 // completo e colore del numero sul cartello. Una a caso per incontro, la stessa per tutto l'incontro.
 export const GIRLS = [
-  { glb: 'assets/ringgirl.glb?v=20261005210731', ink: '#c4161f', band: '#c4161f' },                          // mora, rosso e oro
-  { glb: 'assets/ringgirl_1.glb?v=20261005210731', ink: '#b8860b', band: '#111111' },                        // di colore, oro e nero
-  { glb: 'assets/ringgirl_2.glb?v=20261005210731', ink: '#c4161f', band: '#c4161f' },                        // cinese, bianco e rosso
-  { glb: 'assets/ringgirl_3.glb?v=20261005210731', ink: '#1d4fc4', band: '#1d4fc4', hair: '#e8c47c' },       // bionda, blu e argento
-  { glb: 'assets/ringgirl_4.glb?v=20261005210731', ink: '#8a2be2', band: '#d6407a' },                        // latina, viola e rosa
+  { glb: 'assets/ringgirl.glb?v=20261005211157', ink: '#c4161f', band: '#c4161f' },                          // mora, rosso e oro
+  { glb: 'assets/ringgirl_1.glb?v=20261005211157', ink: '#b8860b', band: '#111111' },                        // di colore, oro e nero
+  { glb: 'assets/ringgirl_2.glb?v=20261005211157', ink: '#c4161f', band: '#c4161f' },                        // cinese, bianco e rosso
+  { glb: 'assets/ringgirl_3.glb?v=20261005211157', ink: '#1d4fc4', band: '#1d4fc4', hair: '#e8c47c' },       // bionda, blu e argento
+  { glb: 'assets/ringgirl_4.glb?v=20261005211157', ink: '#8a2be2', band: '#d6407a' },                        // latina, viola e rosa
 ];
 // la coppa della premiazione: oro, due manici, base nera con la fascia dorata
 function makeCup() {
