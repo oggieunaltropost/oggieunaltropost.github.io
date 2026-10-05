@@ -36,7 +36,7 @@ const STR = {
   en: {
     menu_sub: 'hold a glove on a button', where: 'WHERE', m_stanza: 'Your room', m_arena: 'Arena', m_spiaggia: 'Beach', m_grattacielo: 'Skyscraper', m_notte: 'City by night', m_deserto: 'Desert', m_neve: 'Snow', m_vulcano: 'Volcano', m_mare: 'Under the sea', m_luna: 'On the Moon', options: 'Options', options_title: 'OPTIONS', roster: 'Fighters', roster_title: 'FIGHTERS', vibration: 'CONTROLLER VIBRATION', pause_change: 'CHANGE DRILL', loading_short: 'Loading…', pointer: 'POINTER', pt_left: 'Left hand', pt_right: 'Right hand', pt_both: 'Both', cue_body: 'BODY', dm_random: 'RANDOM (ALL PUNCHES)', dm_pick: 'OR PICK THE PUNCHES', dm_start: 'START', dm_type: 'WHAT TO TRAIN', dm_guard: 'BACK TO GUARD', dt_para: 'Block', dt_schiva: 'Slip', dt_entrambi: 'Both', dk_jab: 'Jab', dk_cross: 'Cross', dk_hook_l: 'Left hook', dk_hook_r: 'Right hook', dk_upper_l: 'Left upper', dk_upper_r: 'Right upper', dk_body: 'Body hooks', m_palestra: 'Gym',
     level: 'LEVEL', l_facile: 'Easy', l_normale: 'Normal', l_difficile: 'Hard', l_impossibile: 'Impossible',
-    rounds: 'ROUNDS', duration: 'ROUND LENGTH', rule3: 'THREE KNOCKDOWN RULE', rule1: 'ONE KNOCKDOWN IS A KO', yes: 'Yes', no: 'No', language: 'LANGUAGE',
+    rounds: 'ROUNDS', duration: 'ROUND LENGTH', rule3: 'THREE KNOCKDOWN RULE', rule1: 'ONE KO ENDS THE FIGHT', yes: 'Yes', no: 'No', language: 'LANGUAGE',
     start: 'START FIGHT', quit: 'EXIT GAME',
     next_title: 'ROUND {n} IN {s} s', next_btn: 'GO TO NEXT ROUND',
     intro_title: 'FIGHT STARTS IN {s} s', skip_intro: 'START NOW',
