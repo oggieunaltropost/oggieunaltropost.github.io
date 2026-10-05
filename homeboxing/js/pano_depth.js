@@ -7,13 +7,16 @@ import * as THREE from 'three';
 
 const GW = 512, GH = 256, SKY = 880;
 
-export function panoDepth(url, tex, { eye = 1.65, uU = 0, onReady = null } = {}) {
+// clip: raggio (m) attorno al ring dove lo sfondo non si disegna: li' c'e' il terreno 3D del gioco (che porta lupo,
+// impronte, scorpione...) e il terreno della foto, qualche cm piu' alto, lo copriva
+export function panoDepth(url, tex, { eye = 1.65, uU = 0, onReady = null, clip = 0 } = {}) {
   const mesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.ShaderMaterial({
     fog: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 4, polygonOffsetUnits: 4,   // (dietro al terreno 3D vicino)
-    uniforms: { uPano: { value: tex }, uEye: { value: eye }, uU: { value: uU } },
+    uniforms: { uPano: { value: tex }, uEye: { value: eye }, uU: { value: uU }, uClip: { value: clip } },
     vertexShader: `varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: `uniform sampler2D uPano; uniform float uEye; uniform float uU; varying vec3 vP;
-      void main(){ vec3 d = normalize(vP - vec3(0.0, uEye, 0.0));
+    fragmentShader: `uniform sampler2D uPano; uniform float uEye; uniform float uU; uniform float uClip; varying vec3 vP;
+      void main(){ if (length(vP.xz) < uClip && vP.y < 3.0) discard;
+        vec3 d = normalize(vP - vec3(0.0, uEye, 0.0));
         vec2 uv = vec2(fract(atan(d.z, d.x) * 0.15915494 + 0.5 + uU), asin(clamp(d.y, -1.0, 1.0)) * 0.31830989 + 0.5);
         gl_FragColor = vec4(texture2D(uPano, uv).rgb, 1.0);
         #include <colorspace_fragment>

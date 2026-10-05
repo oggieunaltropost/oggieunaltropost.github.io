@@ -10,10 +10,10 @@
 //    poi si rialza e riprende a girare a caso.
 //  - vento freddo, passi nella neve e ululato con l'audio spaziale.
 import * as THREE from 'three';
-import { Bear } from './bear.js?v=20261005221637';
-import { panoDepth } from './pano_depth.js?v=20261005221637';
+import { Bear } from './bear.js?v=20261006002233';
+import { panoDepth } from './pano_depth.js?v=20261006002233';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import * as sfx from './sfx.js?v=20261005221637';
+import * as sfx from './sfx.js?v=20261006002233';
 
 const EYE = 1.65;                     // altezza della camera della foto
 const R_FADE0 = 11, R_FADE1 = 17;     // la neve 3D sfuma nella foto tra questi raggi
@@ -53,7 +53,7 @@ export class Snow {
     const img = new Image();
     const tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     img.onload = () => { tex.needsUpdate = true; this.skyLoaded = true; this._tintGround(img); if (this.onSkyLoad) this.onSkyLoad(); };
-    img.src = 'assets/neve_panorama.jpg?v=20261005221637';
+    img.src = 'assets/neve_panorama.jpg?v=20261006002233';
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
@@ -68,7 +68,7 @@ export class Snow {
     });
     const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 64, 32), m);
     sky.renderOrder = -10; sky.frustumCulled = false; this.group.add(sky);
-    this.group.add(panoDepth('assets/neve_profondita.png', tex, { eye: EYE, onReady: () => { sky.visible = false; } }));   // sfondo in 3D vero
+    this.group.add(panoDepth('assets/neve_profondita.png', tex, { eye: EYE, clip: R_FADE0 - 0.5, onReady: () => { sky.visible = false; } }));   // sfondo in 3D vero
   }
   // ---------------------------------------------------------------- neve vicina
   _ground() {
@@ -204,7 +204,7 @@ export class Snow {
     g.setTransform(1, 0, 0, 0.5, 0, 16); g.fillStyle = gr; g.fillRect(0, -32, 128, 128);
     const sh = new THREE.Mesh(new THREE.PlaneGeometry(0.75, 1.5), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, opacity: 0.45, color: 0x223355, polygonOffset: true, polygonOffsetFactor: -3 }));
     sh.geometry.rotateX(-Math.PI / 2); sh.geometry.rotateY(Math.PI / 2); sh.renderOrder = -3; this.shadow = sh; this.group.add(sh);
-    new GLTFLoader().load('assets/lupo.glb?v=20261005221637', gl => {
+    new GLTFLoader().load('assets/lupo.glb?v=20261006002233', gl => {
       let skinned = null; gl.scene.traverse(o => { if (o.isSkinnedMesh) skinned = o; });
       if (!skinned) return;
       this.wolf.add(gl.scene);
