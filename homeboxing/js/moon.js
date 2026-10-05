@@ -9,9 +9,9 @@
 //    (poca gravita' e niente aria: traiettorie pulite) e ricade piano, anello di polvere; resta il cratere
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
 import * as THREE from 'three';
-import { contactShadow } from './contact_shadow.js?v=20261005212104';
-import { panoGround } from './pano_ground.js?v=20261005212104';
-import * as sfx from './sfx.js?v=20261005212104';
+import { contactShadow } from './contact_shadow.js?v=20261005214307';
+import { panoDepth } from './pano_depth.js?v=20261005214307';
+import * as sfx from './sfx.js?v=20261005214307';
 
 const EYE = 1.65, R_FADE0 = 10, R_FADE1 = 16, G = 1.62;          // gravita' lunare
 const SUN = new THREE.Vector3(-0.4532, 0.4226, 0.7849).normalize();  // dalla foto (Blender (0.7849,-0.4532,0.4226))
@@ -44,7 +44,7 @@ export class Moon {
     const img = new Image();
     const tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     img.onload = () => { tex.needsUpdate = true; this.skyLoaded = true; this._tintGround(img); if (this.onSkyLoad) this.onSkyLoad(); };
-    img.src = 'assets/luna_panorama.jpg?v=20261005212104';
+    img.src = 'assets/luna_panorama.jpg?v=20261005214307';
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false, uniforms: { uPano: { value: tex } },
@@ -58,7 +58,7 @@ export class Moon {
     });
     const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 64, 32), m);
     sky.renderOrder = -10; sky.frustumCulled = false; this.group.add(sky);
-    this.group.add(panoGround(tex, { eye: EYE, rIn: R_FADE0 - 1 }));     // la piana lontana alla sua distanza vera
+    this.group.add(panoDepth('assets/luna_profondita.png', tex, { eye: EYE, onReady: () => { sky.visible = false; } }));   // sfondo in 3D vero
   }
   // ---------------------------------------------------------------- regolite vicina, con i crateretti
   _h(x, z) {
@@ -317,7 +317,7 @@ export class Moon {
   }
   // ombra sotto il ring (sulla regolite, che non riceve ombre)
   setRing(size) {
-    if (!this.ringShadow) { this.ringShadow = contactShadow(1, 1, 0.55); this.ringShadow.position.y = 0.01; this.group.add(this.ringShadow); }
+    if (!this.ringShadow) { this.ringShadow = contactShadow(1, 1, 0.55, 0.66); this.ringShadow.position.y = 0.01; this.group.add(this.ringShadow); }
     this.ringShadow.scale.set((size + 0.3) * 1.45, (size + 0.3) * 1.45, 1);
   }
   setDrawHeight(h) { this.dustMat.uniforms.uH.value = h * 0.5; }

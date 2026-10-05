@@ -4,17 +4,17 @@
 // a te; le animazioni (chi combatte, chi passa il turno, il campione che arriva alla coppa) sono oggetti 3D
 // che si muovono sopra la tela.
 import * as THREE from 'three';
-import { t } from './i18n.js?v=20261005212104';
+import { t } from './i18n.js?v=20261005214307';
 
 // misure del tabellone: cambiano con il numero di partecipanti (32: 5 turni, 64: 6 turni e tela piu' alta)
 let W = 2048, H = 1024;                    // tela del tabellone
-const PW = 1.6; let PH = PW * H / W;       // pannello in metri
+let PW = 2.0; let PH = PW * H / W;       // pannello in metri (piu' grande: si leggeva poco)
 let BW = 150, BH = 40, COL = 172;          // casella: larghezza, altezza, passo tra le colonne (px)
 let TOP = 150, BOT = 990, NR = 5;          // NR = turni
 function setLayout(size) {
   NR = Math.round(Math.log2(size));
-  if (NR >= 6) { H = 1500; BW = 128; BH = 31; COL = 140; TOP = 150; BOT = 1465; }
-  else { H = 1024; BW = 150; BH = 40; COL = 172; TOP = 150; BOT = 990; }
+  if (NR >= 6) { H = 1500; BW = 132; BH = 34; COL = 140; TOP = 150; BOT = 1465; PW = 2.15; }
+  else { H = 1024; BW = 150; BH = 40; COL = 172; TOP = 150; BOT = 990; PW = 2.0; }
   PH = PW * H / W;
 }
 const CHAMP_Y = () => Math.round(H * 0.46), CUP_Y = () => Math.round(H * 0.322);
@@ -255,7 +255,8 @@ export class BracketView {
     g.fillStyle = '#7a5a10'; g.font = '900 30px system-ui, sans-serif'; g.textAlign = 'center'; g.fillText('★', x, y - 40);
   }
   open(head, yaw) {
-    this.group.position.set(head.x - Math.sin(yaw) * 1.05, head.y + 0.05, head.z - Math.cos(yaw) * 1.05);
+    const dd = NR >= 6 ? 1.3 : 1.2;                     // un po' piu' lontano: il tabellone e' piu' grande
+    this.group.position.set(head.x - Math.sin(yaw) * dd, head.y + 0.05, head.z - Math.cos(yaw) * dd);
     this.group.rotation.set(0, yaw, 0);
     this.group.visible = true;
   }

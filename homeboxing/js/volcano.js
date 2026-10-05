@@ -8,9 +8,9 @@
 //  - l'eruzione sul vulcano lontano: bagliore del cratere che pulsa, lapilli incandescenti che salgono e ricadono,
 //    nuvole di fumo che escono e salgono; ogni tanto un'esplosione piu' forte col boato.
 import * as THREE from 'three';
-import { panoGround } from './pano_ground.js?v=20261005212104';
-import { contactShadow } from './contact_shadow.js?v=20261005212104';
-import * as sfx from './sfx.js?v=20261005212104';
+import { panoDepth } from './pano_depth.js?v=20261005214307';
+import { contactShadow } from './contact_shadow.js?v=20261005214307';
+import * as sfx from './sfx.js?v=20261005214307';
 
 const EYE = 1.65;
 const R_FADE0 = 11, R_FADE1 = 17;
@@ -41,7 +41,7 @@ export class Volcano {
     const img = new Image();
     const tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     img.onload = () => { tex.needsUpdate = true; this.skyLoaded = true; this._tintGround(img); if (this.onSkyLoad) this.onSkyLoad(); };
-    img.src = 'assets/vulcano_panorama.jpg?v=20261005212104';
+    img.src = 'assets/vulcano_panorama.jpg?v=20261005214307';
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false, uniforms: { uPano: { value: tex } },
@@ -55,7 +55,7 @@ export class Volcano {
     });
     const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 64, 32), m);
     sky.renderOrder = -10; sky.frustumCulled = false; this.group.add(sky);
-    this.group.add(panoGround(tex, { eye: EYE, rIn: R_FADE0 - 1 }));     // la piana lontana alla sua distanza vera
+    this.group.add(panoDepth('assets/vulcano_profondita.png', tex, { eye: EYE, onReady: () => { sky.visible = false; } }));   // sfondo in 3D vero
   }
   // ---------------------------------------------------------------- terra lavica vicina
   _ground() {
@@ -445,7 +445,7 @@ export class Volcano {
   }
   // ombra sotto il ring (la roccia non riceve ombre: senza, il ring sembrava sospeso)
   setRing(size) {
-    if (!this.ringShadow) { this.ringShadow = contactShadow(1, 1, 0.75); this.ringShadow.position.y = 0.006; this.group.add(this.ringShadow); }
+    if (!this.ringShadow) { this.ringShadow = contactShadow(1, 1, 0.75, 0.66); this.ringShadow.position.y = 0.006; this.group.add(this.ringShadow); }
     this.ringShadow.scale.set((size + 0.35) * 1.45, (size + 0.35) * 1.45, 1);
   }
   setDrawHeight(h) { this._drawH = h; }

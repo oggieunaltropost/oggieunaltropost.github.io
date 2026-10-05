@@ -2,36 +2,37 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261005212104';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261005212104';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261005212104';
-import { Player, SimInput } from './player.js?v=20261005212104';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261005212104';
-import { Room } from './room.js?v=20261005212104';
-import { Arena } from './arena.js?v=20261005212104';
-import { Beach } from './beach.js?v=20261005212104';
-import { Rooftop } from './rooftop.js?v=20261005212104';
-import { Desert } from './desert.js?v=20261005212104';
-import { Snow } from './snow.js?v=20261005212104';
-import { Volcano } from './volcano.js?v=20261005212104';
-import { Sea, WATER } from './sea.js?v=20261005212104';
-import { Moon } from './moon.js?v=20261005212104';
-import { FighterCard } from './roster.js?v=20261005212104';
-import { Gym } from './gym.js?v=20261005212104';
-import { BagTraining } from './training.js?v=20261005212104';
-import { RopeTraining } from './rope.js?v=20261005212104';
-import { SpeedBagTraining } from './speedbag.js?v=20261005212104';
-import { SlipLineTraining } from './slipline.js?v=20261005212104';
-import { DoubleEndTraining } from './doubleend.js?v=20261005212104';
-import { Sparring } from './sparring.js?v=20261005212104';
-import { RingGirl } from './ringgirl.js?v=20261005212104';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261005212104';
-import * as sfx from './sfx.js?v=20261005212104';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261005212104';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261005212104';
-import { Tournament, BracketView } from './tournament.js?v=20261005212104';
-import { CpuMatch } from './cpu_match.js?v=20261005212104';
-import { TowerView } from './tower.js?v=20261005212104';
+import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261005214307';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261005214307';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261005214307';
+import { Player, SimInput } from './player.js?v=20261005214307';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261005214307';
+import { Room } from './room.js?v=20261005214307';
+import { Arena } from './arena.js?v=20261005214307';
+import { Beach } from './beach.js?v=20261005214307';
+import { Rooftop } from './rooftop.js?v=20261005214307';
+import { Desert } from './desert.js?v=20261005214307';
+import { Snow } from './snow.js?v=20261005214307';
+import { Volcano } from './volcano.js?v=20261005214307';
+import { Sea, WATER } from './sea.js?v=20261005214307';
+import { Moon } from './moon.js?v=20261005214307';
+import { FighterCard } from './roster.js?v=20261005214307';
+import { Gym } from './gym.js?v=20261005214307';
+import { BagTraining } from './training.js?v=20261005214307';
+import { RopeTraining } from './rope.js?v=20261005214307';
+import { SpeedBagTraining } from './speedbag.js?v=20261005214307';
+import { SlipLineTraining } from './slipline.js?v=20261005214307';
+import { RingSkirt } from './ring_skirt.js?v=20261005214307';
+import { DoubleEndTraining } from './doubleend.js?v=20261005214307';
+import { Sparring } from './sparring.js?v=20261005214307';
+import { RingGirl } from './ringgirl.js?v=20261005214307';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261005214307';
+import * as sfx from './sfx.js?v=20261005214307';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261005214307';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261005214307';
+import { Tournament, BracketView } from './tournament.js?v=20261005214307';
+import { CpuMatch } from './cpu_match.js?v=20261005214307';
+import { TowerView } from './tower.js?v=20261005214307';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -89,7 +90,7 @@ const board = new Scoreboard();
 arena.add(board.mesh);
 const PLAYER_Z = 0.8;                 // dove sta il giocatore rispetto al centro del ring (se c'e' spazio)
 let ringSize = 0, ringObj = null, playerZ = PLAYER_Z;
-let snowEnv = null, volcEnv = null, seaEnv = null, moonEnv = null, desertEnv = null;   // (seaEnv: sotto il mare; la sfera dipende dalla misura del ring)               // stage neve (creato in applyMode; qui perche' setRing lo usa subito)
+let snowEnv = null, volcEnv = null, seaEnv = null, moonEnv = null, desertEnv = null, ringSkirt = null, ringDrop = 0;   // (seaEnv: sotto il mare; la sfera dipende dalla misura del ring)               // stage neve (creato in applyMode; qui perche' setRing lo usa subito)
 // Tabellone: parte al suo posto (dietro all'avversario, in alto a destra). Si sposta SOLO se esce dal campo
 // visivo: allora gira piano attorno a te (stessa distanza e altezza) finche' rientra un po' dentro la vista, e li' resta.
 const _bw = new THREE.Vector3();
@@ -136,6 +137,7 @@ function setRing(size, pz) {
     ringObj = buildRing(size); arena.add(ringObj); ringSize = size;
     if (snowEnv) snowEnv.setRing(size);
     if (moonEnv) moonEnv.setRing(size); if (volcEnv) volcEnv.setRing(size); if (desertEnv) desertEnv.setRing(size);
+    if (ringSkirt) ringSkirt.set(size, ringDrop);
     if (seaEnv) { arena.remove(seaEnv.group); seaEnv = null; if (mode === 'mare') applyMode(); }   // sfera rifatta per il nuovo ring
   }
   arena.updateMatrixWorld(true);
@@ -213,6 +215,12 @@ function applyMode() {
   if (arenaEnv) arenaEnv.group.visible = inArena;
   if (beachEnv) beachEnv.group.visible = onBeach;
   room.group.visible = mode === 'stanza';
+  // ring rialzato: dove c'e' il terreno vero tutto intorno, il terreno sta 90 cm sotto il tappeto e la piattaforma
+  // ha il suo telo (come un ring vero); il resto degli stage resta com'e'
+  const drop = { luna: 0.9, vulcano: 0.9 }[mode] || 0;
+  for (const e of [moonEnv, volcEnv, snowEnv]) if (e) e.group.position.y = e.group.visible ? -drop : 0;
+  if (!ringSkirt) { ringSkirt = new RingSkirt(); arena.add(ringSkirt.group); }
+  ringSkirt.set(ringSize || RING_SIZE, drop); ringDrop = drop;
   if (inGym) {                                         // palestra la sera: luci calde e soffuse dall'alto, sala in penombra
     scene.environment = roomEnv; scene.environmentRotation.set(0, 0, 0);
     hemi.color.set(0xffe2c0); hemi.groundColor.set(0x2a2018); hemi.intensity = 0.35;
@@ -359,8 +367,8 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261005212104`); t.colorSpace = THREE.SRGBColorSpace; return t; };
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261005212104`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261005214307`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261005214307`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -1150,7 +1158,13 @@ const loader = (() => {
   const ring = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.09), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(hc), transparent: true, depthTest: false, side: THREE.DoubleSide }));
   ring.renderOrder = 1300; G.add(ring);
   // schermata nera attorno alla testa mentre lo stage si prepara (prima si vedeva mezza stanza e mezzo stage)
-  const dark = new THREE.Mesh(new THREE.SphereGeometry(1.5, 32, 20), new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide, transparent: true, opacity: 0, depthTest: false, depthWrite: false, fog: false }));
+  // nero di caricamento: un velo disegnato direttamente sull'immagine (non e' un oggetto nello spazio: nel visore la
+  // sfera attorno alla testa lasciava vedere la stanza ai lati)
+  const dark = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+    uniforms: { opacity: { value: 0 } }, transparent: true, depthTest: false, depthWrite: false, fog: false,
+    vertexShader: 'void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }',
+    fragmentShader: 'uniform float opacity; void main(){ gl_FragColor = vec4(0.0, 0.0, 0.0, opacity); }' }));
+  dark.material.opacity = 0; Object.defineProperty(dark.material, 'opacity', { get() { return this.uniforms.opacity.value; }, set(v) { this.uniforms.opacity.value = v; } });
   dark.renderOrder = 1290; dark.visible = false; dark.frustumCulled = false;
   return { G, ring, dark, t: 0 };
 })();
@@ -1181,8 +1195,6 @@ function updateLoader(dt) {
   const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
   const p = new THREE.Vector3(), q = new THREE.Quaternion(), sc = new THREE.Vector3();
   cam.matrixWorld.decompose(p, q, sc);
-  if (renderer.xr.isPresenting && player.head) p.copy(player.head);
-  if (loader.dark.visible) loader.dark.position.copy(p);
   if (!busy) return;
   loader.G.position.copy(p).add(new THREE.Vector3(0, 0, -0.9).applyQuaternion(q)); loader.G.quaternion.copy(q);
   // la clessidra: ferma un attimo, poi si capovolge
@@ -1193,13 +1205,16 @@ function updateLoader(dt) {
 // Cupola di fondo: nel visore (realta' mista) lo "sfondo" della scena non viene disegnato e li' si vede la stanza
 // vera (es. sopra le tribune dell'arena). Questa sfera scura, sempre attorno a te, copre ogni buco; gli stage la
 // coprono con il loro cielo. Solo nello stage "la tua stanza" non c'e'.
-const voidDome = new THREE.Mesh(new THREE.SphereGeometry(400, 32, 16), new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide, depthWrite: false, fog: false, toneMapped: false }));
-voidDome.renderOrder = -20; voidDome.frustumCulled = false; voidDome.name = 'cupola di fondo';
+const voidDome = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+  uniforms: { color: { value: new THREE.Color(0) } }, depthTest: false, depthWrite: false, fog: false,
+  vertexShader: 'void main(){ gl_Position = vec4(position.xy, 0.9999, 1.0); }',
+  fragmentShader: 'uniform vec3 color; void main(){ gl_FragColor = vec4(color, 1.0); }' }));
+voidDome.material.color = voidDome.material.uniforms.color.value;
+voidDome.renderOrder = -1000; voidDome.frustumCulled = false; voidDome.name = 'fondo nero';
 scene.add(voidDome);
 function updateDome() {
   voidDome.visible = mode !== 'stanza';
   if (!voidDome.visible) return;
-  voidDome.position.copy(player.head);
   voidDome.material.color.copy(scene.background && scene.background.isColor ? scene.background : new THREE.Color(0));
 }
 function tick(dt, frame) {
@@ -1453,7 +1468,7 @@ function sparSounds(ev) {
   }
 }
 // ---- sparring: il partner (caschetto, alto come te) prende il posto dell'avversario sul ring della palestra
-const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261005212104', evenSkin: false,
+const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261005214307', evenSkin: false,
   band: { bg: '#1a1a1c', line: '#c4122a', text: '#f2ece0', label: 'SPARRING' } };
 let spar = null, partner = null, savedMike = null, sparLoading = false;
 async function startSparring(kind, defKinds = null) {

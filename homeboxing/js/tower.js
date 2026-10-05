@@ -1,7 +1,7 @@
 // Modalita' Sopravvivenza: la torre. Un piano per ogni avversario (dal basso), tu a destra del piano che devi
 // conquistare. Dopo una vittoria il tuo gettone sale al piano sopra con scia, lampo e suono; in cima la corona.
 import * as THREE from 'three';
-import { t } from './i18n.js?v=20261005212104';
+import { t } from './i18n.js?v=20261005214307';
 
 const W = 1024, H = 1600;                    // tela
 const PW = 0.9, PH = PW * H / W;             // pannello in metri
@@ -176,7 +176,8 @@ export class TowerView {
     if (this.flash.material.opacity > 0) { this.flash.material.opacity = Math.max(0, this.flash.material.opacity - dt * 1.6); this.flash.scale.setScalar(1 + (1 - this.flash.material.opacity) * 1.5); }
     if (this.intro) {                                  // scorrimento iniziale: ferma un attimo in cima, scende, si ferma sul primo
       const I = this.intro; I.t += dt;
-      const k = Math.min(1, Math.max(0, (I.t - 1.0) / 3.2)), e = k * k * (3 - 2 * k);
+      const dur = Math.max(3.2, 0.32 * Math.abs(I.from - I.to));   // stessa velocita' della torre da 16 (piu' piani = piu' tempo)
+      const k = Math.min(1, Math.max(0, (I.t - 1.0) / dur)), e = k * k * (3 - 2 * k);
       I.focus = I.from + (I.to - I.from) * e; this.draw();
       if (k >= 1) { this.intro = null; this.token.visible = true; this.show(this.S, I.sub); }
       return;
