@@ -626,12 +626,12 @@ transformed += uSwInv * uSwing * aSw;`);
     const free = Math.max(0, 1 - total);
     const lv = _d.copy(this.vel).applyQuaternion(_q.copy(this.root.quaternion).invert());
     const sp = Math.hypot(lv.x, lv.z);
-    const k = Math.min(1, Math.max(0, (sp - 0.05) / 0.2));
+    const k = Math.min(1, Math.max(0, (sp - 0.03) / 0.12));
     const s2 = Math.max(1e-6, lv.x * lv.x + lv.z * lv.z);
     const want = { step_f: lv.z > 0 ? lv.z * lv.z / s2 : 0, step_b: lv.z < 0 ? lv.z * lv.z / s2 : 0,
       step_l: lv.x > 0 ? lv.x * lv.x / s2 : 0, step_r: lv.x < 0 ? lv.x * lv.x / s2 : 0 };
     let locoSum = 0;
-    const ts = Math.min(2.2, Math.max(0.6, sp / STEP_SPEED));
+    const ts = Math.min(2.2, Math.max(0.15, sp / STEP_SPEED));   // (piano = passi lenti: prima sotto il 60% i piedi pattinavano)
     for (const [n, l] of Object.entries(this.loco)) {
       l.w += (k * want[n] - l.w) * Math.min(1, dt * 10);
       l.action.setEffectiveWeight(free * l.w);
