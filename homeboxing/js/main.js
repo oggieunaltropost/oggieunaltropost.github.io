@@ -2,35 +2,36 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261005200203';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261005200203';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261005200203';
-import { Player, SimInput } from './player.js?v=20261005200203';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261005200203';
-import { Room } from './room.js?v=20261005200203';
-import { Arena } from './arena.js?v=20261005200203';
-import { Beach } from './beach.js?v=20261005200203';
-import { Rooftop } from './rooftop.js?v=20261005200203';
-import { Desert } from './desert.js?v=20261005200203';
-import { Snow } from './snow.js?v=20261005200203';
-import { Volcano } from './volcano.js?v=20261005200203';
-import { Sea, WATER } from './sea.js?v=20261005200203';
-import { Moon } from './moon.js?v=20261005200203';
-import { FighterCard } from './roster.js?v=20261005200203';
-import { Gym } from './gym.js?v=20261005200203';
-import { BagTraining } from './training.js?v=20261005200203';
-import { RopeTraining } from './rope.js?v=20261005200203';
-import { SpeedBagTraining } from './speedbag.js?v=20261005200203';
-import { DoubleEndTraining } from './doubleend.js?v=20261005200203';
-import { Sparring } from './sparring.js?v=20261005200203';
-import { RingGirl } from './ringgirl.js?v=20261005200203';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261005200203';
-import * as sfx from './sfx.js?v=20261005200203';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261005200203';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261005200203';
-import { Tournament, BracketView } from './tournament.js?v=20261005200203';
-import { CpuMatch } from './cpu_match.js?v=20261005200203';
-import { TowerView } from './tower.js?v=20261005200203';
+import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261005202554';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261005202554';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261005202554';
+import { Player, SimInput } from './player.js?v=20261005202554';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261005202554';
+import { Room } from './room.js?v=20261005202554';
+import { Arena } from './arena.js?v=20261005202554';
+import { Beach } from './beach.js?v=20261005202554';
+import { Rooftop } from './rooftop.js?v=20261005202554';
+import { Desert } from './desert.js?v=20261005202554';
+import { Snow } from './snow.js?v=20261005202554';
+import { Volcano } from './volcano.js?v=20261005202554';
+import { Sea, WATER } from './sea.js?v=20261005202554';
+import { Moon } from './moon.js?v=20261005202554';
+import { FighterCard } from './roster.js?v=20261005202554';
+import { Gym } from './gym.js?v=20261005202554';
+import { BagTraining } from './training.js?v=20261005202554';
+import { RopeTraining } from './rope.js?v=20261005202554';
+import { SpeedBagTraining } from './speedbag.js?v=20261005202554';
+import { SlipLineTraining } from './slipline.js?v=20261005202554';
+import { DoubleEndTraining } from './doubleend.js?v=20261005202554';
+import { Sparring } from './sparring.js?v=20261005202554';
+import { RingGirl } from './ringgirl.js?v=20261005202554';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261005202554';
+import * as sfx from './sfx.js?v=20261005202554';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261005202554';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261005202554';
+import { Tournament, BracketView } from './tournament.js?v=20261005202554';
+import { CpuMatch } from './cpu_match.js?v=20261005202554';
+import { TowerView } from './tower.js?v=20261005202554';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -357,8 +358,8 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261005200203`); t.colorSpace = THREE.SRGBColorSpace; return t; };
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261005200203`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261005202554`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261005202554`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -560,7 +561,7 @@ let rosterHover = null;
 const trainMenu = new MenuPanel({ title: t('training'), titleTk: 'training', titleH: 0.1, width: 1.0, height: 0.98, draggable: true, rows: withText([
   { y: 0.1, h: 0.16, buttons: [{ id: 't:sacco', tk: 'tr_bag', w: 0.22, color: 0x8a1a20 }, { id: 't:speed', tk: 'tr_speed', w: 0.22, color: 0x8a5a1a },
     { id: 't:double', tk: 'tr_double', w: 0.22, color: 0x6a1f8a }, { id: 't:rope', tk: 'tr_rope', w: 0.22, color: 0x1f6f8a }] },
-  { y: -0.1, h: 0.13, buttons: [{ id: 't:spar', tk: 'tr_spar', w: 0.46, color: 0x9a1418 }] },
+  { y: -0.1, h: 0.13, buttons: [{ id: 't:slip', tk: 'tr_slip', w: 0.3, color: 0x2e7a3a }, { id: 't:spar', tk: 'tr_spar', w: 0.46, color: 0x9a1418 }] },
   { y: -0.32, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }] },
 ]) });
 // Sparring: libero oppure esercizio a scelta
@@ -1280,7 +1281,8 @@ function tick(dt, frame) {
     if (trainKind === 'corda') {                          // corda: niente guantoni, ci sono le fasce e le manopole
       for (const g of Object.values(player.gloves)) g.mesh.visible = false;
       if (!game.paused) ropeTr.update(dt, player, cam_, arena.position.y);
-    } else if (trainKind === 'pera' || trainKind === 'doppio') { if (!game.paused) trainer().update(dt, player, cam_); }
+    } else if (trainKind === 'spago') { if (!game.paused) slipTr.update(dt, player, cam_); }
+    else if (trainKind === 'pera' || trainKind === 'doppio') { if (!game.paused) trainer().update(dt, player, cam_); }
     else if (!game.paused) bagTr.update(dt, player, cam_);
   } else if (mike && game.phase !== 'watch') {
     mike.update(dt, player);
@@ -1377,8 +1379,8 @@ function reopenMenus() {
 function closeMenus() { for (const m of MENUS) m.close(); bracket.close(); tower.close(); tourBtns.close(); }
 function openMenu(m) { closeMenus(); m.select(menuChoices()); m.open(player.head, menuYaw()); }
 // ---- allenamento al sacco: in palestra, il ring sparisce e il sacco pende davanti a te
-let bagTr = null, ropeTr = null, speedTr = null, deTr = null, trainKind = 'sacco';
-const trainer = () => ({ corda: ropeTr, pera: speedTr, doppio: deTr })[trainKind] || bagTr;
+let bagTr = null, ropeTr = null, speedTr = null, deTr = null, slipTr = null, trainKind = 'sacco';
+const trainer = () => ({ corda: ropeTr, pera: speedTr, doppio: deTr, spago: slipTr })[trainKind] || bagTr;
 function startTraining(kind = 'sacco') {
   trainKind = kind;
   closeMenus();
@@ -1386,11 +1388,19 @@ function startTraining(kind = 'sacco') {
   if (kind === 'sacco' && !bagTr) bagTr = new BagTraining(arena);
   if (kind === 'corda' && !ropeTr) ropeTr = new RopeTraining(arena, scene);
   if (kind === 'pera' && !speedTr) speedTr = new SpeedBagTraining(arena);
+  if (kind === 'spago' && !slipTr) slipTr = new SlipLineTraining(arena);
   if (kind === 'doppio' && !deTr) { deTr = new DoubleEndTraining(arena); deTr.onTaken = k => flash.hit(0.4 + 0.6 * k); }
   newMatch(); game.phase = 'training'; game.message = '';
   setPeople(false); if (ringObj) ringObj.visible = false; board.mesh.visible = false; stool.visible = false;
   mike.enabled = false;
   const headY = arena.worldToLocal(player.head.clone()).y;
+  if (kind === 'spago') {                        // spago: sul ring, in mezzo (la palestra resta com'e' negli incontri)
+    if (ringObj) ringObj.visible = true;
+    slipTr.start(playerZ, headY, ringSize);
+    if (gymEnv) gymEnv.setTraining(false);
+    if (headOutOfRing()) recenterPlayer();
+    return;
+  }
   if (kind === 'pera' || kind === 'doppio') trainer().start(playerZ, headY); else trainer().start(playerZ);
   if (gymEnv) { gymEnv.setTraining(true, playerZ - 0.85, kind); gymEnv.onSay = (k, p) => { sfx.voiceAt('j_' + k, p, renderer.xr.isPresenting ? renderer.xr.getCamera() : camera); return sfx.voiceDur('j_' + k); }; }
   if (headOutOfRing()) recenterPlayer();
@@ -1412,7 +1422,7 @@ function sparSounds(ev) {
   }
 }
 // ---- sparring: il partner (caschetto, alto come te) prende il posto dell'avversario sul ring della palestra
-const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261005200203', evenSkin: false,
+const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261005202554', evenSkin: false,
   band: { bg: '#1a1a1c', line: '#c4122a', text: '#f2ece0', label: 'SPARRING' } };
 let spar = null, partner = null, savedMike = null, sparLoading = false;
 async function startSparring(kind, defKinds = null) {
@@ -1761,6 +1771,7 @@ function updateMainMenu(dt, gloves) {
   if (id.startsWith('sp:')) { lastTrainMenu = 'spar'; startSparring(id.slice(3)); return; }
   if (id === 't:sacco') { startTraining('sacco'); return; }
   if (id === 't:rope') { startTraining('corda'); return; }
+  if (id === 't:slip') { startTraining('spago'); return; }
   if (id === 't:speed') { startTraining('pera'); return; }
   if (id === 't:double') { startTraining('doppio'); return; }
   if (id === 'gm:arcade' || id === 'gm:tour' || id === 'gm:surv') {
@@ -1877,7 +1888,7 @@ loadMikeGLTF(FIGHTERS[fighterId].glb, f => statusT('loading', { p: Math.min(100,
   bruises = new Bruises(mike.model);
   mike.bounds = keepInRing;
   placeArena(new THREE.Vector3(0, 1.65, 0), 0);
-  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.getUpFx = getUp; window.gameApi = { setStage, newMatch, showMainMenu, openPause, pause, startTraining, bag: () => bagTr, rope: () => ropeTr, spar: () => spar, startSparring, speed: () => speedTr, de: () => deTr, envs: () => ({ roofEnv, nightEnv, desertEnv, gymEnv, snowEnv, volcEnv, seaEnv, moonEnv }), setFighter, startIntro, startPresentation, girl: () => girl, arena: () => arena, ringSize: () => ringSize }; window.sweatFx = sweat;   // per le prove
+  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.getUpFx = getUp; window.gameApi = { setStage, newMatch, showMainMenu, openPause, pause, startTraining, bag: () => bagTr, rope: () => ropeTr, slip: () => slipTr, spar: () => spar, startSparring, speed: () => speedTr, de: () => deTr, envs: () => ({ roofEnv, nightEnv, desertEnv, gymEnv, snowEnv, volcEnv, seaEnv, moonEnv }), setFighter, startIntro, startPresentation, girl: () => girl, arena: () => arena, ringSize: () => ringSize }; window.sweatFx = sweat;   // per le prove
   window.tourApi = { MENUS, bracket, tourBtns, show: () => showMainMenu(), watchTour: () => { surv = null; tour = new Tournament(FIGHTERS, true, tourSize); specRound(); }, get pending() { return pending; }, open: m => openMenu(MENUS[m]), start: () => { tour = new Tournament(FIGHTERS, false, tourSize); showBracketNext(); },
     after: win => { game.result = { winner: win ? 'player' : 'mike' }; showBracketAfter(); }, fight: () => startFight(tour.opponent()), setStageChoice: c => { stageChoice = c; }, get mode() { return mode; }, get tour() { return tour; }, get cpu() { return cpu; }, skipBtn, tower, startSurvival, get surv() { return surv; }, survAfter: win => { game.result = { winner: win ? 'player' : 'mike' }; showTowerAfter(); } };   // (prove)
   status('');
