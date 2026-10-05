@@ -9,7 +9,8 @@
 //    (poca gravita' e niente aria: traiettorie pulite) e ricade piano, anello di polvere; resta il cratere
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261005203901';
+import { contactShadow } from './contact_shadow.js?v=20261005204908';
+import * as sfx from './sfx.js?v=20261005204908';
 
 const EYE = 1.65, R_FADE0 = 10, R_FADE1 = 16, G = 1.62;          // gravita' lunare
 const SUN = new THREE.Vector3(-0.4532, 0.4226, 0.7849).normalize();  // dalla foto (Blender (0.7849,-0.4532,0.4226))
@@ -34,7 +35,7 @@ export class Moon {
       const a = Math.random() * Math.PI * 2, d = 4.5 + Math.random() * 11, R = 0.3 + Math.random() ** 2 * 1.6;
       this._craters.push([Math.cos(a) * d, Math.sin(a) * d, R]);
     }
-    this._sky(); this._ground(); this._prints(); this._lander(); this._comet(); this._impacts();
+    this._sky(); this._ground(); this._lander(); this._comet(); this._impacts();      // (tolte le impronte: sembravano strane)
     this.nextComet = 8 + Math.random() * 10; this.nextImpact = 6 + Math.random() * 8;
   }
   // ---------------------------------------------------------------- foto a 360 gradi
@@ -42,7 +43,7 @@ export class Moon {
     const img = new Image();
     const tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     img.onload = () => { tex.needsUpdate = true; this.skyLoaded = true; this._tintGround(img); if (this.onSkyLoad) this.onSkyLoad(); };
-    img.src = 'assets/luna_panorama.jpg?v=20261005203901';
+    img.src = 'assets/luna_panorama.jpg?v=20261005204908';
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false, uniforms: { uPano: { value: tex } },
@@ -167,7 +168,13 @@ export class Moon {
     const ladder = new THREE.Group(); ladder.position.set(2.45, 0.9, 0); ladder.rotation.z = 0.35; L.add(ladder);
     for (const s of [-0.25, 0.25]) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.9, 0.05), foil); r.position.z = s; ladder.add(r); }
     for (let k = 0; k < 6; k++) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.5), foil); r.position.y = -0.8 + k * 0.32; ladder.add(r); }
-    L.position.set(-17, -0.12, -21); L.rotation.y = 0.6; L.scale.setScalar(0.9);   // (zampe appena affondate nella polvere)
+    L.position.set(-6.8, -0.04, -7.4); L.rotation.y = 0.6; L.scale.setScalar(0.9);   // (dentro la regolite 3D, zampe appena affondate nella polvere)
+    // ombre di contatto: sotto il corpo e sotto ogni piede (senza luci il terreno non riceve ombre vere)
+    const sh = contactShadow(4.4, 4.4, 0.55); sh.position.set(-6.8, 0.012, -7.4); this.group.add(sh);
+    for (let k = 0; k < 4; k++) {
+      const a = k * Math.PI / 2 + Math.PI / 4 + 0.6, ps = contactShadow(1.0, 1.0, 0.7);
+      ps.position.set(-6.8 + Math.cos(a) * 2.88, 0.013, -7.4 - Math.sin(a) * 2.88); this.group.add(ps);
+    }
     L.traverse(o => { if (o.isMesh) { o.castShadow = true; } });
     this.group.add(L);
   }
@@ -304,6 +311,11 @@ export class Moon {
       L.array[i] = Math.min(1, D.life[i] / 1.2) * Math.min(1, (D.max[i] - D.life[i]) * 4);
     }
     p.needsUpdate = true; L.needsUpdate = true; D.geo.attributes.aSize.needsUpdate = true;
+  }
+  // ombra sotto il ring (sulla regolite, che non riceve ombre)
+  setRing(size) {
+    if (!this.ringShadow) { this.ringShadow = contactShadow(1, 1, 0.55); this.ringShadow.position.y = 0.01; this.group.add(this.ringShadow); }
+    this.ringShadow.scale.set((size + 0.3) * 1.45, (size + 0.3) * 1.45, 1);
   }
   setDrawHeight(h) { this.dustMat.uniforms.uH.value = h * 0.5; }
   // ---------------------------------------------------------------- un fotogramma

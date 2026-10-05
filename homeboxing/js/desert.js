@@ -3,7 +3,8 @@
 // fotografica red_sand portata al colore della foto, sfuma nella foto entro pochi metri) e ogni tanto uno
 // scorpione che esce dalla sabbia, cammina un po' e si risotterra. Le rocce e i cespugli sono quelli veri della foto.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261005203901';
+import { contactShadow } from './contact_shadow.js?v=20261005204908';
+import * as sfx from './sfx.js?v=20261005204908';
 
 const PANO_U = 0.0;
 const SUN = new THREE.Vector3(0.522, 0.744, 0.417).normalize();      // il sole della foto
@@ -19,7 +20,7 @@ export class Desert {
     this.t = 0;
   }
   _sky() {
-    const tex = new THREE.TextureLoader().load('assets/deserto_panorama.jpg?v=20261005203901', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load('assets/deserto_panorama.jpg?v=20261005204908', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -39,7 +40,7 @@ export class Desert {
   // sabbia vicina: foto di sabbia rossa (colore = quello del terreno della foto), il bordo sfuma tra 5 e 9 m
   _sand() {
     const L = new THREE.TextureLoader();
-    const tex = L.load('assets/sabbia_rossa_colore.jpg?v=20261005203901'); tex.colorSpace = THREE.SRGBColorSpace;
+    const tex = L.load('assets/sabbia_rossa_colore.jpg?v=20261005204908'); tex.colorSpace = THREE.SRGBColorSpace;
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(6, 6); tex.anisotropy = 8;
     const a = document.createElement('canvas'); a.width = a.height = 256; const ga = a.getContext('2d');
     const gr = ga.createRadialGradient(128, 128, 128 * 5 / 9, 128, 128, 128); gr.addColorStop(0, '#fff'); gr.addColorStop(1, '#000');
@@ -47,7 +48,7 @@ export class Desert {
     const sand = new THREE.Mesh(new THREE.CircleGeometry(9, 64), new THREE.MeshBasicMaterial({ map: tex, alphaMap: new THREE.CanvasTexture(a), transparent: true, depthWrite: true, toneMapped: false }));   // (scrive la profondita': lo scorpione sotto la sabbia non si vede)
     sand.rotation.x = -Math.PI / 2; sand.position.y = -0.005; sand.renderOrder = -5; this.group.add(sand);
     // sotto il ring: opaca e illuminata (riceve le ombre dei pugili)
-    const nor = L.load('assets/sabbia_rossa_rilievo.jpg?v=20261005203901'); nor.wrapS = nor.wrapT = THREE.RepeatWrapping; nor.repeat.set(3, 3);
+    const nor = L.load('assets/sabbia_rossa_rilievo.jpg?v=20261005204908'); nor.wrapS = nor.wrapT = THREE.RepeatWrapping; nor.repeat.set(3, 3);
     const t2 = tex.clone(); t2.repeat.set(3, 3); t2.needsUpdate = true;
     const under = new THREE.Mesh(new THREE.CircleGeometry(4.5, 48), new THREE.MeshStandardMaterial({ map: t2, normalMap: nor, roughness: 0.95 }));
     under.rotation.x = -Math.PI / 2; under.position.y = -0.003; under.receiveShadow = true; this.group.add(under);
@@ -292,5 +293,10 @@ export class Desert {
     for (const c of this.claws) { c.f2g.rotation.y = -c.s * (0.15 + 0.15 * Math.sin(this.t * 3 + c.s)); c.sh.rotation.x = Math.sin(this.t * 1.3 + c.s) * 0.08; }
     this.tail.forEach((j, k) => { j.rotation.x = 0.55 + k * 0.08 + Math.sin(this.t * 2 + k * 0.5) * 0.05; j.rotation.y = Math.sin(this.t * 1.1 + k) * 0.04; });
     this.scBody.position.y = 0.018 + Math.abs(Math.sin(w)) * 0.002 * (speed > 0 ? 1 : 0);
+  }
+  // ombra sotto il ring (la sabbia della foto non riceve ombre: senza, il ring sembrava sospeso)
+  setRing(size) {
+    if (!this.ringShadow) { this.ringShadow = contactShadow(1, 1, 0.5); this.ringShadow.position.y = 0.008; this.group.add(this.ringShadow); }
+    this.ringShadow.scale.set((size + 0.3) * 1.45, (size + 0.3) * 1.45, 1);
   }
 }

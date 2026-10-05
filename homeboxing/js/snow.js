@@ -11,7 +11,7 @@
 //  - vento freddo, passi nella neve e ululato con l'audio spaziale.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import * as sfx from './sfx.js?v=20261005203901';
+import * as sfx from './sfx.js?v=20261005204908';
 
 const EYE = 1.65;                     // altezza della camera della foto
 const R_FADE0 = 11, R_FADE1 = 17;     // la neve 3D sfuma nella foto tra questi raggi
@@ -50,7 +50,7 @@ export class Snow {
     const img = new Image();
     const tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     img.onload = () => { tex.needsUpdate = true; this.skyLoaded = true; this._tintGround(img); if (this.onSkyLoad) this.onSkyLoad(); };
-    img.src = 'assets/neve_panorama.jpg?v=20261005203901';
+    img.src = 'assets/neve_panorama.jpg?v=20261005204908';
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
@@ -200,7 +200,7 @@ export class Snow {
     g.setTransform(1, 0, 0, 0.5, 0, 16); g.fillStyle = gr; g.fillRect(0, -32, 128, 128);
     const sh = new THREE.Mesh(new THREE.PlaneGeometry(0.75, 1.5), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, opacity: 0.45, color: 0x223355, polygonOffset: true, polygonOffsetFactor: -3 }));
     sh.geometry.rotateX(-Math.PI / 2); sh.geometry.rotateY(Math.PI / 2); sh.renderOrder = -3; this.shadow = sh; this.group.add(sh);
-    new GLTFLoader().load('assets/lupo.glb?v=20261005203901', gl => {
+    new GLTFLoader().load('assets/lupo.glb?v=20261005204908', gl => {
       let skinned = null; gl.scene.traverse(o => { if (o.isSkinnedMesh) skinned = o; });
       if (!skinned) return;
       this.wolf.add(gl.scene);
@@ -344,7 +344,8 @@ export class Snow {
     B.collo.d = 0.42 * s + 0.05 * Math.sin(W.ph * Math.PI * 4) * stepAmt - 0.75 * hw - W.lookPitch * 0.5 - 0.1 * (1 - s);
     B.testa.d = 0.28 * s - 0.55 * hw - W.lookPitch * 0.5 + 0.08 * (1 - s);
     B.collo.yaw = W.lookYaw * 0.5; B.testa.yaw = W.lookYaw * 0.5;
-    B.coda1.d = 0.6 * s + 0.12 * (1 - s); B.coda2.d = -0.25 * s - 0.1 * (1 - s); B.coda3.d = 0.1 * s;      // seduto: la coda poggia nella neve
+    const TK = this.tailK || [0.6, 1.15, 0.8];                 // seduto: la coda distesa dietro, appoggiata sulla neve (prima andava sottoterra)
+    B.coda1.d = TK[0] * s + 0.12 * (1 - s); B.coda2.d = TK[1] * s - 0.1 * (1 - s); B.coda3.d = TK[2] * s;      
     const wag = Math.sin(W.ph * Math.PI * 2) * 0.12 * stepAmt + Math.sin(this.t * 0.8) * 0.05;
     B.coda1.yaw = wag; B.coda2.yaw = wag * 1.2; B.coda3.yaw = wag * 1.4;
     for (const n of ['bacino', 'torace', 'collo', 'testa', 'coda1', 'coda2', 'coda3']) this._setBone(B[n]);

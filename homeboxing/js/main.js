@@ -2,36 +2,36 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261005203901';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261005203901';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261005203901';
-import { Player, SimInput } from './player.js?v=20261005203901';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261005203901';
-import { Room } from './room.js?v=20261005203901';
-import { Arena } from './arena.js?v=20261005203901';
-import { Beach } from './beach.js?v=20261005203901';
-import { Rooftop } from './rooftop.js?v=20261005203901';
-import { Desert } from './desert.js?v=20261005203901';
-import { Snow } from './snow.js?v=20261005203901';
-import { Volcano } from './volcano.js?v=20261005203901';
-import { Sea, WATER } from './sea.js?v=20261005203901';
-import { Moon } from './moon.js?v=20261005203901';
-import { FighterCard } from './roster.js?v=20261005203901';
-import { Gym } from './gym.js?v=20261005203901';
-import { BagTraining } from './training.js?v=20261005203901';
-import { RopeTraining } from './rope.js?v=20261005203901';
-import { SpeedBagTraining } from './speedbag.js?v=20261005203901';
-import { SlipLineTraining } from './slipline.js?v=20261005203901';
-import { DoubleEndTraining } from './doubleend.js?v=20261005203901';
-import { Sparring } from './sparring.js?v=20261005203901';
-import { RingGirl } from './ringgirl.js?v=20261005203901';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261005203901';
-import * as sfx from './sfx.js?v=20261005203901';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261005203901';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261005203901';
-import { Tournament, BracketView } from './tournament.js?v=20261005203901';
-import { CpuMatch } from './cpu_match.js?v=20261005203901';
-import { TowerView } from './tower.js?v=20261005203901';
+import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261005204908';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261005204908';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261005204908';
+import { Player, SimInput } from './player.js?v=20261005204908';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261005204908';
+import { Room } from './room.js?v=20261005204908';
+import { Arena } from './arena.js?v=20261005204908';
+import { Beach } from './beach.js?v=20261005204908';
+import { Rooftop } from './rooftop.js?v=20261005204908';
+import { Desert } from './desert.js?v=20261005204908';
+import { Snow } from './snow.js?v=20261005204908';
+import { Volcano } from './volcano.js?v=20261005204908';
+import { Sea, WATER } from './sea.js?v=20261005204908';
+import { Moon } from './moon.js?v=20261005204908';
+import { FighterCard } from './roster.js?v=20261005204908';
+import { Gym } from './gym.js?v=20261005204908';
+import { BagTraining } from './training.js?v=20261005204908';
+import { RopeTraining } from './rope.js?v=20261005204908';
+import { SpeedBagTraining } from './speedbag.js?v=20261005204908';
+import { SlipLineTraining } from './slipline.js?v=20261005204908';
+import { DoubleEndTraining } from './doubleend.js?v=20261005204908';
+import { Sparring } from './sparring.js?v=20261005204908';
+import { RingGirl } from './ringgirl.js?v=20261005204908';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261005204908';
+import * as sfx from './sfx.js?v=20261005204908';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261005204908';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261005204908';
+import { Tournament, BracketView } from './tournament.js?v=20261005204908';
+import { CpuMatch } from './cpu_match.js?v=20261005204908';
+import { TowerView } from './tower.js?v=20261005204908';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -89,7 +89,7 @@ const board = new Scoreboard();
 arena.add(board.mesh);
 const PLAYER_Z = 0.8;                 // dove sta il giocatore rispetto al centro del ring (se c'e' spazio)
 let ringSize = 0, ringObj = null, playerZ = PLAYER_Z;
-let snowEnv = null, volcEnv = null, seaEnv = null, moonEnv = null;   // (seaEnv: sotto il mare; la sfera dipende dalla misura del ring)               // stage neve (creato in applyMode; qui perche' setRing lo usa subito)
+let snowEnv = null, volcEnv = null, seaEnv = null, moonEnv = null, desertEnv = null;   // (seaEnv: sotto il mare; la sfera dipende dalla misura del ring)               // stage neve (creato in applyMode; qui perche' setRing lo usa subito)
 // Tabellone: parte al suo posto (dietro all'avversario, in alto a destra). Si sposta SOLO se esce dal campo
 // visivo: allora gira piano attorno a te (stessa distanza e altezza) finche' rientra un po' dentro la vista, e li' resta.
 const _bw = new THREE.Vector3();
@@ -135,6 +135,7 @@ function setRing(size, pz) {
     if (ringObj) arena.remove(ringObj);
     ringObj = buildRing(size); arena.add(ringObj); ringSize = size;
     if (snowEnv) snowEnv.setRing(size);
+    if (moonEnv) moonEnv.setRing(size); if (volcEnv) volcEnv.setRing(size); if (desertEnv) desertEnv.setRing(size);
     if (seaEnv) { arena.remove(seaEnv.group); seaEnv = null; if (mode === 'mare') applyMode(); }   // sfera rifatta per il nuovo ring
   }
   arena.updateMatrixWorld(true);
@@ -182,7 +183,7 @@ try { gameMode = localStorage.getItem('hb-gamemode') || 'arcade'; } catch (e) {}
 let tour = null;                      // torneo in corso
 
 if (!MODES.includes(mode)) mode = 'stanza';
-let arenaEnv = null, beachEnv = null, roofEnv = null, desertEnv = null, gymEnv = null, nightEnv = null;   // nightEnv: il grattacielo di notte
+let arenaEnv = null, beachEnv = null, roofEnv = null, gymEnv = null, nightEnv = null;   // nightEnv: il grattacielo di notte
 function applyMode() {
   const inArena = mode === 'arena', onBeach = mode === 'spiaggia', onRoof = mode === 'grattacielo';
   if (onRoof && !roofEnv) { roofEnv = new Rooftop(RING_SIZE); arena.add(roofEnv.group); }
@@ -193,19 +194,19 @@ function applyMode() {
   const onDesert = mode === 'deserto', inGym = mode === 'palestra';
   if (inGym && !gymEnv) { gymEnv = new Gym(); arena.add(gymEnv.group); }
   if (gymEnv) gymEnv.group.visible = inGym;
-  if (onDesert && !desertEnv) { desertEnv = new Desert(); arena.add(desertEnv.group); }
+  if (onDesert && !desertEnv) { desertEnv = new Desert(); arena.add(desertEnv.group); if (ringSize) desertEnv.setRing(ringSize); }
   if (desertEnv) desertEnv.group.visible = onDesert;
   const onSnow = mode === 'neve';
   if (onSnow && !snowEnv) { snowEnv = new Snow(ringSize || RING_SIZE); arena.add(snowEnv.group); }
   if (snowEnv) snowEnv.group.visible = onSnow;
   const onVolc = mode === 'vulcano';
-  if (onVolc && !volcEnv) { volcEnv = new Volcano(); arena.add(volcEnv.group); }
+  if (onVolc && !volcEnv) { volcEnv = new Volcano(); arena.add(volcEnv.group); if (ringSize) volcEnv.setRing(ringSize); }
   if (volcEnv) volcEnv.group.visible = onVolc;
   const onSea = mode === 'mare';
   if (onSea && !seaEnv) { seaEnv = new Sea(ringSize || RING_SIZE); arena.add(seaEnv.group); }
   if (seaEnv) seaEnv.group.visible = onSea;
   const onMoon = mode === 'luna';
-  if (onMoon && !moonEnv) { moonEnv = new Moon(); arena.add(moonEnv.group); }
+  if (onMoon && !moonEnv) { moonEnv = new Moon(); arena.add(moonEnv.group); if (ringSize) moonEnv.setRing(ringSize); }
   if (moonEnv) moonEnv.group.visible = onMoon;
   if (inArena && !arenaEnv) { arenaEnv = new Arena(RING_SIZE); arena.add(arenaEnv.group); }
   if (onBeach && !beachEnv) { beachEnv = new Beach(); arena.add(beachEnv.group); }
@@ -358,8 +359,8 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261005203901`); t.colorSpace = THREE.SRGBColorSpace; return t; };
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261005203901`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261005204908`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261005204908`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -1422,7 +1423,7 @@ function sparSounds(ev) {
   }
 }
 // ---- sparring: il partner (caschetto, alto come te) prende il posto dell'avversario sul ring della palestra
-const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261005203901', evenSkin: false,
+const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261005204908', evenSkin: false,
   band: { bg: '#1a1a1c', line: '#c4122a', text: '#f2ece0', label: 'SPARRING' } };
 let spar = null, partner = null, savedMike = null, sparLoading = false;
 async function startSparring(kind, defKinds = null) {

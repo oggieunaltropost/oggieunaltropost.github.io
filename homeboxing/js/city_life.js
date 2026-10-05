@@ -350,8 +350,44 @@ export class CityLife {
     this.blink.visible = (this.t % 1.2) < 0.1;
   }
 
+  // ---------------------------------------------------------------- di notte: luci rosse lampeggianti sulle punte dei grattacieli
+  // Le punte si trovano nella mappa di profondita': per ogni colonna del panorama il primo punto che non e' cielo
+  // da' il profilo dei palazzi; i picchi piu' alti e staccati sono le cime dei grattacieli.
+  _beacons() {
+    const D = this.depth, W = D.W, H = D.H, top = new Int32Array(W).fill(-1);
+    for (let x = 0; x < W; x++) for (let y = 0; y < H * 0.6; y++) if (D.d[y * W + x] < 4000) { top[x] = y; break; }
+    const peaks = [];
+    for (let x = 0; x < W; x++) {
+      const y = top[x]; if (y < 0) continue;
+      let best = true, low = y;
+      for (let k = -14; k <= 14 && best; k++) { const t = top[(x + k + W) % W]; if (t >= 0 && t < y) best = false; if (t > low || t < 0) low = Math.max(low, t < 0 ? H : t); }
+      if (best && low - y > 4) peaks.push([x, y]);
+    }
+    peaks.sort((a, b) => a[1] - b[1]);
+    const tex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+      const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.18, 'rgba(255,60,40,0.95)'); gr.addColorStop(1, 'rgba(255,0,0,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+    this.beacons = [];
+    for (const [x, y] of peaks.slice(0, 28)) {
+      const u = (x + 0.5) / W - D.uU, ang = (u - 0.5) * 2 * Math.PI, lat = (0.5 - (y + 0.5) / H) * Math.PI;
+      const n = new THREE.Vector3(Math.cos(lat) * Math.cos(ang), Math.sin(lat), Math.cos(lat) * Math.sin(ang));
+      const d = D.d[Math.min(H - 1, y + 1) * W + x]; if (!(d < 4000)) continue;
+      const [P, k] = this._place(_v.copy(O).addScaledVector(n, d - 2));
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0xffffff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, opacity: 0 }));
+      sp.position.copy(P); sp.scale.setScalar(Math.max(0.9, 13 * k)); this.group.add(sp);
+      this.beacons.push({ sp, per: 1.3 + Math.random() * 1.2, ph: Math.random() * 3, dbl: Math.random() < 0.3 });
+    }
+  }
+  _updBeacons() {
+    if (!this.beacons) { if (this.depth.d) this._beacons(); return; }
+    for (const B of this.beacons) {
+      const t = (this.t + B.ph) % B.per, f = s => Math.max(0, 1 - Math.abs(t - s) / 0.12);
+      B.sp.material.opacity = Math.min(1, f(0.12) + (B.dbl ? f(0.42) : 0));
+    }
+  }
   update(dt) {
     this.t += dt;
     this._updCars(dt); this._updBoats(dt); if (!this.night) this._updBirds(dt); this._updPlane(dt);
+    if (this.night) this._updBeacons();
   }
 }
