@@ -9,9 +9,9 @@
 //    (poca gravita' e niente aria: traiettorie pulite) e ricade piano, anello di polvere; resta il cratere
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
 import * as THREE from 'three';
-import { contactShadow } from './contact_shadow.js?v=20261006005717';
-import { panoDepth } from './pano_depth.js?v=20261006005717';
-import * as sfx from './sfx.js?v=20261006005717';
+import { contactShadow } from './contact_shadow.js?v=20261006010202';
+import { panoDepth } from './pano_depth.js?v=20261006010202';
+import * as sfx from './sfx.js?v=20261006010202';
 
 const EYE = 1.65, R_FADE0 = 10, R_FADE1 = 16, G = 1.62;          // gravita' lunare
 const SUN = new THREE.Vector3(-0.4532, 0.4226, 0.7849).normalize();  // dalla foto (Blender (0.7849,-0.4532,0.4226))
@@ -36,7 +36,7 @@ export class Moon {
       const a = Math.random() * Math.PI * 2, d = 4.5 + Math.random() * 11, R = 0.3 + Math.random() ** 2 * 1.6;
       this._craters.push([Math.cos(a) * d, Math.sin(a) * d, R]);
     }
-    this._sky(); this._ground(); this._lander(); this._comet(); this._impacts();      // (tolte le impronte: sembravano strane)
+    this._ground(); this._sky(); this._lander(); this._comet(); this._impacts();   // (prima il terreno: la sua grana serve allo sfondo)      // (tolte le impronte: sembravano strane)
     this.nextComet = 8 + Math.random() * 10; this.nextImpact = 6 + Math.random() * 8;
   }
   // ---------------------------------------------------------------- foto a 360 gradi
@@ -44,7 +44,7 @@ export class Moon {
     const img = new Image();
     const tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     img.onload = () => { tex.needsUpdate = true; this.skyLoaded = true; this._tintGround(img); if (this.onSkyLoad) this.onSkyLoad(); };
-    img.src = 'assets/luna_panorama.jpg?v=20261006005717';
+    img.src = 'assets/luna_panorama.jpg?v=20261006010202';
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false, uniforms: { uPano: { value: tex } },
@@ -58,7 +58,7 @@ export class Moon {
     });
     const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 64, 32), m);
     sky.renderOrder = -10; sky.frustumCulled = false; this.group.add(sky);
-    this.group.add(panoDepth('assets/luna_profondita.png', tex, { eye: EYE, flat: 14, onReady: () => { sky.visible = false; } }));   // sfondo in 3D vero
+    this.group.add(panoDepth('assets/luna_profondita.png', tex, { eye: EYE, flat: 14, grain: this.grainTex, grainMean: 0.19, onReady: () => { sky.visible = false; } }));   // sfondo in 3D vero
   }
   // ---------------------------------------------------------------- regolite vicina, con i crateretti
   _h(x, z) {
@@ -95,6 +95,7 @@ export class Moon {
       g.fillStyle = `rgb(${150 + Math.random() * 50 | 0},${148 + Math.random() * 45 | 0},${140 + Math.random() * 40 | 0})`; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
     }
     const tex = new THREE.CanvasTexture(c); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+    this.grainTex = tex;
     // senza luci (come la foto): il colore e' quello del panorama, cosi' al bordo non si vede nessuno stacco
     const mat = new THREE.MeshBasicMaterial({ map: tex, vertexColors: true, transparent: true, toneMapped: false });
     const gm = new THREE.Mesh(geo, mat); gm.renderOrder = -5; this.group.add(gm);

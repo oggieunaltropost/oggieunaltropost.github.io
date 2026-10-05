@@ -11,16 +11,21 @@ const GW = 512, GH = 256, SKY = 880;
 // impronte, scorpione...) e il terreno della foto, qualche cm piu' alto, lo copriva
 // flat: entro questo raggio il terreno della foto si stende su un pavimento piatto a y = 0 (al posto del terreno 3D
 // separato, che faceva un cerchio di colore diverso): ci camminano sopra lupo, scorpione, impronte
-export function panoDepth(url, tex, { eye = 1.65, uU = 0, onReady = null, clip = 0, flat = 0 } = {}) {
+// grain: texture di dettaglio (grana) stesa sul pavimento piatto vicino, dove la foto ha pochi pixel ed e' sfocata;
+// grainMean = sua luminosita' media (lineare), cosi' il colore della foto non cambia
+export function panoDepth(url, tex, { eye = 1.65, uU = 0, onReady = null, clip = 0, flat = 0, grain = null, grainMean = 0.5, grainScale = 1.6 } = {}) {
   const mesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.ShaderMaterial({
     fog: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 4, polygonOffsetUnits: 4,   // (dietro al terreno 3D vicino)
-    uniforms: { uPano: { value: tex }, uEye: { value: eye }, uU: { value: uU }, uClip: { value: clip } },
+    uniforms: { uPano: { value: tex }, uEye: { value: eye }, uU: { value: uU }, uClip: { value: clip }, uGrain: { value: grain }, uGM: { value: grainMean }, uGS: { value: grainScale }, uFlat: { value: grain ? flat : 0 } },
     vertexShader: `varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: `uniform sampler2D uPano; uniform float uEye; uniform float uU; uniform float uClip; varying vec3 vP;
+    fragmentShader: `uniform sampler2D uPano; uniform float uEye; uniform float uU; uniform float uClip; uniform sampler2D uGrain; uniform float uGM; uniform float uGS; uniform float uFlat; varying vec3 vP;
       void main(){ if (length(vP.xz) < uClip && vP.y < 3.0) discard;
         vec3 d = normalize(vP - vec3(0.0, uEye, 0.0));
         vec2 uv = vec2(fract(atan(d.z, d.x) * 0.15915494 + 0.5 + uU), asin(clamp(d.y, -1.0, 1.0)) * 0.31830989 + 0.5);
-        gl_FragColor = vec4(texture2D(uPano, uv).rgb, 1.0);
+        vec3 col = texture2D(uPano, uv).rgb;
+        if (uFlat > 0.0 && vP.y < 0.2) { float k = 1.0 - smoothstep(uFlat - 4.0, uFlat + 4.0, length(vP.xz));
+          col *= mix(vec3(1.0), texture2D(uGrain, vP.xz / uGS).rgb / uGM, k); }
+        gl_FragColor = vec4(col, 1.0);
         #include <colorspace_fragment>
       }`,
   }));
