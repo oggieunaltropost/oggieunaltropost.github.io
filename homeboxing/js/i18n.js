@@ -4,7 +4,7 @@ const STR = {
   it: {
     menu_sub: 'tieni un guantone sul pulsante', where: 'DOVE', m_stanza: 'La tua stanza', m_arena: 'Nell\'arena', m_spiaggia: 'In spiaggia', m_grattacielo: 'Grattacielo', m_notte: 'Città di notte', m_deserto: 'Nel deserto', m_neve: 'Nella neve', m_vulcano: 'Vulcano', m_mare: 'Sotto il mare', m_luna: 'Sulla Luna', options: 'Opzioni', options_title: 'OPZIONI', roster: 'Lottatori', roster_title: 'LOTTATORI', vibration: 'VIBRAZIONE DEI CONTROLLER', pause_change: 'CAMBIA ALLENAMENTO', loading_short: 'Caricamento…', pointer: 'PUNTATORE', pt_left: 'Mano sinistra', pt_right: 'Mano destra', pt_both: 'Entrambe', cue_body: 'CORPO', dm_random: 'CASUALE (TUTTI I COLPI)', dm_pick: 'OPPURE SCEGLI I COLPI', dm_start: 'INIZIA', dm_type: 'COSA ALLENI', dm_guard: 'TORNA IN GUARDIA', dt_para: 'Para', dt_schiva: 'Schiva', dt_entrambi: 'Entrambi', dk_jab: 'Jab', dk_cross: 'Diretto', dk_hook_l: 'Gancio sx', dk_hook_r: 'Gancio dx', dk_upper_l: 'Montante sx', dk_upper_r: 'Montante dx', dk_body: 'Ganci al corpo', m_palestra: 'In palestra',
     level: 'LIVELLO', l_facile: 'Facile', l_normale: 'Normale', l_difficile: 'Difficile', l_impossibile: 'Impossibile',
-    rounds: 'ROUND', duration: 'DURATA DI UN ROUND', rule3: 'REGOLA DEI 3 ATTERRAMENTI', rule1: 'UN ATTERRAMENTO E\' KO', yes: 'Sì', no: 'No', language: 'LINGUA',
+    rounds: 'ROUND', duration: 'DURATA DI UN ROUND', rule3: 'REGOLA DEI 3 ATTERRAMENTI', rule1: 'UN KO, FINE PARTITA', yes: 'Sì', no: 'No', language: 'LINGUA',
     start: 'INIZIA INCONTRO', quit: 'ESCI DAL GIOCO',
     next_title: 'ROUND {n} TRA {s} s', next_btn: 'VAI AL PROSSIMO ROUND',
     intro_title: 'IL MATCH INIZIA TRA {s} s', skip_intro: 'INIZIA SUBITO',
