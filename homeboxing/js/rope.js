@@ -7,14 +7,15 @@
 // Sistema: quello del ring (arena), pavimento a 0, il giocatore in (0, 0, playerZ) guarda verso -Z.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import * as sfx from './sfx.js?v=20261005193344';
-import { t as tr } from './i18n.js?v=20261005193344';
+import * as sfx from './sfx.js?v=20261005193944';
+import { t as tr } from './i18n.js?v=20261005193944';
 
 const SEG = 48, RAD = 6, ROPE_R = 0.0055;
 const G = 9.81, DRAG = 0.35;
 const DRIVE_K = 9;                // quanto i polsi "tengono" la corda
 const SPIN_MIN = 2.6;             // sotto questa velocita' (rad/s) la corda non sta girando davvero
-const JUMP_H = 0.028;             // la testa sale di almeno 2,8 cm = sei in aria
+const JUMP_H = 0.045;             // la testa sale di almeno 4,5 cm sopra l'altezza da fermo = sei in aria
+const JUMP_V = 0.35;              // ...e ci arriva con una spinta vera verso l'alto (m/s), non abbassando/alzando la testa
 
 function wrapTexture() {
   const c = document.createElement('canvas'); c.width = 256; c.height = 256; const g = c.getContext('2d');
@@ -62,7 +63,7 @@ export class RopeTraining {
     }
     this._board();
     // mani vere fasciate con la manopola (blender/create_hands.py): appena caricate prendono il posto di quelle semplici
-    new GLTFLoader().load('assets/mani_fasce.glb?v=20261005193344', g => {
+    new GLTFLoader().load('assets/mani_fasce.glb?v=20261005193944', g => {
       for (const [side, nm] of [['right', 'mano_d'], ['left', 'mano_s']]) {
         const node = g.scene.getObjectByName(nm); if (!node) continue;
         node.removeFromParent(); node.position.set(0, 0, 0); node.quaternion.identity();
@@ -119,7 +120,7 @@ export class RopeTraining {
   }
   reset() {
     this.phi = -0.6; this.w = 0; this.time = 0; this.jumps = 0; this.errors = 0; this.streak = 0; this.best = 0;
-    this.stuck = 0; this.base = null; this.airT = -9; this.lastFloor = 0; this.lastDraw = ''; this.spinning = false;
+    this.stuck = 0; this.base = null; this.airT = -9; this.prevH = null; this.vy = 0; this.pushT = -9; this.psi = null; this.lastFloor = 0; this.lastDraw = ''; this.spinning = false;
     this._drawBoard();
   }
 
@@ -184,15 +185,19 @@ export class RopeTraining {
     // salto: la testa sopra l'altezza da fermo
     const h = player.head.y - floorY;
     if (this.base === null) this.base = h;
-    const air = h > this.base + JUMP_H;
+    if (this.prevH === null) this.prevH = h;
+    this.vy += ((h - this.prevH) / Math.max(dt, 1e-3) - this.vy) * Math.min(1, dt * 20); this.prevH = h;
+    if (this.vy > JUMP_V) this.pushT = this.time;                       // stacco: la testa sale veloce
+    const air = h > this.base + JUMP_H && this.time - this.pushT < 0.45;
     if (air) this.airT = this.time;
-    else if (h < this.base + 0.015) this.base += (h - this.base) * Math.min(1, dt * (h < this.base ? 3 : 0.6));
+    // l'altezza da fermo si aggiorna solo quando la testa e' quasi immobile (non durante il piegamento o il salto)
+    else if (Math.abs(this.vy) < 0.12 && h < this.base + 0.02) this.base += (h - this.base) * Math.min(1, dt * 0.8);
     // passaggio sotto i piedi (phi attraversa 0, corda in basso)
     const crossed = Math.floor(prevPhi / (2 * Math.PI)) !== Math.floor(this.phi / (2 * Math.PI)) && wasBelow;
     const spinning = Math.abs(this.w) > SPIN_MIN;
     if (crossed && spinning) {
       const feet = this.parent.localToWorld(new THREE.Vector3(mid.x, 0.02, mid.z));
-      if (this.time - this.airT < 0.14) {
+      if (this.time - this.airT < 0.12) {
         this.jumps++; this.streak++; this.best = Math.max(this.best, this.streak);
         sfx.ropeSlap(Math.abs(this.w) / 12, feet, cam);
       } else {
@@ -204,11 +209,19 @@ export class RopeTraining {
     // forma: arco tra le due punte, il centro un po' in ritardo (la corda "insegue" le mani), mai sotto il pavimento
     const lag = THREE.MathUtils.clamp(this.w / 14, -1, 1) * 0.28;
     const slack = 1 - THREE.MathUtils.clamp(Math.abs(this.w) / 5, 0, 1);       // ferma: pende morbida e appoggia a terra
+    if (!this.psi || this.stuck > 0) this.psi = Array.from({ length: SEG + 1 }, () => this.phi);
+    const spin = THREE.MathUtils.clamp(Math.abs(this.w) / 10, 0, 1);
     for (let i = 0; i <= SEG; i++) {
       const t = i / SEG, s = Math.sin(Math.PI * t);
-      const psi = this.phi - lag * s;
+      const target = this.phi - lag * s;
+      this.psi[i] += (target - this.psi[i]) * Math.min(1, dt * (34 - 22 * s));     // il centro arriva dopo: la corda ondeggia
+      const psi = this.psi[i];
       const dir = new THREE.Vector3().addScaledVector(up, -Math.cos(psi)).addScaledVector(fwd, Math.sin(psi));
-      const p = this.pts[i].copy(L).lerp(Rr, t).addScaledVector(dir, R * Math.pow(s, 0.7) * (1 + 0.12 * slack));
+      // in alto, se gira piano, la gravita' la schiaccia un po'; girando forte si tende (forza centrifuga)
+      const top = Math.max(0, -Math.cos(psi));
+      const rad = R * Math.pow(s, 0.7) * (1 + 0.12 * slack) * (1 - 0.18 * (1 - spin) * top * s) * (0.97 + 0.03 * spin);
+      const p = this.pts[i].copy(L).lerp(Rr, t).addScaledVector(dir, rad);
+      p.y -= 0.06 * (1 - spin) * s * s * top;
       if (p.y < 0.006) p.y = 0.006;
     }
     this._tube();

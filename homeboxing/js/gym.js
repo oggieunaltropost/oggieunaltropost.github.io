@@ -5,7 +5,8 @@
 // la retta delle sue due mani fino a terra, cosi' resta sempre in mano.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261005193344';
+import { buildRing, RING_SIZE } from './ring.js?v=20261005193944';
+import { makeGloveMesh } from './player.js?v=20261005193944';
 
 const FLOOR = -1.0;
 const WALK_SPEED = 0.42;                       // m/s (come la clip "cammina" di Blender)
@@ -22,7 +23,7 @@ export class Gym {
     this.group = new THREE.Group(); this.group.name = 'palestra';
     this.t = 0; this.bags = [];
     const L = new GLTFLoader();
-    L.load('assets/palestra.glb?v=20261005193344', g => {
+    L.load('assets/palestra.glb?v=20261005193944', g => {
       g.scene.traverse(o => {
         if (!o.isMesh) return;
         const m = o.material;
@@ -30,10 +31,11 @@ export class Gym {
         if (o.material.map) { o.material.map.colorSpace = THREE.SRGBColorSpace; o.material.map.anisotropy = 4; }
       });
       g.scene.traverse(o => { if (/^Sacco/.test(o.name)) this.bags.push({ o, ph: Math.random() * 6, amp: 0.012 + Math.random() * 0.02 }); });
+      g.scene.traverse(o => { if (o.name === 'Attrezzi') this._fixProps(o); });
       this.group.add(g.scene);
       this.loaded = true; if (this.onLoad) this.onLoad();
     });
-    L.load('assets/inserviente.glb?v=20261005193344', g => this._janitor(g));
+    L.load('assets/inserviente.glb?v=20261005193944', g => this._janitor(g));
     // in allenamento il ring del gioco sparisce: sulla pedana restano corde, pali e angoli (girano con la palestra)
     this.ring = buildRing(RING_SIZE); this.ring.visible = false; this.group.add(this.ring);
   }
@@ -56,9 +58,12 @@ export class Gym {
     this.aMop.play(); this.aWalk.play(); this.aWalk.setEffectiveWeight(0);
     this.handR = J.getObjectByName('hand_r'); this.handL = J.getObjectByName('hand_l');
     this.midR = J.getObjectByName('middle_01_r'); this.midL = J.getObjectByName('middle_01_l');
+    // il buco del pugno: in mezzo tra palmo, nocche e falangi piegate (il manico ci passa dentro, non attraverso le dita)
+    this.fistR = ['middle_01_r', 'middle_02_r', 'middle_03_r', 'index_02_r', 'ring_02_r'].map(n => J.getObjectByName(n)).filter(Boolean);
+    this.fistL = ['middle_01_l', 'middle_02_l', 'middle_03_l', 'index_02_l', 'ring_02_l'].map(n => J.getObjectByName(n)).filter(Boolean);
     // mocio: manico di legno e frange grigie
     const mop = new THREE.Group();
-    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 1.4, 8), new THREE.MeshStandardMaterial({ color: 0x8a6a42, roughness: 0.6 }));
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.4, 10), new THREE.MeshStandardMaterial({ color: 0x8a6a42, roughness: 0.6 }));
     stick.position.y = 0.72; mop.add(stick);
     const head = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.06, 8), new THREE.MeshStandardMaterial({ color: 0x3a3d42, roughness: 0.6 }));
     head.position.y = 0.07; mop.add(head);
@@ -82,6 +87,39 @@ export class Gym {
     this.talkT = 0; this.mouth = 0;
   }
 
+  // ritocchi alla palestra di Blender senza rifarla (la luce e' cotta nelle texture): i guantoni appesi erano due
+  // ovali colorati e la palla medica nera entrava nella panca. Si tolgono quei triangoli e si rimettono oggetti veri.
+  // (coordinate del nodo Attrezzi = Blender (x, z, -y))
+  _fixProps(att) {
+    const FL = -1.0, X0 = -8.0;
+    const HOOKS = [-4.0, -3.7, -3.4, 3.2, 3.5, 3.8, 4.1];
+    const kill = [];
+    for (const y of HOOKS) for (const s of [-1, 1]) kill.push([X0 + 0.13, FL + 1.52, -(y + s * 0.06), 0.115]);
+    kill.push([-5.0, FL + 0.17, -5.3, 0.19]);                            // palla nera
+    const g = att.geometry, p = g.attributes.position, idx = g.index ? g.index.array : null;
+    if (idx) {
+      const keep = [], c = new THREE.Vector3();
+      for (let t = 0; t < idx.length; t += 3) {
+        c.set(0, 0, 0); for (let k = 0; k < 3; k++) c.x += p.getX(idx[t + k]) / 3, c.y += p.getY(idx[t + k]) / 3, c.z += p.getZ(idx[t + k]) / 3;
+        if (!kill.some(([x, y, z, r]) => (c.x - x) ** 2 + (c.y - y) ** 2 + (c.z - z) ** 2 < r * r)) keep.push(idx[t], idx[t + 1], idx[t + 2]);
+      }
+      g.setIndex(keep);
+    }
+    // guantoni veri appesi per i lacci al gancio: polso in alto, punta in giu', dorso verso la sala
+    const cols = [0xc8101a, 0x18181c, 0x1d3fb4], lace = new THREE.LineBasicMaterial({ color: 0xe8e4da });
+    HOOKS.forEach((y, k) => {
+      for (const s of [-1, 1]) {
+        const holder = new THREE.Group(); holder.position.set(X0 + 0.16, FL + 1.6, -(y + s * 0.065)); holder.rotation.y = -Math.PI / 2 + s * 0.45;
+        const gl = makeGloveMesh(s < 0 ? 'left' : 'right', cols[k % 3]); gl.rotation.set(-Math.PI / 2 + 0.12, 0, s * 0.08); gl.scale.setScalar(0.92);
+        holder.add(gl); att.add(holder);
+        const lg = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(X0 + 0.07, FL + 1.7, -y), new THREE.Vector3(X0 + 0.15, FL + 1.61, -(y + s * 0.06))]);
+        att.add(new THREE.Line(lg, lace));
+      }
+    });
+    // la palla nera spostata un po' piu' in la', per terra accanto alle altre
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.17, 28, 18), new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.75 }));
+    ball.position.set(-4.25, FL + 0.17, -4.5); att.add(ball);
+  }
   _updJanitor(dt, watchW) {
     const J = this.J; if (!J) return;
     const P = this.path || PATH, tgt = P[(this.wp + 1) % P.length];
@@ -153,8 +191,13 @@ export class Gym {
       }
     }
     // mocio lungo la retta delle mani (dal pugno destro, in basso, verso il sinistro), fino a terra
-    const grip = (h, m) => h.getWorldPosition(new THREE.Vector3()).lerp(m.getWorldPosition(new THREE.Vector3()), 0.6);
-    const R = this.group.worldToLocal(grip(this.handR, this.midR)), Lh = this.group.worldToLocal(grip(this.handL, this.midL));
+    const grip = (h, m, F) => {
+      const c = h.getWorldPosition(new THREE.Vector3()).lerp(m.getWorldPosition(new THREE.Vector3()), 0.75), w = new THREE.Vector3();
+      if (F.length < 3) return c;
+      for (const b of F) c.add(b.getWorldPosition(w));
+      return c.divideScalar(F.length + 1);
+    };
+    const R = this.group.worldToLocal(grip(this.handR, this.midR, this.fistR)), Lh = this.group.worldToLocal(grip(this.handL, this.midL, this.fistL));
     const d = Lh.clone().sub(R).normalize();
     if (d.y > 0.2) {
       const t = (R.y - FLOOR) / d.y;
