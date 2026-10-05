@@ -94,7 +94,7 @@ export class Sea {
   }
 
   _sky() {
-    const tex = new THREE.TextureLoader().load('assets/mare_panorama.jpg?v=20261006011316', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load('assets/mare_panorama.jpg?v=20261006011808', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({

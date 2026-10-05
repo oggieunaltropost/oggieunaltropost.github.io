@@ -2,7 +2,7 @@
 // ogni tanto si ferma e si guarda intorno, ai capi si gira e torna indietro. (modello e passo: blender/create_bear.py)
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { contactShadow } from './contact_shadow.js?v=20261006011316';
+import { contactShadow } from './contact_shadow.js?v=20261006011808';
 
 const R = 11.5, A0 = -2.45, A1 = -0.75, SPEED = 0.7;    // (velocita' = passo delle zampe: niente scivolate)    // arco davanti a te (tu guardi verso -Z)
 
@@ -35,11 +35,13 @@ function furMat(layer) {
 }
 
 export class Bear {
-  constructor(parent) {
+  // onPrint(p, yaw, side): un'impronta nella neve dove appoggia una zampa
+  constructor(parent, onPrint = null) {
+    this.onPrint = onPrint;
     this.group = new THREE.Group(); this.group.name = 'orso'; parent.add(this.group);
     this.shadow = contactShadow(1.4, 2.9, 0.5); this.shadow.position.y = 0.02; this.group.add(this.shadow);
     this.a = A0 + 0.3; this.dir = 1; this.state = 'walk'; this.t = 0; this.next = 8 + Math.random() * 10; this.yaw = 0;
-    new GLTFLoader().load('assets/orso.glb?v=20261006011316', g => {
+    new GLTFLoader().load('assets/orso.glb?v=20261006011808', g => {
       this.model = g.scene; this.model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
       // pelo a gusci (come il lupo): corto, morbido e pettinato verso il basso; raso su muso e piedi, occhi e naso puliti
       let sk = null; this.model.traverse(o => { if (o.isSkinnedMesh) sk = o; });
@@ -59,6 +61,13 @@ export class Bear {
       this.walk = this.mixer.clipAction(clip('cammina')); this.idle = this.mixer.clipAction(clip('fermo'));
       this.walk.play(); this.idle.play(); this.idle.setEffectiveWeight(0);
       this.w = 1;                                           // peso della camminata (sfuma con il fermo)
+      // le quattro zampe: osso del piede e altezza della pianta sotto di lui (a riposo)
+      this.feet = ['piede_ant_s', 'piede_ant_d', 'piede_post_s', 'piede_post_d'].map(n => {
+        const b = this.model.getObjectByName(n); if (!b) return null;
+        this.model.updateMatrixWorld(true); const p = this.group.worldToLocal(b.getWorldPosition(new THREE.Vector3()));
+        return { b, h0: p.y, side: n.endsWith('_s') ? 1 : -1, down: true, p: new THREE.Vector3() };
+      }).filter(Boolean);
+      this.lift = 0;
     });
   }
   update(dt) {
@@ -85,7 +94,20 @@ export class Bear {
     if (this.state === 'walk' || this.state === 'stop' && !this.turnStarted) {
       if (this.state === 'walk') this.yaw = Math.atan2(-Math.sin(this.a) * this.dir, Math.cos(this.a) * this.dir);   // tangente all'arco
     }
-    this.model.position.set(x, 0.03, z); this.model.rotation.y = this.yaw;
+    this.model.position.set(x, this.lift, z); this.model.rotation.y = this.yaw;
+    // zampe a terra: la pianta piu' bassa tocca la neve (l'animazione da sola a volte le lasciava a mezz'aria)
+    if (this.feet && this.feet.length) {
+      this.model.updateMatrixWorld(true);
+      let lo = Infinity;
+      for (const F of this.feet) { this.group.worldToLocal(F.b.getWorldPosition(F.p)); F.sole = F.p.y - F.h0 * 1.0; lo = Math.min(lo, F.sole); }
+      const want = this.lift - lo; this.lift += (want - this.lift) * Math.min(1, dt * 12);
+      // impronte: quando una zampa si appoggia (era alzata e ora tocca)
+      for (const F of this.feet) {
+        const h = F.sole - lo, down = h < 0.015;
+        if (down && !F.down && this.state !== 'stop' && this.onPrint) this.onPrint(new THREE.Vector3(F.p.x, 0, F.p.z), this.yaw, F.side);
+        if (h > 0.04) F.down = false; else if (down) F.down = true;
+      }
+    }
     this.shadow.position.set(x, 0.02, z); this.shadow.rotation.z = -this.yaw;
   }
 }

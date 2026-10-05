@@ -10,10 +10,10 @@
 //    poi si rialza e riprende a girare a caso.
 //  - vento freddo, passi nella neve e ululato con l'audio spaziale.
 import * as THREE from 'three';
-import { Bear } from './bear.js?v=20261006011316';
-import { panoDepth } from './pano_depth.js?v=20261006011316';
+import { Bear } from './bear.js?v=20261006011808';
+import { panoDepth } from './pano_depth.js?v=20261006011808';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import * as sfx from './sfx.js?v=20261006011316';
+import * as sfx from './sfx.js?v=20261006011808';
 
 const EYE = 1.65;                     // altezza della camera della foto
 const R_FADE0 = 11, R_FADE1 = 17;     // la neve 3D sfuma nella foto tra questi raggi
@@ -46,14 +46,14 @@ export class Snow {
     this.sunDir = new THREE.Vector3(-0.45, 0.55, -0.7).normalize();     // sole velato basso
     this.t = 0;
     this._sky(); this._ground(); this._flakes(); this._prints(); this._wolf();
-    this.bear = new Bear(this.group);                          // l'orso polare che passeggia piu' in la'
+    this.bear = new Bear(this.group, (p, yaw, side) => this._print(p, yaw, side, 2.6));                          // l'orso polare che passeggia piu' in la'
   }
   // ---------------------------------------------------------------- foto a 360 gradi
   _sky() {
     const img = new Image();
     const tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     img.onload = () => { tex.needsUpdate = true; this.skyLoaded = true; this._tintGround(img); if (this.onSkyLoad) this.onSkyLoad(); };
-    img.src = 'assets/neve_panorama.jpg?v=20261006011316';
+    img.src = 'assets/neve_panorama.jpg?v=20261006011808';
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
@@ -188,11 +188,11 @@ export class Snow {
     const m = new THREE.Matrix4().makeScale(0, 0, 0); for (let i = 0; i < N; i++) this.prints.setMatrixAt(i, m);
     this.printBorn = born; this.printI = 0; this.group.add(this.prints);
   }
-  _print(p, yaw, side) {
+  _print(p, yaw, side, size = 1) {                       // (size: l'orso le lascia grandi)
     const i = this.printI; this.printI = (i + 1) % this.printBorn.count;
     _q.setFromAxisAngle(Y, yaw + Math.PI + side * 0.08);
     _v.set(p.x, snowH(p.x, p.z) + 0.002, p.z);
-    this.prints.setMatrixAt(i, new THREE.Matrix4().compose(_v, _q, _v2.set(0.9 + Math.random() * 0.15, 1, 1)));
+    this.prints.setMatrixAt(i, new THREE.Matrix4().compose(_v, _q, _v2.set((0.9 + Math.random() * 0.15) * size, 1, size)));
     this.prints.instanceMatrix.needsUpdate = true;
     this.printBorn.array[i] = this.t; this.printBorn.needsUpdate = true;
   }
@@ -205,7 +205,7 @@ export class Snow {
     g.setTransform(1, 0, 0, 0.5, 0, 16); g.fillStyle = gr; g.fillRect(0, -32, 128, 128);
     const sh = new THREE.Mesh(new THREE.PlaneGeometry(0.75, 1.5), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, opacity: 0.45, color: 0x223355, polygonOffset: true, polygonOffsetFactor: -3 }));
     sh.geometry.rotateX(-Math.PI / 2); sh.geometry.rotateY(Math.PI / 2); sh.renderOrder = -3; this.shadow = sh; this.group.add(sh);
-    new GLTFLoader().load('assets/lupo.glb?v=20261006011316', gl => {
+    new GLTFLoader().load('assets/lupo.glb?v=20261006011808', gl => {
       let skinned = null; gl.scene.traverse(o => { if (o.isSkinnedMesh) skinned = o; });
       if (!skinned) return;
       this.wolf.add(gl.scene);
