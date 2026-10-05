@@ -2,37 +2,37 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261006004832';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261006004832';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261006004832';
-import { Player, SimInput } from './player.js?v=20261006004832';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261006004832';
-import { Room } from './room.js?v=20261006004832';
-import { Arena } from './arena.js?v=20261006004832';
-import { Beach } from './beach.js?v=20261006004832';
-import { Rooftop } from './rooftop.js?v=20261006004832';
-import { Desert } from './desert.js?v=20261006004832';
-import { Snow } from './snow.js?v=20261006004832';
-import { Volcano } from './volcano.js?v=20261006004832';
-import { Sea, WATER } from './sea.js?v=20261006004832';
-import { Moon } from './moon.js?v=20261006004832';
-import { FighterCard } from './roster.js?v=20261006004832';
-import { Gym } from './gym.js?v=20261006004832';
-import { BagTraining } from './training.js?v=20261006004832';
-import { RopeTraining } from './rope.js?v=20261006004832';
-import { SpeedBagTraining } from './speedbag.js?v=20261006004832';
-import { SlipLineTraining } from './slipline.js?v=20261006004832';
-import { RingSkirt } from './ring_skirt.js?v=20261006004832';
-import { DoubleEndTraining } from './doubleend.js?v=20261006004832';
-import { Sparring } from './sparring.js?v=20261006004832';
-import { RingGirl } from './ringgirl.js?v=20261006004832';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261006004832';
-import * as sfx from './sfx.js?v=20261006004832';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261006004832';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261006004832';
-import { Tournament, BracketView } from './tournament.js?v=20261006004832';
-import { CpuMatch } from './cpu_match.js?v=20261006004832';
-import { TowerView } from './tower.js?v=20261006004832';
+import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261006005717';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261006005717';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261006005717';
+import { Player, SimInput } from './player.js?v=20261006005717';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261006005717';
+import { Room } from './room.js?v=20261006005717';
+import { Arena } from './arena.js?v=20261006005717';
+import { Beach } from './beach.js?v=20261006005717';
+import { Rooftop } from './rooftop.js?v=20261006005717';
+import { Desert } from './desert.js?v=20261006005717';
+import { Snow } from './snow.js?v=20261006005717';
+import { Volcano } from './volcano.js?v=20261006005717';
+import { Sea, WATER } from './sea.js?v=20261006005717';
+import { Moon } from './moon.js?v=20261006005717';
+import { FighterCard } from './roster.js?v=20261006005717';
+import { Gym } from './gym.js?v=20261006005717';
+import { BagTraining } from './training.js?v=20261006005717';
+import { RopeTraining } from './rope.js?v=20261006005717';
+import { SpeedBagTraining } from './speedbag.js?v=20261006005717';
+import { SlipLineTraining } from './slipline.js?v=20261006005717';
+import { RingSkirt } from './ring_skirt.js?v=20261006005717';
+import { DoubleEndTraining } from './doubleend.js?v=20261006005717';
+import { Sparring } from './sparring.js?v=20261006005717';
+import { RingGirl } from './ringgirl.js?v=20261006005717';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261006005717';
+import * as sfx from './sfx.js?v=20261006005717';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261006005717';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261006005717';
+import { Tournament, BracketView } from './tournament.js?v=20261006005717';
+import { CpuMatch } from './cpu_match.js?v=20261006005717';
+import { TowerView } from './tower.js?v=20261006005717';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -367,8 +367,8 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261006004832`); t.colorSpace = THREE.SRGBColorSpace; return t; };
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261006004832`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261006005717`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261006005717`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -544,6 +544,15 @@ const arcadeMenu = new MenuPanel({ title: t('arcade'), titleTk: 'arcade', titleH
   { label: t('opponent'), tk: 'opponent', y: -0.08, h: 0.2, carousel: true, buttons: OPP_BTNS },
   { y: -0.39 - OPP_EXTRA / 2, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.26, color: 0x3a4254 }, { id: 'watch_arc', tk: 'watch', w: 0.26, color: 0x6a4a9a }, { id: 'start', tk: 'start', w: 0.4, color: 0x1f8a4c }] },
 ]) });
+// Guarda un incontro (dall'arcade): scegli tu tutti e due i pugili (o "a caso"), lo stage e' quello dell'arcade
+let watchA = 'random', watchB = 'random';
+const watchBtns = pre => [{ id: pre + 'random', tk: 'f_random', w: 0.22, img: randomPreview() },
+  ...FIGHTER_IDS.map(id => ({ id: pre + id, text: FIGHTERS[id].name, w: 0.22, img: fighterImg(id) }))];
+const watchMenu = new MenuPanel({ title: t('watch_title'), titleTk: 'watch_title', titleH: 0.1, width: 1.0, height: 1.08, draggable: true, rows: withText([
+  { label: t('w_red'), tk: 'w_red', y: 0.22, h: 0.2, carousel: true, buttons: watchBtns('wa:') },
+  { label: t('w_blue'), tk: 'w_blue', y: -0.1, h: 0.2, carousel: true, buttons: watchBtns('wb:') },
+  { y: -0.39, h: 0.11, buttons: [{ id: 'back_arc', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'watch_go', tk: 'watch', w: 0.45, color: 0x6a4a9a }] },
+]) });
 // Torneo: come l'arcade ma gli avversari li assegna il tabellone
 const tourMenu = new MenuPanel({ title: t('tour'), titleTk: 'tour', titleH: 0.1, width: 1.0, height: 1.02, draggable: true, rows: withText([
   stageRow(0.22),
@@ -607,7 +616,7 @@ const defMenu = new MenuPanel({ title: t('sp_difesa'), titleTk: 'sp_difesa', tit
 ]) });
 const defSelect = () => defMenu.select([...[...defSel].map(k => 'dk:' + k), 'dt:' + defType, defGuard ? 'dg:si' : 'dg:no']);
 let lastTrainMenu = null;                          // per "Cambia allenamento": il menu da cui eri partito
-const MENUS = [rootMenu, arcadeMenu, tourMenu, survMenu, trainMenu, sparMenu, defMenu, optionsMenu, rosterMenu];
+const MENUS = [rootMenu, arcadeMenu, tourMenu, survMenu, trainMenu, sparMenu, defMenu, optionsMenu, rosterMenu, watchMenu];
 for (const m of MENUS) { m.group.scale.setScalar(0.88); scene.add(m.group); }
 const menuVisible = () => MENUS.some(m => m.group.visible) || bracket.group.visible || tower.group.visible || tourBtns.group.visible;
 // tabellone del torneo e i suoi pulsanti (sotto il tabellone)
@@ -1409,7 +1418,7 @@ function closePause() {
   mike.enabled = (game.phase === 'fight' && !game.kd) || game.phase === 'sparring';
 }
 try { player.vibrate = localStorage.getItem('hb-vibe') !== 'no'; } catch (e) {}   // vibrazione dei controller (di serie: si')
-const menuChoices = () => ['s:' + stageChoice, 'f:' + oppChoice, 'l:' + level, 'r:' + rounds, 'd:' + roundSecs,
+const menuChoices = () => ['s:' + stageChoice, 'f:' + oppChoice, 'wa:' + watchA, 'wb:' + watchB, 'l:' + level, 'r:' + rounds, 'd:' + roundSecs,
   threeKO ? 'k:si' : 'k:no', oneKO ? 'ko:si' : 'ko:no', 'tz:' + tourSize, 'tw:' + towerSize, 'g:' + lang, 'pt:' + pointerHand, player.vibrate === false ? 'vb:no' : 'vb:si'];
 function menuYaw() {
   const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
@@ -1468,7 +1477,7 @@ function sparSounds(ev) {
   }
 }
 // ---- sparring: il partner (caschetto, alto come te) prende il posto dell'avversario sul ring della palestra
-const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261006004832', evenSkin: false,
+const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261006005717', evenSkin: false,
   band: { bg: '#1a1a1c', line: '#c4122a', text: '#f2ece0', label: 'SPARRING' } };
 let spar = null, partner = null, savedMike = null, sparLoading = false;
 async function startSparring(kind, defKinds = null) {
@@ -1684,7 +1693,7 @@ function endCpuWatch() {
   if (cpuB) { scene.remove(cpuB.root); cpuB = null; }
   mike.bounds = keepInRing; mike.footwork = true; mike.fw = null; mike.resetPose();
   pending = null;
-  if (P.arcade) { showMainMenu(); openMenu(arcadeMenu); return; }        // arcade da spettatore: si torna alla scelta
+  if (P.arcade) { showMainMenu(); openMenu(watchMenu); return; }         // arcade da spettatore: si torna alla scelta dei due
   if (P.spec) { specForced[cm.j] = w; specQueue.shift(); specChoice(); return; }   // torneo da spettatore: il prossimo
   advanceRound(youWon, { [cm.j]: w });
 }
@@ -1865,10 +1874,14 @@ function updateMainMenu(dt, gloves) {
   else if (id === 'start') { tour = null; pendingStage = pendingFighter = null; startFight(oppChoice === 'random' ? FIGHTER_IDS[Math.floor(Math.random() * FIGHTER_IDS.length)] : oppChoice); return; }
   else if (id === 'start_tour') { surv = null; tour = new Tournament(FIGHTERS, false, tourSize); showBracketNext(); return; }
   else if (id === 'watch_tour') { surv = null; tour = new Tournament(FIGHTERS, true, tourSize); specRound(); return; }
-  else if (id === 'watch_arc') {                     // arcade da spettatore: l'avversario scelto contro un altro a caso
+  else if (id === 'watch_arc') { if (watchA === 'random' && oppChoice !== 'random') watchA = oppChoice; openMenu(watchMenu); return; }   // scegli i due pugili
+  else if (id === 'back_arc') { openMenu(arcadeMenu); return; }
+  else if (id.startsWith('wa:')) { watchA = id.slice(3); watchMenu.select(menuChoices()); return; }
+  else if (id.startsWith('wb:')) { watchB = id.slice(3); watchMenu.select(menuChoices()); return; }
+  else if (id === 'watch_go') {                       // arcade da spettatore: i due scelti (a caso: uno qualsiasi, mai lo stesso)
     tour = null; surv = null; pendingStage = pendingFighter = null;
-    const a = oppChoice === 'random' ? FIGHTER_IDS[Math.floor(Math.random() * FIGHTER_IDS.length)] : oppChoice;
-    const others = FIGHTER_IDS.filter(x => x !== a), b = others[Math.floor(Math.random() * others.length)];
+    const pick = (c, not) => c !== 'random' && c !== not ? c : (l => l[Math.floor(Math.random() * l.length)])(FIGHTER_IDS.filter(x => x !== not));
+    const a = pick(watchA, watchB !== 'random' ? watchB : null), b = pick(watchB, a);
     pending = { arcade: true, a, b }; setStage(pickStage()); startCpuWatch(); return;
   }
   else if (id === 'start_surv') { tour = null; startSurvival(); return; }
