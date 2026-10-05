@@ -4,12 +4,20 @@
 // a te; le animazioni (chi combatte, chi passa il turno, il campione che arriva alla coppa) sono oggetti 3D
 // che si muovono sopra la tela.
 import * as THREE from 'three';
-import { t } from './i18n.js?v=20261005193944';
+import { t } from './i18n.js?v=20261005200203';
 
-const W = 2048, H = 1024;                  // tela del tabellone
-const PW = 1.6, PH = PW * H / W;           // pannello in metri
-const BW = 150, BH = 40, COL = 172;        // casella: larghezza, altezza, passo tra le colonne (px)
-const TOP = 150, BOT = 990;
+// misure del tabellone: cambiano con il numero di partecipanti (32: 5 turni, 64: 6 turni e tela piu' alta)
+let W = 2048, H = 1024;                    // tela del tabellone
+const PW = 1.6; let PH = PW * H / W;       // pannello in metri
+let BW = 150, BH = 40, COL = 172;          // casella: larghezza, altezza, passo tra le colonne (px)
+let TOP = 150, BOT = 990, NR = 5;          // NR = turni
+function setLayout(size) {
+  NR = Math.round(Math.log2(size));
+  if (NR >= 6) { H = 1500; BW = 128; BH = 31; COL = 140; TOP = 150; BOT = 1465; }
+  else { H = 1024; BW = 150; BH = 40; COL = 172; TOP = 150; BOT = 990; }
+  PH = PW * H / W;
+}
+const CHAMP_Y = () => Math.round(H * 0.46), CUP_Y = () => Math.round(H * 0.322);
 
 const FIRST = ['Tony', 'Ivan', 'Rocco', 'Carlos', 'Kenji', 'Marcus', 'Dmitri', 'Leon', 'Viktor', 'Diego', 'Sami', 'Jake',
   'Omar', 'Luca', 'Andre', 'Hector', 'Bo', 'Tariq', 'Nikolai', 'Rafael', 'Kofi', 'Sean', 'Mateo', 'Yuri', 'Dante', 'Emil',
@@ -17,34 +25,44 @@ const FIRST = ['Tony', 'Ivan', 'Rocco', 'Carlos', 'Kenji', 'Marcus', 'Dmitri', '
 const LAST = ['Rocca', 'Petrov', 'Santos', 'Kane', 'Moreno', 'Okafor', 'Novak', 'Ferraro', 'Wright', 'Tanaka', 'Duarte',
   'Brennan', 'Volkov', 'Silva', 'Mensah', 'Costa', 'Hughes', 'Ricci', 'Kowalski', 'Ortega', 'Baker', 'Nakamura',
   'Lombardi', 'Grant', 'Ibarra', 'Stone', 'Marino', 'Dragan', 'Cruz', 'Fox', 'Bianchi', 'Steel'];
-const ROUND_KEYS = ['tr_r32', 'tr_r16', 'tr_qf', 'tr_sf', 'tr_f'];
+const ROUND_KEYS = ['tr_r64', 'tr_r32', 'tr_r16', 'tr_qf', 'tr_sf', 'tr_f'];
 
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
 export class Tournament {
   // fighters: { id: { name, thumb, face:[x,y,size] } }
   // spectator: torneo da guardare (tu non ci sei): 16 personaggi veri, ognuno contro un nome inventato al primo turno
-  constructor(fighters, spectator = false) {
-    this.spectator = spectator;
+  // size: 32 o 64 partecipanti. Al primo turno i personaggi veri affrontano un nome inventato finche' ce ne sono:
+  // tra loro si incontrano solo quelli in piu' (con 32 e 36 personaggi sono tutti veri)
+  constructor(fighters, spectator = false, size = 32) {
+    this.spectator = spectator; this.size = size; this.rounds = Math.round(Math.log2(size));
+    setLayout(size);                                 // (i nomi dei turni dipendono da quanti sono)
     const ids = shuffle(Object.keys(fighters));
     const used = new Set(), fake = () => {
       let n; do n = FIRST[Math.floor(Math.random() * FIRST.length)] + ' ' + LAST[Math.floor(Math.random() * LAST.length)]; while (used.has(n));
       used.add(n); return { kind: 'fake', name: n };
     };
-    const slots = Array.from({ length: 32 }, () => null);
+    const slots = Array.from({ length: size }, () => null);
     const real = id => ({ kind: 'real', id, name: fighters[id].name });
     // Teste di serie: al primo turno ogni personaggio vero affronta un nome inventato (e lo batte), cosi' i veri si
     // incontrano tra loro solo dal secondo turno in poi. Tu sei l'eccezione: il tuo primo avversario e' vero.
     // Entrano 15 personaggi (tu + 15 = 16 vincitori del primo turno); gli altri restano fuori, a caso ogni volta.
-    let rest, pairs;
-    if (spectator) { rest = ids.slice(0, 16); pairs = shuffle(Array.from({ length: 16 }, (_, k) => k)); }
+    const M = size / 2;                              // incontri del primo turno
+    let rest, free;
+    if (spectator) { rest = ids.slice(0, size); free = shuffle(Array.from({ length: M }, (_, k) => k)); }
     else {
       slots[0] = { kind: 'you' }; slots[1] = real(ids[0]);
-      rest = ids.slice(1, 15); pairs = shuffle(Array.from({ length: 15 }, (_, k) => k + 1));
+      rest = ids.slice(1, size - 1); free = shuffle(Array.from({ length: M - 1 }, (_, k) => k + 1));
     }
-    rest.forEach((id, k) => { const pr = pairs[k], side = Math.random() < 0.5 ? 0 : 1; slots[pr * 2 + side] = real(id); });
+    const doubles = Math.max(0, rest.length - free.length);       // incontri tra due veri (solo quelli che servono)
+    let k = 0;
+    free.forEach((m, i) => {
+      if (k >= rest.length) return;
+      if (i < doubles) { slots[m * 2] = real(rest[k++]); slots[m * 2 + 1] = real(rest[k++]); }
+      else slots[m * 2 + (Math.random() < 0.5 ? 0 : 1)] = real(rest[k++]);
+    });
     this.opp = [ids[0]];
-    for (let i = 0; i < 32; i++) if (!slots[i]) slots[i] = fake();
+    for (let i = 0; i < size; i++) if (!slots[i]) slots[i] = fake();
     this.p = slots;                                   // partecipanti
     this.ent = [slots.map((_, i) => i)];             // ent[r][j] = indice del partecipante in posizione j al turno r
     this.round = 0; this.state = 'next';            // next | won | lost | champion
@@ -77,17 +95,20 @@ export class Tournament {
     }
     this.ent.push(nxt);
     if (!youWon) this.state = 'lost';
-    else if (r === 4) this.state = 'champion';
+    else if (r === this.rounds - 1) this.state = 'champion';
     else { this.round++; this.state = 'next'; }
     return r;                                         // turno appena giocato (per l'animazione)
   }
+  // nome del turno r contando dalla finale: 0 = trentaduesimi ... 5 = finale (per testi e voci)
+  stage(r = this.round) { return r + 6 - this.rounds; }
+  isFinal(r = this.round) { return r === this.rounds - 1; }
 }
 
 // ---------------------------------------------------------------- disegno e animazioni
-// posizione (centro, in px della tela) della casella j del turno r (r = 0..4; r = 5 = campione)
+// posizione (centro, in px della tela) della casella j del turno r (r = 0..NR-1; r = NR = campione)
 function boxPos(r, j) {
-  if (r === 5) return { x: W / 2, y: 470 };
-  const n = 32 >> r, half = n / 2, left = j < half, k = left ? j : j - half;
+  if (r === NR) return { x: W / 2, y: CHAMP_Y() };
+  const n = (1 << NR) >> r, half = n / 2, left = j < half, k = left ? j : j - half;
   const span = BOT - TOP, y = TOP + (k + 0.5) * span / half;
   const x = left ? 20 + BW / 2 + r * COL : W - 20 - BW / 2 - r * COL;
   return { x, y };
@@ -110,13 +131,25 @@ export class BracketView {
       m.renderOrder = 1101; m.visible = false; this.group.add(m); return m;
     });
     this.trophyGlow = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.42), new THREE.MeshBasicMaterial({ map: this._haloTex(), transparent: true, depthTest: false, toneMapped: false, opacity: 0 }));
-    this.trophyGlow.renderOrder = 1099; this.trophyGlow.position.set(this._lx(W / 2), this._ly(330), 0.002); this.group.add(this.trophyGlow);
+    this.trophyGlow.renderOrder = 1099; this.trophyGlow.position.set(this._lx(W / 2), this._ly(CUP_Y()), 0.002); this.group.add(this.trophyGlow);
+    this.board = board; this.size = 32;
     this.tokens = []; this.time = 0; this.anim = null;
     // icone: volti dei pugili veri (ritagliati dalle anteprime)
     this.faces = {};
     for (const [id, f] of Object.entries(fighters)) { const im = new Image(); im.src = f.thumb; im.onload = () => this.draw(); this.faces[id] = im; }
   }
+  // tabellone da 32 o da 64: tela e pannello della misura giusta
+  _fit(T) {
+    if (!T || T.size === this.size) return;
+    this.size = T.size; setLayout(T.size);
+    this.canvas.height = H; this.tex.dispose();
+    this.tex = new THREE.CanvasTexture(this.canvas); this.tex.colorSpace = THREE.SRGBColorSpace; this.tex.anisotropy = 4;
+    this.board.material.map = this.tex; this.board.material.needsUpdate = true;
+    this.board.geometry.dispose(); this.board.geometry = new THREE.PlaneGeometry(PW, PH);
+    this.trophyGlow.position.set(this._lx(W / 2), this._ly(CUP_Y()), 0.002);
+  }
   _lx(px) { return (px / W - 0.5) * PW; }
+  halfH() { return PH / 2; }
   _ly(py) { return (0.5 - py / H) * PH; }
   _glowTex() {
     const c = document.createElement('canvas'); c.width = 256; c.height = 96; const g = c.getContext('2d');
@@ -158,7 +191,7 @@ export class BracketView {
     g.lineWidth = opts.you ? 3 : 2; g.strokeStyle = opts.you ? '#e5484d' : opts.gold ? '#ffc928' : '#4a5163'; g.stroke();
     if (!P) return;
     const r = h * 0.38;
-    this._icon(g, P, x - w / 2 + r + 6, y, r);
+    this._icon(g, P, x - w / 2 + r + (h < 36 ? 4 : 6), y, r);
     g.fillStyle = opts.out ? '#6b7280' : '#ffffff';
     let size = Math.round(h * 0.42);
     g.textAlign = 'left'; g.textBaseline = 'middle';
@@ -168,6 +201,7 @@ export class BracketView {
   }
   draw(hideFrom = null) {
     const T = this.T; if (!T) return;
+    this._fit(T);
     const g = this.canvas.getContext('2d');
     g.clearRect(0, 0, W, H);
     const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, 'rgba(14,17,26,0.96)'); bg.addColorStop(1, 'rgba(6,8,12,0.96)');
@@ -179,19 +213,19 @@ export class BracketView {
     g.fillStyle = '#ffd34d'; g.font = '900 56px system-ui, sans-serif'; g.fillText(t('tr_title'), W / 2, 58);
     g.fillStyle = '#e6e8ee'; g.font = '700 32px system-ui, sans-serif'; g.fillText(this.subtitle || '', W / 2, 108);
     // linee: dal turno r al turno r+1 (dorate se il passaggio e' gia' avvenuto)
-    for (let r = 0; r < 5; r++) {
-      const n = 32 >> r;
+    for (let r = 0; r < NR; r++) {
+      const n = (1 << NR) >> r;
       for (let j = 0; j < n; j++) {
-        const a = boxPos(r, j), b = boxPos(r + 1, j >> 1), left = r < 4 ? j < n / 2 : j === 0;
+        const a = boxPos(r, j), b = boxPos(r + 1, j >> 1), left = r < NR - 1 ? j < n / 2 : j === 0;
         const done = T.ent[r + 1] && T.ent[r + 1][j >> 1] === T.ent[r][j] && !(hideFrom !== null && r >= hideFrom);
         g.strokeStyle = done ? '#ffc928' : '#3b4252'; g.lineWidth = done ? 4 : 3;
         const x0 = a.x + (left ? BW / 2 : -BW / 2), xm = x0 + (left ? 11 : -11);
-        const xe = r === 4 ? b.x + (left ? -95 : 95) : b.x + (left ? -BW / 2 : BW / 2);
+        const xe = r === NR - 1 ? b.x + (left ? -95 : 95) : b.x + (left ? -BW / 2 : BW / 2);
         g.beginPath(); g.moveTo(x0, a.y); g.lineTo(xm, a.y); g.lineTo(xm, b.y); g.lineTo(xe, b.y); g.stroke();
       }
     }
     // caselle
-    for (let r = 0; r < 5; r++) {
+    for (let r = 0; r < NR; r++) {
       const row = T.ent[r]; if (!row || (hideFrom !== null && r > hideFrom)) continue;
       for (let j = 0; j < row.length; j++) {
         const P = T.p[row[j]], q = boxPos(r, j);
@@ -200,11 +234,14 @@ export class BracketView {
       }
     }
     // turni futuri: caselle vuote
-    for (let r = 1; r < 5; r++) if (!T.ent[r] || (hideFrom !== null && r > hideFrom)) for (let j = 0; j < 32 >> r; j++) { const q = boxPos(r, j); this._box(g, null, q.x, q.y); }
+    for (let r = 1; r < NR; r++) if (!T.ent[r] || (hideFrom !== null && r > hideFrom)) for (let j = 0; j < (1 << NR) >> r; j++) { const q = boxPos(r, j); this._box(g, null, q.x, q.y); }
     // coppa e casella del campione
-    this._trophy(g, W / 2, 330);
-    const champ = T.ent[5] && !(hideFrom !== null && hideFrom >= 4) ? T.p[T.ent[5][0]] : null;
-    this._box(g, champ, W / 2, 470, { w: 210, h: 54, gold: true, you: champ && champ.kind === 'you' });
+    this._trophy(g, W / 2, CUP_Y());
+    const champ = T.ent[NR] && !(hideFrom !== null && hideFrom >= NR - 1) ? T.p[T.ent[NR][0]] : null;
+    this._box(g, champ, W / 2, CHAMP_Y(), { w: 210, h: 54, gold: true, you: champ && champ.kind === 'you' });
+    // quanti partecipanti: targhetta sotto la casella del campione
+    g.fillStyle = '#ffd34d'; g.font = '800 26px system-ui, sans-serif'; g.textAlign = 'center';
+    g.fillText(t('tr_size', { n: T.size }), W / 2, CHAMP_Y() + 62);
     this.tex.needsUpdate = true;
   }
   _trophy(g, x, y) {
@@ -225,7 +262,7 @@ export class BracketView {
   close() { this.group.visible = false; this.hl.forEach(h => (h.visible = false)); this._clearTokens(); }
   // prima di un incontro: evidenzia le due caselle del tuo prossimo incontro
   showNext(T, subtitle) {
-    this.T = T; this.subtitle = subtitle; this.anim = null; this._clearTokens();
+    this.T = T; this._fit(T); this.subtitle = subtitle; this.anim = null; this._clearTokens();
     this.draw();
     const r = T.round, j = T.ent[r].indexOf(0);
     [j, j ^ 1].forEach((jj, k) => {
@@ -241,20 +278,20 @@ export class BracketView {
       h.position.set(this._lx(q.x), this._ly(q.y), 0.003); h.scale.set((BW + 40) / W * PW * 1.1, (BH + 40) / H * PH * 1.2, 1); h.visible = true;
     });
   }
-  showCpu(T, j, subtitle) { this.T = T; this.subtitle = subtitle; this.anim = null; this._clearTokens(); this.draw(); this.highlight(T.round, j); this.trophyGlow.material.opacity = 0; }
+  showCpu(T, j, subtitle) { this.T = T; this._fit(T); this.subtitle = subtitle; this.anim = null; this._clearTokens(); this.draw(); this.highlight(T.round, j); this.trophyGlow.material.opacity = 0; }
   // dopo un incontro: i vincitori del turno avanzano (gettoni che corrono lungo le linee)
   showAdvance(T, r, subtitle, onDone) {
-    this.T = T; this.subtitle = subtitle; this.hl.forEach(h => (h.visible = false)); this._clearTokens();
+    this.T = T; this._fit(T); this.subtitle = subtitle; this.hl.forEach(h => (h.visible = false)); this._clearTokens();
     this.draw(r);                                      // il turno r ancora senza vincitori
     const nxt = T.ent[r + 1];
     nxt.forEach((pi, jj) => {
       const j = T.ent[r].indexOf(pi), a = boxPos(r, j), b = boxPos(r + 1, jj);
-      const tok = this._token(T.p[pi], r === 4 ? { w: 210, h: 54 } : {});
-      tok.userData = { a, b, left: r < 4 ? j < T.ent[r].length / 2 : j === 0 };
+      const tok = this._token(T.p[pi], r === NR - 1 ? { w: 210, h: 54 } : {});
+      tok.userData = { a, b, left: r < NR - 1 ? j < T.ent[r].length / 2 : j === 0 };
       tok.position.set(this._lx(a.x), this._ly(a.y), 0.004);
       this.group.add(tok); this.tokens.push(tok);
     });
-    this.anim = { t: 0, dur: r === 4 ? 2.0 : 1.4, r, onDone };
+    this.anim = { t: 0, dur: r === NR - 1 ? 2.0 : 1.4, r, onDone };
   }
   _token(P, opts) {
     const w = opts.w || BW, h = opts.h || BH;
@@ -286,11 +323,11 @@ export class BracketView {
       tok.position.set(this._lx(x), this._ly(y), 0.004);
       tok.scale.setScalar(1 + 0.25 * Math.sin(Math.PI * e));
     }
-    if (A.r === 4) this.trophyGlow.material.opacity = e;
+    if (A.r === NR - 1) this.trophyGlow.material.opacity = e;
     if (k >= 1) {
       this.anim = null; this._clearTokens(); this.draw();
       if (A.onDone) A.onDone();
     }
   }
-  roundName(r) { return t(ROUND_KEYS[r]); }
+  roundName(r) { return t(ROUND_KEYS[r + 6 - NR]); }
 }

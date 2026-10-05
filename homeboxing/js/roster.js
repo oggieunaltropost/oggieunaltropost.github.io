@@ -1,7 +1,7 @@
 // Scheda dei lottatori (menu iniziale, "Lottatori"): per ogni pugile paese con la bandiera, soprannome, altezza,
 // peso, stile e quattro caratteristiche da 1 a 10. Le bandiere sono disegnate (semplificate) su una tela.
 import * as THREE from 'three';
-import { lang } from './i18n.js?v=20261005193944';
+import { lang } from './i18n.js?v=20261005200203';
 
 // paese (codice bandiera), nomi, misure, soprannome e stile (it / en), caratteristiche: potenza, velocita', difesa, resistenza
 export const ROSTER = {
@@ -25,6 +25,22 @@ export const ROSTER = {
   moussa: { flag: 'sn', it: 'Senegal', en: 'Senegal', h: 201, kg: 92, nick: ['Il Lungo', 'The Long One'], style: ['Braccia infinite, montanti', 'Endless reach, uppercuts'], s: [8, 6, 8, 6] },
   mateo:  { flag: 'ar', it: 'Argentina', en: 'Argentina', h: 179, kg: 76, nick: ['Il Martello', 'The Hammerhead'], style: ['Sempre addosso, al corpo', 'Always on you, body shots'], s: [7, 7, 5, 9] },
   joon:   { flag: 'kr', it: 'Corea del Sud', en: 'South Korea', h: 174, kg: 68, nick: ['Il Fulmine', 'The Flash'], style: ['Mani velocissime, raffiche di 4-5 colpi', 'Blazing hands, 4-5 punch bursts'], s: [5, 10, 7, 7] },
+  ink:    { flag: 'de', it: 'Germania', en: 'Germany', h: 184, kg: 84, nick: ["La Tela", "The Canvas"], style: ["Imprevedibile, entra a testa bassa", "Unpredictable, walks right in"], s: [8, 7, 5, 8] },
+  thiago: { flag: 'br', it: 'Brasile', en: 'Brazil', h: 180, kg: 79, nick: ["La Ginga", "The Ginga"], style: ["Ondeggia a tempo, contrattacca", "Sways to a rhythm, counters"], s: [6, 8, 8, 7] },
+  danilo: { flag: 'ph', it: 'Filippine', en: 'Philippines', h: 165, kg: 63, nick: ["Il Tornado", "The Tornado"], style: ["Piccolo e velocissimo, entra ed esce", "Small and blazing fast, in and out"], s: [6, 10, 7, 9] },
+  emeka:  { flag: 'ng', it: 'Nigeria', en: 'Nigeria', h: 193, kg: 108, nick: ["Il Re Leone", "The Lion King"], style: ["Potenza pura, un colpo e basta", "Pure power, one shot is enough"], s: [10, 5, 6, 7] },
+  taras:  { flag: 'ua', it: 'Ucraina', en: 'Ukraine', h: 198, kg: 108, nick: ["Il Professore", "The Professor"], style: ["Jab lungo, tiene la distanza", "Long jab, owns the distance"], s: [8, 6, 9, 8] },
+  javi:   { flag: 'pr', it: 'Porto Rico', en: 'Puerto Rico', h: 175, kg: 70, nick: ["El Bandido", "El Bandido"], style: ["Furbo, colpi al fegato", "Sly, liver shots"], s: [7, 8, 7, 8] },
+  bastien:{ flag: 'fr', it: 'Francia', en: 'France', h: 182, kg: 78, nick: ["Il Moschettiere", "The Musketeer"], style: ["Elegante, finte e jab", "Elegant, feints and jabs"], s: [6, 8, 9, 7] },
+  nurlan: { flag: 'kz', it: 'Kazakistan', en: 'Kazakhstan', h: 178, kg: 75, nick: ["Il Lupo della Steppa", "The Steppe Wolf"], style: ["Pressione continua, ganci pesanti", "Relentless pressure, heavy hooks"], s: [9, 7, 7, 9] },
+  kerem:  { flag: 'tr', it: 'Turchia', en: 'Turkey', h: 185, kg: 95, nick: ["Il Toro", "The Bull"], style: ["Lottatore, ti chiude all'angolo", "Wrestler build, corners you"], s: [8, 6, 6, 9] },
+  karim:  { flag: 'eg', it: 'Egitto', en: 'Egypt', h: 183, kg: 82, nick: ["Il Faraone", "The Pharaoh"], style: ["Guardia bassa, contrattacco", "Shoulder roll, counterpunches"], s: [7, 8, 9, 7] },
+  logan:  { flag: 'ca', it: 'Canada', en: 'Canada', h: 190, kg: 120, nick: ["Il Boscaiolo", "The Lumberjack"], style: ["Incassa tutto, picchia come un'ascia", "Takes it all, hits like an axe"], s: [9, 4, 5, 10] },
+  kuba:   { flag: 'pl', it: 'Polonia', en: 'Poland', h: 188, kg: 96, nick: ["Il Veterano", "The Veteran"], style: ["Esperienza, para tutto", "All experience, blocks everything"], s: [7, 6, 10, 6] },
+  desmond:{ flag: 'jm', it: 'Giamaica', en: 'Jamaica', h: 187, kg: 86, nick: ["Il Serpente", "The Snake"], style: ["Braccia lunghe, montanti a sorpresa", "Long arms, surprise uppercuts"], s: [8, 8, 6, 7] },
+  ante:   { flag: 'hr', it: 'Croazia', en: 'Croatia', h: 203, kg: 115, nick: ["La Torre", "The Tower"], style: ["Gigante, uno-due da lontano", "Giant, one-two from range"], s: [9, 5, 7, 8] },
+  batu:   { flag: 'mn', it: 'Mongolia', en: 'Mongolia', h: 172, kg: 90, nick: ["Il Khan", "The Khan"], style: ["Basso e tozzo, lavora dentro", "Short and stocky, works inside"], s: [8, 6, 6, 10] },
+  camilo: { flag: 'co', it: 'Colombia', en: 'Colombia', h: 177, kg: 72, nick: ["Il Colibri", "The Hummingbird"], style: ["Giovane e sfrontato, raffiche", "Young and cocky, flurries"], s: [6, 9, 6, 9] },
 };
 
 // ---------------------------------------------------------------- bandiere (disegno semplificato, 3:2)
@@ -77,6 +93,31 @@ export function drawFlag(g, code, W, H) {
       g.fillStyle = '#000'; for (const [x, y, rot] of [[0.2, 0.25, 0.6], [0.8, 0.75, 0.6], [0.8, 0.25, -0.6], [0.2, 0.75, -0.6]]) { g.save(); g.translate(W * x, H * y); g.rotate(rot); for (let b = -1; b <= 1; b++) g.fillRect(-H * 0.09, b * H * 0.045 - H * 0.015, H * 0.18, H * 0.03); g.restore(); } },
     hk: () => { g.fillStyle = '#de2910'; g.fillRect(0, 0, W, H); for (let k = 0; k < 5; k++) { const a = -Math.PI / 2 + k * 2 * Math.PI / 5;
       g.fillStyle = '#fff'; g.beginPath(); g.ellipse(W / 2 + Math.cos(a) * H * 0.11, H / 2 + Math.sin(a) * H * 0.11, H * 0.1, H * 0.05, a, 0, 7); g.fill(); } },
+    de: () => stripesH(g, W, H, ['#000', '#dd0000', '#ffce00']),
+    fr: () => stripesV(g, W, H, ['#002654', '#fff', '#ed2939']),
+    ua: () => stripesH(g, W, H, ['#0057b7', '#ffd700']),
+    pl: () => stripesH(g, W, H, ['#fff', '#dc143c']),
+    ng: () => stripesV(g, W, H, ['#008751', '#fff', '#008751']),
+    co: () => { g.fillStyle = '#fcd116'; g.fillRect(0, 0, W, H / 2); g.fillStyle = '#003893'; g.fillRect(0, H / 2, W, H / 4); g.fillStyle = '#ce1126'; g.fillRect(0, H * 0.75, W, H / 4 + 1); },
+    br: () => { g.fillStyle = '#009c3b'; g.fillRect(0, 0, W, H); g.fillStyle = '#ffdf00'; g.beginPath(); g.moveTo(W * 0.08, H / 2); g.lineTo(W / 2, H * 0.1); g.lineTo(W * 0.92, H / 2); g.lineTo(W / 2, H * 0.9); g.fill();
+      g.fillStyle = '#002776'; g.beginPath(); g.arc(W / 2, H / 2, H * 0.22, 0, 7); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = H * 0.035; g.beginPath(); g.arc(W / 2, H * 0.9, H * 0.48, -2.3, -0.85); g.stroke(); },
+    ph: () => { g.fillStyle = '#0038a8'; g.fillRect(0, 0, W, H / 2); g.fillStyle = '#ce1126'; g.fillRect(0, H / 2, W, H / 2); g.fillStyle = '#fff'; g.beginPath(); g.moveTo(0, 0); g.lineTo(W * 0.43, H / 2); g.lineTo(0, H); g.fill();
+      star(g, W * 0.14, H / 2, H * 0.12, '#fcd116', 8, 0.5); for (const [x, y] of [[0.05, 0.12], [0.05, 0.88], [0.35, 0.5]]) star(g, W * x, H * y, H * 0.045, '#fcd116'); },
+    pr: () => { stripesH(g, W, H, ['#ed0000', '#fff', '#ed0000', '#fff', '#ed0000']); g.fillStyle = '#0050f0'; g.beginPath(); g.moveTo(0, 0); g.lineTo(W * 0.45, H / 2); g.lineTo(0, H); g.fill(); star(g, W * 0.15, H / 2, H * 0.13, '#fff'); },
+    kz: () => { g.fillStyle = '#00afca'; g.fillRect(0, 0, W, H); g.fillStyle = '#fec50c'; g.beginPath(); g.arc(W / 2, H * 0.45, H * 0.15, 0, 7); g.fill();
+      for (let k = 0; k < 24; k++) { const a = k * Math.PI / 12; g.beginPath(); g.moveTo(W / 2 + Math.cos(a) * H * 0.18, H * 0.45 + Math.sin(a) * H * 0.18); g.lineTo(W / 2 + Math.cos(a) * H * 0.25, H * 0.45 + Math.sin(a) * H * 0.25); g.strokeStyle = '#fec50c'; g.lineWidth = 2; g.stroke(); }
+      g.fillRect(W * 0.06, H * 0.1, W * 0.04, H * 0.8); },
+    tr: () => { g.fillStyle = '#e30a17'; g.fillRect(0, 0, W, H); g.fillStyle = '#fff'; g.beginPath(); g.arc(W * 0.4, H / 2, H * 0.25, 0, 7); g.fill();
+      g.fillStyle = '#e30a17'; g.beginPath(); g.arc(W * 0.44, H / 2, H * 0.2, 0, 7); g.fill(); star(g, W * 0.6, H / 2, H * 0.12, '#fff'); },
+    eg: () => { stripesH(g, W, H, ['#ce1126', '#fff', '#000']); g.fillStyle = '#c09300'; g.beginPath(); g.moveTo(W / 2, H * 0.38); g.lineTo(W * 0.56, H * 0.6); g.lineTo(W * 0.44, H * 0.6); g.fill(); },
+    ca: () => { stripesV(g, W, H, ['#d52b1e', '#fff', '#fff', '#d52b1e']); g.fillStyle = '#d52b1e'; const cx = W / 2, cy = H / 2, r = H * 0.3; g.beginPath();
+      const P = [[0, -1], [0.15, -0.6], [0.35, -0.7], [0.3, -0.25], [0.75, -0.45], [0.65, -0.15], [0.85, 0], [0.45, 0.25], [0.5, 0.45], [0.05, 0.35], [0.05, 0.8], [-0.05, 0.8], [-0.05, 0.35], [-0.5, 0.45], [-0.45, 0.25], [-0.85, 0], [-0.65, -0.15], [-0.75, -0.45], [-0.3, -0.25], [-0.35, -0.7], [-0.15, -0.6]];
+      for (const [x, y] of P) g.lineTo(cx + x * r, cy + y * r); g.fill(); },
+    jm: () => { g.fillStyle = '#009b3a'; g.fillRect(0, 0, W, H); g.fillStyle = '#000'; g.beginPath(); g.moveTo(0, 0); g.lineTo(W / 2, H / 2); g.lineTo(0, H); g.fill(); g.beginPath(); g.moveTo(W, 0); g.lineTo(W / 2, H / 2); g.lineTo(W, H); g.fill();
+      g.strokeStyle = '#fed100'; g.lineWidth = H * 0.16; g.beginPath(); g.moveTo(0, 0); g.lineTo(W, H); g.moveTo(W, 0); g.lineTo(0, H); g.stroke(); },
+    hr: () => { stripesH(g, W, H, ['#ff0000', '#fff', '#171796']); const s = H * 0.07, x0 = W / 2 - 2.5 * s, y0 = H * 0.3;
+      for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) { g.fillStyle = (i + j) % 2 ? '#fff' : '#ff0000'; g.fillRect(x0 + i * s, y0 + j * s, s, s); } },
+    mn: () => { stripesV(g, W, H, ['#c4272f', '#015197', '#c4272f']); g.fillStyle = '#f9cf02'; g.beginPath(); g.arc(W / 6, H * 0.4, H * 0.08, 0, 7); g.fill(); g.fillRect(W / 6 - H * 0.08, H * 0.52, H * 0.16, H * 0.3); },
   };
   (F[code] || (() => { g.fillStyle = '#888'; g.fillRect(0, 0, W, H); }))();
 }
