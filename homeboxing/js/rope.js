@@ -7,8 +7,8 @@
 // Sistema: quello del ring (arena), pavimento a 0, il giocatore in (0, 0, playerZ) guarda verso -Z.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import * as sfx from './sfx.js?v=20261005205348';
-import { t as tr } from './i18n.js?v=20261005205348';
+import * as sfx from './sfx.js?v=20261005205847';
+import { t as tr } from './i18n.js?v=20261005205847';
 
 const SEG = 48, RAD = 6, ROPE_R = 0.0055;
 const G = 9.81, DRAG = 0.35;
@@ -63,7 +63,7 @@ export class RopeTraining {
     }
     this._board();
     // mani vere fasciate con la manopola (blender/create_hands.py): appena caricate prendono il posto di quelle semplici
-    new GLTFLoader().load('assets/mani_fasce.glb?v=20261005205348', g => {
+    new GLTFLoader().load('assets/mani_fasce.glb?v=20261005205847', g => {
       for (const [side, nm] of [['right', 'mano_d'], ['left', 'mano_s']]) {
         const node = g.scene.getObjectByName(nm); if (!node) continue;
         node.removeFromParent(); node.position.set(0, 0, 0); node.quaternion.identity();
