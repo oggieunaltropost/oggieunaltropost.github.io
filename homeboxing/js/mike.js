@@ -223,6 +223,7 @@ export class Mike {
         cav.position.copy(c).applyMatrix4(teeth.bindMatrix).applyMatrix4(sk.boneInverses[hi]);
       } else cav.position.set(0, 1.612, 0.118).applyMatrix4(this.face.bindMatrix).applyMatrix4(sk.boneInverses[hi]);
       sk.bones[hi].add(cav);
+      this._followFace();
     }
     this.blinkT = 2; this.pain = 0; this.breath = 0;
     this._setupEyes();
@@ -412,6 +413,49 @@ export class Mike {
 
   // ---- espressioni: battito di ciglia, smorfia quando lo colpisci, fiatone quando e' stanco
   _morph(n, v) { if (this.face) this.face.morphTargetInfluences[this.face.morphTargetDictionary[n]] = v; }
+  // barba e sopracciglia sono gusci a parte, senza le espressioni del viso: quando la bocca si apriva (fiatone,
+  // smorfie, a terra) la pelle si muoveva e la barba no, e copriva la bocca o sembrava scivolare. Qui ogni loro vertice
+  // prende gli spostamenti del punto di pelle piu' vicino, e le espressioni sono le stesse (stesso array di pesi)
+  _followFace() {
+    const F = this.face, fg = F.geometry, fm = fg.morphAttributes.position;
+    if (!fm || !fm.length) return;
+    const fp = fg.attributes.position, FB = F.bindMatrix, C = 0.012, grid = new Map(), v = new THREE.Vector3();
+    const key = (x, y, z) => `${Math.floor(x / C)},${Math.floor(y / C)},${Math.floor(z / C)}`;
+    const fw = new Float32Array(fp.count * 3);
+    for (let i = 0; i < fp.count; i++) {
+      v.fromBufferAttribute(fp, i).applyMatrix4(FB); fw[i * 3] = v.x; fw[i * 3 + 1] = v.y; fw[i * 3 + 2] = v.z;
+      const k = key(v.x, v.y, v.z); let l = grid.get(k); if (!l) grid.set(k, l = []); l.push(i);
+    }
+    const FBr = new THREE.Matrix3().setFromMatrix4(FB);
+    this.model.traverse(o => {
+      if (!o.isSkinnedMesh || o === F || o.morphTargetDictionary || !/capelli|eyebrow/i.test((o.material && o.material.name || '') + o.name)) return;
+      const g = o.geometry, gp = g.attributes.position, inv = new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().copy(o.bindMatrix).invert());
+      const near = new Int32Array(gp.count).fill(-1);
+      for (let i = 0; i < gp.count; i++) {
+        v.fromBufferAttribute(gp, i).applyMatrix4(o.bindMatrix);
+        const cx = Math.floor(v.x / C), cy = Math.floor(v.y / C), cz = Math.floor(v.z / C);
+        let best = 0.02 * 0.02, bi = -1;
+        for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+          const l = grid.get(`${cx + dx},${cy + dy},${cz + dz}`); if (!l) continue;
+          for (const j of l) { const d = (fw[j * 3] - v.x) ** 2 + (fw[j * 3 + 1] - v.y) ** 2 + (fw[j * 3 + 2] - v.z) ** 2; if (d < best) { best = d; bi = j; } }
+        }
+        near[i] = bi;
+      }
+      if (!near.some(j => j >= 0)) return;
+      g.morphAttributes.position = fm.map(src => {
+        const arr = new Float32Array(gp.count * 3), d = new THREE.Vector3();
+        for (let i = 0; i < gp.count; i++) {
+          const j = near[i]; if (j < 0) continue;
+          d.fromBufferAttribute(src, j).applyMatrix3(FBr).applyMatrix3(inv);   // (dallo spazio della pelle a quello del guscio)
+          arr[i * 3] = d.x; arr[i * 3 + 1] = d.y; arr[i * 3 + 2] = d.z;
+        }
+        return new THREE.BufferAttribute(arr, 3);
+      });
+      g.morphTargetsRelative = true;
+      o.morphTargetDictionary = F.morphTargetDictionary; o.morphTargetInfluences = F.morphTargetInfluences;   // stesse espressioni
+      if (o.material) o.material.needsUpdate = true;
+    });
+  }
   updateFace(dt) {
     if (!this.face) return;
     this.blinkT -= dt;
@@ -420,7 +464,7 @@ export class Mike {
     this.pain = Math.max(0, this.pain - dt * 1.4);
     const p = Math.min(1, this.pain);
     const tired = Math.max(0, ((this.fatigue || 0) - 0.66) / 0.34);          // sotto un terzo di energia: fiatone
-    this.breath += dt * (2.2 + tired * 2.5);
+    this.breath += dt * (1.1 + tired * 0.9);                            // (respiro affannato ma non frenetico: ~1 al secondo)
     const pant = tired * (0.5 + 0.5 * Math.sin(this.breath * Math.PI));
     if (this.down) { blink = 0.75; }
     this._morph('blink_l', Math.max(blink, p * 0.7)); this._morph('blink_r', Math.max(blink, p * 0.9));
