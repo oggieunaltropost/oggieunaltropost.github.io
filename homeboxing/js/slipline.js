@@ -2,12 +2,12 @@
 // che corre nella direzione in cui guardi. Ci passi sotto da una parte all'altra piegando le gambe e rollando col
 // busto (colpire o no e' una tua scelta): ogni passaggio pulito vale uno. Se lo passi con la testa troppo alta lo
 // spago ti tocca, si piega e il passaggio non conta.
-// L'altezza si regola con la barra al tuo fianco (guantone sul pomello e trascina): al massimo le spalle, al minimo
-// la cintura. Si parte dalle spalle.
+// L'altezza si regola con la barra al tuo fianco (guantone sul pomello e trascina): al massimo 20 cm sopra le spalle, al minimo
+// la cintura. Si parte dal massimo.
 // Sistema: quello del ring (arena), pavimento a 0, il giocatore in (0, 0, playerZ) guarda verso -Z.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261005203039';
-import { t as tr } from './i18n.js?v=20261005203039';
+import * as sfx from './sfx.js?v=20261005203901';
+import { t as tr } from './i18n.js?v=20261005203901';
 
 const N = 40, ROPE_R = 0.0075, HEAD_R = 0.115, SIDE = 0.11;
 const RX = -0.3;                  // lo spago passa 30 cm alla tua sinistra: si parte da un lato
@@ -116,7 +116,8 @@ export class SlipLineTraining {
   }
 
   // altezza dello spago: dalla cintura (p = 0) alle spalle (p = 1), misurate dalla tua altezza da in piedi
-  ropeY() { const eye = this.eye || 1.6; const top = eye - 0.19, low = eye * 0.6; return low + (top - low) * this.p; }
+  // in alto 20 cm sopra le spalle (richiesta utente), in basso la cintura
+  ropeY() { const eye = this.eye || 1.6; const top = eye + 0.01, low = eye * 0.6; return low + (top - low) * this.p; }
   _placePosts() {
     const y = this.ropeY();
     this.posts.forEach((P, k) => {
