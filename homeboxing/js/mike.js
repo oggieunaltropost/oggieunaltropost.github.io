@@ -227,6 +227,7 @@ export class Mike {
     }
     this.blinkT = 2; this.pain = 0; this.breath = 0;
     this._setupEyes();
+    this._setupBraid();
     this.impact = this.measureImpacts();
   }
 
@@ -413,6 +414,57 @@ export class Mike {
 
   // ---- espressioni: battito di ciglia, smorfia quando lo colpisci, fiatone quando e' stanco
   _morph(n, v) { if (this.face) this.face.morphTargetInfluences[this.face.morphTargetDictionary[n]] = v; }
+  // treccia (Fury): in Blender e' legata alle vertebre e restava incollata alla schiena. Qui oscilla: ogni vertice si
+  // sposta di uSwing (punta della treccia) per un peso che cresce dall'attaccatura alla punta; uSwing e' un pendolo
+  // spinto dai movimenti e dalle girate del busto (vedi _updBraid)
+  _setupBraid() {
+    const parts = []; this.model.traverse(o => { if (o.isSkinnedMesh && /treccia|legaccio/i.test((o.material && o.material.name || '') + o.name)) parts.push(o); });
+    if (!parts.length) return;
+    const v = new THREE.Vector3(); let top = -1e9, bot = 1e9;
+    for (const o of parts) { const p = o.geometry.attributes.position; for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).applyMatrix4(o.bindMatrix); top = Math.max(top, v.y); bot = Math.min(bot, v.y); } }
+    // anche il ciuffo in fondo (mesh senza nome, sotto il legaccio)
+    this.model.traverse(o => {
+      if (!o.isSkinnedMesh || parts.includes(o) || o.name || !o.geometry) return;
+      o.geometry.computeBoundingBox(); const c = o.geometry.boundingBox.getCenter(new THREE.Vector3()).applyMatrix4(o.bindMatrix);
+      if (c.y < bot + 0.1 && c.y > bot - 0.2 && Math.abs(c.x) < 0.1) { parts.push(o); bot = Math.min(bot, c.y - 0.11); }
+    });
+    const U = { value: new THREE.Vector3() };
+    for (const o of parts) {
+      const g = o.geometry, p = g.attributes.position, w = new Float32Array(p.count);
+      for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).applyMatrix4(o.bindMatrix); w[i] = Math.pow(THREE.MathUtils.clamp((top - v.y) / Math.max(0.05, top - bot), 0, 1), 1.6); }
+      g.setAttribute('aSw', new THREE.BufferAttribute(w, 1));
+      const inv = new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().copy(o.bindMatrix).invert());
+      const m = o.material = o.material.clone();
+      m.onBeforeCompile = sh => {
+        sh.uniforms.uSwing = U; sh.uniforms.uSwInv = { value: inv };
+        sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>
+attribute float aSw; uniform vec3 uSwing; uniform mat3 uSwInv;`)
+          .replace('#include <begin_vertex>', `#include <begin_vertex>
+transformed += uSwInv * uSwing * aSw;`);
+      };
+      m.customProgramCacheKey = () => 'treccia';
+    }
+    this.braid = { U, off: new THREE.Vector3(), vel: new THREE.Vector3(), lastP: null, lastV: new THREE.Vector3(), lastYaw: this.root.rotation.y, yawV: 0 };
+  }
+  _updBraid(dt) {
+    const B = this.braid; if (!B || dt <= 0) return;
+    const sp = this.bones.spine_03 || this.bones.neck_01; if (!sp) return;
+    const p = sp.getWorldPosition(new THREE.Vector3());
+    if (!B.lastP) { B.lastP = p.clone(); return; }
+    const vel = p.clone().sub(B.lastP).divideScalar(dt); B.lastP.copy(p);
+    const acc = vel.clone().sub(B.lastV).divideScalar(dt); B.lastV.copy(vel);
+    const yaw = this.root.rotation.y, yv = Math.atan2(Math.sin(yaw - B.lastYaw), Math.cos(yaw - B.lastYaw)) / dt; B.lastYaw = yaw;
+    const ya = (yv - B.yawV) / dt; B.yawV = yv;
+    // accelerazione nel sistema del pugile (x di lato, z avanti): la treccia resta indietro rispetto a dove va il busto
+    acc.applyAxisAngle(new THREE.Vector3(0, 1, 0), -yaw);
+    // (la punta sta ~15 cm dietro l'asse del busto: girandosi resta indietro e si apre verso fuori)
+    const f = new THREE.Vector3(-acc.x * 0.8 - ya * 0.15, 0, -Math.abs(acc.z) * 0.5 - yv * yv * 0.15);
+    // molla verso la posizione di riposo (appoggiata alla schiena), poco smorzata: oscilla un po' prima di fermarsi
+    f.addScaledVector(B.off, -26).addScaledVector(B.vel, -2.6);
+    B.vel.addScaledVector(f, dt * 1.0); B.off.addScaledVector(B.vel, dt);
+    B.off.x = THREE.MathUtils.clamp(B.off.x, -0.22, 0.22); B.off.z = THREE.MathUtils.clamp(B.off.z, -0.18, 0.0); B.off.y = Math.max(-0.02, -0.4 * Math.abs(B.off.x));   // (piu' si apre, piu' sale un po')
+    B.U.value.copy(B.off);
+  }
   // barba e sopracciglia sono gusci a parte, senza le espressioni del viso: quando la bocca si apriva (fiatone,
   // smorfie, a terra) la pelle si muoveva e la barba no, e copriva la bocca o sembrava scivolare. Qui ogni loro vertice
   // prende gli spostamenti del punto di pelle piu' vicino, e le espressioni sono le stesse (stesso array di pesi)
@@ -594,6 +646,7 @@ export class Mike {
     // Si riparte sempre dalla posa dell'animazione
     if (this._animQ) for (const [b, q] of this._animQ) b.quaternion.copy(q);
     this.mixer.update(dt);
+    this._updBraid(dt);
     this._animQ = ['spine_01', 'spine_02', 'spine_03', 'upperarm_l', 'upperarm_r'].filter(n => this.bones[n]).map(n => [this.bones[n], this.bones[n].quaternion.clone()]);
     this.updateFace(dt);
     this.root.updateMatrixWorld(true);

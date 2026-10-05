@@ -4,7 +4,7 @@
 // a te; le animazioni (chi combatte, chi passa il turno, il campione che arriva alla coppa) sono oggetti 3D
 // che si muovono sopra la tela.
 import * as THREE from 'three';
-import { t } from './i18n.js?v=20261005191537';
+import { t } from './i18n.js?v=20261005192220';
 
 const W = 2048, H = 1024;                  // tela del tabellone
 const PW = 1.6, PH = PW * H / W;           // pannello in metri
@@ -23,7 +23,9 @@ const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.f
 
 export class Tournament {
   // fighters: { id: { name, thumb, face:[x,y,size] } }
-  constructor(fighters) {
+  // spectator: torneo da guardare (tu non ci sei): 16 personaggi veri, ognuno contro un nome inventato al primo turno
+  constructor(fighters, spectator = false) {
+    this.spectator = spectator;
     const ids = shuffle(Object.keys(fighters));
     const used = new Set(), fake = () => {
       let n; do n = FIRST[Math.floor(Math.random() * FIRST.length)] + ' ' + LAST[Math.floor(Math.random() * LAST.length)]; while (used.has(n));
@@ -34,8 +36,12 @@ export class Tournament {
     // Teste di serie: al primo turno ogni personaggio vero affronta un nome inventato (e lo batte), cosi' i veri si
     // incontrano tra loro solo dal secondo turno in poi. Tu sei l'eccezione: il tuo primo avversario e' vero.
     // Entrano 15 personaggi (tu + 15 = 16 vincitori del primo turno); gli altri restano fuori, a caso ogni volta.
-    slots[0] = { kind: 'you' }; slots[1] = real(ids[0]);
-    const rest = ids.slice(1, 15), pairs = shuffle(Array.from({ length: 15 }, (_, k) => k + 1));
+    let rest, pairs;
+    if (spectator) { rest = ids.slice(0, 16); pairs = shuffle(Array.from({ length: 16 }, (_, k) => k)); }
+    else {
+      slots[0] = { kind: 'you' }; slots[1] = real(ids[0]);
+      rest = ids.slice(1, 15); pairs = shuffle(Array.from({ length: 15 }, (_, k) => k + 1));
+    }
     rest.forEach((id, k) => { const pr = pairs[k], side = Math.random() < 0.5 ? 0 : 1; slots[pr * 2 + side] = real(id); });
     this.opp = [ids[0]];
     for (let i = 0; i < 32; i++) if (!slots[i]) slots[i] = fake();

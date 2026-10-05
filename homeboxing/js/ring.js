@@ -65,7 +65,41 @@ export function buildRing(S = RING_SIZE) {
       rope.position.copy(pa).add(pbv).multiplyScalar(0.5);
       rope.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), pbv.clone().sub(pa).normalize());
       ring.add(rope);
+      // per piegarla: la corda tesa e, quando ci spingi, una copia curva al suo posto
+      const mid = pa.clone().add(pbv).multiplyScalar(0.5), out = new THREE.Vector3(mid.x, 0, mid.z).normalize();
+      const bent = new THREE.Mesh(new THREE.BufferGeometry(), mat); bent.visible = false; ring.add(bent);
+      (ring.userData.ropes ||= []).push({ pa, pb: pbv, len, u: pbv.clone().sub(pa).normalize(), out, rope, bent, d: 0, t: 0.5, v: 0 });
     }
   }
   return ring;
+}
+
+// Corde che cedono: se ci appoggi un guantone (o la mano) la corda si piega verso fuori nel punto in cui spingi
+// (fino a ~18 cm, come una corda tesa), e quando togli la mano torna dritta con un piccolo rimbalzo.
+// points: posizioni nel mondo (guantoni). Si rifa' la geometria solo delle corde piegate.
+const _p = new THREE.Vector3(), _c = new THREE.Vector3();
+export function updateRopes(ring, points, dt) {
+  const R = ring.userData.ropes; if (!R) return;
+  const loc = points.map(p => ring.worldToLocal(_p.copy(p)).clone());
+  for (const r of R) {
+    let want = 0, tt = r.t;
+    for (const p of loc) {
+      const t = THREE.MathUtils.clamp(_c.copy(p).sub(r.pa).dot(r.u) / r.len, 0.04, 0.96);
+      _c.copy(r.pa).addScaledVector(r.u, t * r.len);
+      const dy = p.y - _c.y, o = (p.x - _c.x) * r.out.x + (p.z - _c.z) * r.out.z;
+      if (Math.abs(dy) < 0.08 && o > -0.07 && o < 0.3) {              // guantone sulla corda (o oltre): la spinge fuori
+        const push = Math.min(0.18, o + 0.07) * Math.sin(Math.PI * t) ** 0.5;   // vicino ai pali cede meno
+        if (push > want) { want = push; tt = t; }
+      }
+    }
+    // la corda segue la mano; lasciata, torna come una molla (un po' di rimbalzo)
+    if (want > r.d) { r.d += (want - r.d) * Math.min(1, dt * 18); r.v = 0; r.t = tt; }
+    else { r.v += (-r.d * 260 - r.v * 14) * dt; r.d += r.v * dt; if (Math.abs(r.d) < 0.001 && Math.abs(r.v) < 0.01) { r.d = 0; r.v = 0; } }
+    const on = Math.abs(r.d) > 0.002;
+    r.rope.visible = !on; r.bent.visible = on;
+    if (!on) continue;
+    const c = r.pa.clone().addScaledVector(r.u, r.t * r.len).addScaledVector(r.out, r.d).add(new THREE.Vector3(0, -r.d * 0.15, 0));
+    const curve = new THREE.CatmullRomCurve3([r.pa, r.pa.clone().lerp(c, 0.5), c, c.clone().lerp(r.pb, 0.5), r.pb], false, 'centripetal', 0.2);
+    r.bent.geometry.dispose(); r.bent.geometry = new THREE.TubeGeometry(curve, 24, 0.016, 8, false);
+  }
 }

@@ -2,34 +2,34 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261005191537';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261005191537';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261005191537';
-import { Player, SimInput } from './player.js?v=20261005191537';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261005191537';
-import { Room } from './room.js?v=20261005191537';
-import { Arena } from './arena.js?v=20261005191537';
-import { Beach } from './beach.js?v=20261005191537';
-import { Rooftop } from './rooftop.js?v=20261005191537';
-import { Desert } from './desert.js?v=20261005191537';
-import { Snow } from './snow.js?v=20261005191537';
-import { Volcano } from './volcano.js?v=20261005191537';
-import { Sea, WATER } from './sea.js?v=20261005191537';
-import { Moon } from './moon.js?v=20261005191537';
-import { Gym } from './gym.js?v=20261005191537';
-import { BagTraining } from './training.js?v=20261005191537';
-import { RopeTraining } from './rope.js?v=20261005191537';
-import { SpeedBagTraining } from './speedbag.js?v=20261005191537';
-import { DoubleEndTraining } from './doubleend.js?v=20261005191537';
-import { Sparring } from './sparring.js?v=20261005191537';
-import { RingGirl } from './ringgirl.js?v=20261005191537';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261005191537';
-import * as sfx from './sfx.js?v=20261005191537';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261005191537';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261005191537';
-import { Tournament, BracketView } from './tournament.js?v=20261005191537';
-import { CpuMatch } from './cpu_match.js?v=20261005191537';
-import { TowerView } from './tower.js?v=20261005191537';
+import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261005192220';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261005192220';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261005192220';
+import { Player, SimInput } from './player.js?v=20261005192220';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261005192220';
+import { Room } from './room.js?v=20261005192220';
+import { Arena } from './arena.js?v=20261005192220';
+import { Beach } from './beach.js?v=20261005192220';
+import { Rooftop } from './rooftop.js?v=20261005192220';
+import { Desert } from './desert.js?v=20261005192220';
+import { Snow } from './snow.js?v=20261005192220';
+import { Volcano } from './volcano.js?v=20261005192220';
+import { Sea, WATER } from './sea.js?v=20261005192220';
+import { Moon } from './moon.js?v=20261005192220';
+import { Gym } from './gym.js?v=20261005192220';
+import { BagTraining } from './training.js?v=20261005192220';
+import { RopeTraining } from './rope.js?v=20261005192220';
+import { SpeedBagTraining } from './speedbag.js?v=20261005192220';
+import { DoubleEndTraining } from './doubleend.js?v=20261005192220';
+import { Sparring } from './sparring.js?v=20261005192220';
+import { RingGirl } from './ringgirl.js?v=20261005192220';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261005192220';
+import * as sfx from './sfx.js?v=20261005192220';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261005192220';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261005192220';
+import { Tournament, BracketView } from './tournament.js?v=20261005192220';
+import { CpuMatch } from './cpu_match.js?v=20261005192220';
+import { TowerView } from './tower.js?v=20261005192220';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -356,8 +356,8 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261005191537`); t.colorSpace = THREE.SRGBColorSpace; return t; };
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261005191537`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261005192220`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261005192220`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -486,12 +486,12 @@ const OPP_ROWS = 1, OPP_EXTRA = 0;      // (una riga a scorrimento)
 const arcadeMenu = new MenuPanel({ title: t('arcade'), titleTk: 'arcade', titleH: 0.1, width: 1.0, height: 1.08 + OPP_EXTRA, draggable: true, rows: withText([
   stageRow(0.24 + OPP_EXTRA / 2),
   { label: t('opponent'), tk: 'opponent', y: -0.08, h: 0.2, carousel: true, buttons: OPP_BTNS },
-  { y: -0.39 - OPP_EXTRA / 2, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'start', tk: 'start', w: 0.5, color: 0x1f8a4c }] },
+  { y: -0.39 - OPP_EXTRA / 2, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.26, color: 0x3a4254 }, { id: 'watch_arc', tk: 'watch', w: 0.26, color: 0x6a4a9a }, { id: 'start', tk: 'start', w: 0.4, color: 0x1f8a4c }] },
 ]) });
 // Torneo: come l'arcade ma gli avversari li assegna il tabellone
 const tourMenu = new MenuPanel({ title: t('tour'), titleTk: 'tour', titleH: 0.1, width: 1.0, height: 0.72, draggable: true, rows: withText([
   stageRow(0.07),
-  { y: -0.23, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'start_tour', tk: 'start_tour', w: 0.5, color: 0x1f8a4c }] },
+  { y: -0.23, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.24, color: 0x3a4254 }, { id: 'watch_tour', tk: 'watch_tour', w: 0.3, color: 0x6a4a9a }, { id: 'start_tour', tk: 'start_tour', w: 0.36, color: 0x1f8a4c }] },
 ]) });
 // Sopravvivenza: come il torneo (stage e opzioni), poi la torre con tutti gli avversari in ordine casuale
 const survMenu = new MenuPanel({ title: t('surv'), titleTk: 'surv', titleH: 0.1, width: 1.0, height: 0.72, draggable: true, rows: withText([
@@ -1123,6 +1123,7 @@ function updateLoader(dt) {
 
 function tick(dt, frame) {
   updateLoader(dt);
+  if (ringObj && ringObj.visible) updateRopes(ringObj, Object.values(player.gloves).filter(g => g.mesh.visible).map(g => g.center), dt);   // le corde cedono sotto le mani
   if (renderer.xr.isPresenting && !placed && xrFrames > 15) {   // aspetta che il tracciamento sia stabile
     const cam = renderer.xr.getCamera();
     const p = new THREE.Vector3(); cam.getWorldPosition(p);
@@ -1217,7 +1218,7 @@ function tick(dt, frame) {
     cpu.update(dt);
     const st = i => ({ points: cpu.pts[i], dmg: cpu.dmg[i], hits: cpu.hits[i], blocks: 0, dodges: 0 });
     board.draw({ round: 1, rounds: 1, level: t('l_' + level), time: Math.max(0, cpu.time), running: cpu.delay <= 0, player: st(0), mike: st(1),
-      names: [tour.p[pending.cm.a].name.toUpperCase(), tour.p[pending.cm.b].name.toUpperCase()], message: t('cpu_vs', { a: tour.p[pending.cm.a].name, b: tour.p[pending.cm.b].name }), diag: '' });
+      names: cpuNames().map(n => n.toUpperCase()), message: t('cpu_vs', { a: cpuNames()[0], b: cpuNames()[1] }), diag: '' });
     if (skipBtn.update(dt, []) === 'skip') { sfx.menuBlip(); cpu.finish(true); }
     if (cpu.done) endCpuWatch();
   } else if (game.phase === 'sparring') {
@@ -1359,7 +1360,7 @@ function sparSounds(ev) {
   }
 }
 // ---- sparring: il partner (caschetto, alto come te) prende il posto dell'avversario sul ring della palestra
-const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261005191537', evenSkin: false,
+const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261005192220', evenSkin: false,
   band: { bg: '#1a1a1c', line: '#c4122a', text: '#f2ece0', label: 'SPARRING' } };
 let spar = null, partner = null, savedMike = null, sparLoading = false;
 async function startSparring(kind, defKinds = null) {
@@ -1534,18 +1535,18 @@ function showCpuChoice() {
 // guardi l'incontro: i due pugili combattono nel ring (di lato rispetto a te), tu senza guantoni
 async function startCpuWatch() {
   const { cm } = pending;
+  const idA = pending.arcade ? pending.a : tour.p[cm.a].id, idB = pending.arcade ? pending.b : tour.p[cm.b].id;
   closeMenus(); fightStarting = true; game.phase = 'watch';
-  await setFighter(tour.p[cm.a].id);
-  const gltf = await loadMikeGLTF(FIGHTERS[tour.p[cm.b].id].glb, () => {});
-  cpuB = new Mike(gltf, scene, level, FIGHTERS[tour.p[cm.b].id]);
+  await setFighter(idA);
+  const gltf = await loadMikeGLTF(FIGHTERS[idB].glb, () => {});
+  cpuB = new Mike(gltf, scene, level, FIGHTERS[idB]);
   fightStarting = false;
   mike.bounds = keepInRing; cpuB.bounds = keepInRing;   // tu guardi come se non ci fossi: si muovono solo nel ring
   const zc = -Math.min(0.6, ringSize / 2 - 0.9), half = Math.min(0.95, ringSize / 2 - 0.6);
   const place = (f, x) => { f.root.position.set(x, 0, zc).applyMatrix4(arena.matrixWorld); f.root.visible = true; };
   place(mike, -half); place(cpuB, half);           // ognuno dal suo lato: l'incontro comincia dall'inizio
   setPeople(true);
-  const nA = tour.p[cm.a], nB = tour.p[cm.b];
-  const intro = [`name_${nA.id}`, 'intro_blue_g', `name_${nB.id}`, 'round_1'];   // "Bruce… e nell'angolo blu… Mike! Round uno"
+  const intro = [`name_${idA}`, 'intro_blue_g', `name_${idB}`, 'round_1'];   // "Bruce… e nell'angolo blu… Mike! Round uno"
   sfx.announce(intro);
   cpu = new CpuMatch(mike, cpuB, roundSecs, {
     oneKO, threeKO,
@@ -1559,13 +1560,40 @@ async function startCpuWatch() {
   else skipBtn.open(player.head, menuYaw() + 0.75, 0.55, 0.45);
 }
 function endCpuWatch() {
-  const { cm, youWon } = pending, w = cpu.winner === 0 ? cm.a : cm.b;
+  const P = pending, { cm, youWon } = P, win0 = cpu.winner === 0, w = cm ? (win0 ? cm.a : cm.b) : null;
   sfx.bell(3);
   cpu = null; skipBtn.close();
   if (cpuB) { scene.remove(cpuB.root); cpuB = null; }
   mike.bounds = keepInRing; mike.footwork = true; mike.fw = null; mike.resetPose();
   pending = null;
+  if (P.arcade) { showMainMenu(); openMenu(arcadeMenu); return; }        // arcade da spettatore: si torna alla scelta
+  if (P.spec) { specForced[cm.j] = w; specQueue.shift(); specChoice(); return; }   // torneo da spettatore: il prossimo
   advanceRound(youWon, { [cm.j]: w });
+}
+// ---- torneo da spettatore: a ogni turno si guardano (o si saltano) gli incontri tra personaggi veri, poi si avanza
+let specQueue = [], specForced = {};
+const cpuNames = () => pending && pending.arcade ? [FIGHTERS[pending.a].name, FIGHTERS[pending.b].name]
+  : pending && pending.cm ? [tour.p[pending.cm.a].name, tour.p[pending.cm.b].name] : ['', ''];
+function specRound() { specQueue = tour.cpuMatches(); specForced = {}; specChoice(); }
+function specChoice() {
+  if (!specQueue.length) { specAdvance(); return; }
+  pending = { spec: true, cm: specQueue[0] }; showCpuChoice();
+  setTourButtons('tr_watch', true, menuYaw(), 'tr_skipfight');
+}
+function specAdvance() {
+  const r = tour.result(true, specForced);
+  closeMenus(); game.phase = 'menu'; setPeople(false); mike.enabled = false;
+  const yaw = menuYaw();
+  bracket.open(player.head, yaw);
+  const champ = tour.state === 'champion' ? tour.p[tour.ent[tour.ent.length - 1][0]].name.toUpperCase() : '';
+  const sub = champ ? t('tr_champ_spec', { b: champ }) : t('tr_adv_spec', { round: bracket.roundName(r) });
+  setTimeout(() => sfx.advance(!!champ), 300);
+  bracket.showAdvance(tour, r, sub, () => {
+    if (tour.state === 'next') { setTourButtons('tr_next_round', true, yaw); return; }
+    party.start(bracket.group.position.clone().add(new THREE.Vector3(0, 0.2, 0)), [0xffc928, 0xffffff, 0x1d4fc4]);
+    sfx.cheer('applauso', 1);
+    setTourButtons('tr_menu', false, yaw);
+  });
 }
 function advanceRound(youWon, forced) {
   const opp = tour.opponent(), r = tour.result(youWon, forced);
@@ -1628,7 +1656,14 @@ function updateMainMenu(dt, gloves) {
     const id = tourBtns.update(dt, gloves);
     if (!id) return;
     sfx.menuBlip();
-    if (tourStep === 'choice') { if (id === 'tgo') startCpuWatch(); else { const p = pending; pending = null; advanceRound(p.youWon, {}); } return; }
+    if (tourStep === 'choice') {
+      if (id === 'tgo') startCpuWatch();
+      else if (pending && pending.spec) {           // non lo guardi: si decide a caso e si passa al prossimo
+        const { cm } = pending; pending = null; specForced[cm.j] = Math.random() < 0.5 ? cm.a : cm.b; specQueue.shift(); specChoice();
+      } else { const p = pending; pending = null; advanceRound(p.youWon, {}); }
+      return;
+    }
+    if (tour && tour.spectator) { if (id === 'tgo' && tour.state === 'next') specRound(); else showMainMenu(); return; }
     if (surv) { if (id === 'tgo' && surv.state === 'next') startFight(surv.order[surv.idx]); else showMainMenu(); return; }
     if (id === 'tgo') { if (tour && tour.state === 'next') startFight(tour.opponent()); else showMainMenu(); }
     else if (id === 'tquit') showMainMenu();
@@ -1684,6 +1719,13 @@ function updateMainMenu(dt, gloves) {
   }
   else if (id === 'start') { tour = null; pendingStage = pendingFighter = null; startFight(oppChoice === 'random' ? FIGHTER_IDS[Math.floor(Math.random() * FIGHTER_IDS.length)] : oppChoice); return; }
   else if (id === 'start_tour') { surv = null; tour = new Tournament(FIGHTERS); showBracketNext(); return; }
+  else if (id === 'watch_tour') { surv = null; tour = new Tournament(FIGHTERS, true); specRound(); return; }
+  else if (id === 'watch_arc') {                     // arcade da spettatore: l'avversario scelto contro un altro a caso
+    tour = null; surv = null; pendingStage = pendingFighter = null;
+    const a = oppChoice === 'random' ? FIGHTER_IDS[Math.floor(Math.random() * FIGHTER_IDS.length)] : oppChoice;
+    const others = FIGHTER_IDS.filter(x => x !== a), b = others[Math.floor(Math.random() * others.length)];
+    pending = { arcade: true, a, b }; setStage(pickStage()); startCpuWatch(); return;
+  }
   else if (id === 'start_surv') { tour = null; startSurvival(); return; }
   else if (id === 'quit') { closeMenus(); const s = renderer.xr.getSession(); if (s) s.end(); return; }
   menu.select(menuChoices());
@@ -1765,7 +1807,7 @@ loadMikeGLTF(FIGHTERS[fighterId].glb, f => statusT('loading', { p: Math.min(100,
   mike.bounds = keepInRing;
   placeArena(new THREE.Vector3(0, 1.65, 0), 0);
   window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.getUpFx = getUp; window.gameApi = { newMatch, showMainMenu, openPause, pause, startTraining, bag: () => bagTr, rope: () => ropeTr, spar: () => spar, startSparring, speed: () => speedTr, de: () => deTr, envs: () => ({ roofEnv, nightEnv, desertEnv, gymEnv, snowEnv, volcEnv, seaEnv, moonEnv }), setFighter, startIntro, startPresentation, girl: () => girl, arena: () => arena, ringSize: () => ringSize }; window.sweatFx = sweat;   // per le prove
-  window.tourApi = { MENUS, bracket, tourBtns, show: () => showMainMenu(), open: m => openMenu(MENUS[m]), start: () => { tour = new Tournament(FIGHTERS); showBracketNext(); },
+  window.tourApi = { MENUS, bracket, tourBtns, show: () => showMainMenu(), watchTour: () => { surv = null; tour = new Tournament(FIGHTERS, true); specRound(); }, get pending() { return pending; }, open: m => openMenu(MENUS[m]), start: () => { tour = new Tournament(FIGHTERS); showBracketNext(); },
     after: win => { game.result = { winner: win ? 'player' : 'mike' }; showBracketAfter(); }, fight: () => startFight(tour.opponent()), setStageChoice: c => { stageChoice = c; }, get mode() { return mode; }, get tour() { return tour; }, get cpu() { return cpu; }, skipBtn, tower, startSurvival, get surv() { return surv; }, survAfter: win => { game.result = { winner: win ? 'player' : 'mike' }; showTowerAfter(); } };   // (prove)
   status('');
   $('enter').disabled = !navigator.xr;
