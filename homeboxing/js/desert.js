@@ -3,9 +3,9 @@
 // fotografica red_sand portata al colore della foto, sfuma nella foto entro pochi metri) e ogni tanto uno
 // scorpione che esce dalla sabbia, cammina un po' e si risotterra. Le rocce e i cespugli sono quelli veri della foto.
 import * as THREE from 'three';
-import { panoGround } from './pano_ground.js?v=20261005221349';
-import { contactShadow } from './contact_shadow.js?v=20261005221349';
-import * as sfx from './sfx.js?v=20261005221349';
+import { panoGround } from './pano_ground.js?v=20261005221637';
+import { contactShadow } from './contact_shadow.js?v=20261005221637';
+import * as sfx from './sfx.js?v=20261005221637';
 
 const PANO_U = 0.0;
 const SUN = new THREE.Vector3(0.522, 0.744, 0.417).normalize();      // il sole della foto
@@ -21,7 +21,7 @@ export class Desert {
     this.t = 0;
   }
   _sky() {
-    const tex = new THREE.TextureLoader().load('assets/deserto_panorama.jpg?v=20261005221349', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load('assets/deserto_panorama.jpg?v=20261005221637', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -41,7 +41,7 @@ export class Desert {
   // sabbia vicina: foto di sabbia rossa (colore = quello del terreno della foto), il bordo sfuma tra 5 e 9 m
   _sand() {
     const L = new THREE.TextureLoader();
-    const tex = L.load('assets/sabbia_rossa_colore.jpg?v=20261005221349'); tex.colorSpace = THREE.SRGBColorSpace;
+    const tex = L.load('assets/sabbia_rossa_colore.jpg?v=20261005221637'); tex.colorSpace = THREE.SRGBColorSpace;
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(6, 6); tex.anisotropy = 8;
     const a = document.createElement('canvas'); a.width = a.height = 256; const ga = a.getContext('2d');
     const gr = ga.createRadialGradient(128, 128, 128 * 5 / 9, 128, 128, 128); gr.addColorStop(0, '#fff'); gr.addColorStop(1, '#000');
@@ -49,7 +49,7 @@ export class Desert {
     const sand = new THREE.Mesh(new THREE.CircleGeometry(9, 64), new THREE.MeshBasicMaterial({ map: tex, alphaMap: new THREE.CanvasTexture(a), transparent: true, depthWrite: true, toneMapped: false }));   // (scrive la profondita': lo scorpione sotto la sabbia non si vede)
     sand.rotation.x = -Math.PI / 2; sand.position.y = -0.005; sand.renderOrder = -5; this.group.add(sand);
     // sotto il ring: opaca e illuminata (riceve le ombre dei pugili)
-    const nor = L.load('assets/sabbia_rossa_rilievo.jpg?v=20261005221349'); nor.wrapS = nor.wrapT = THREE.RepeatWrapping; nor.repeat.set(3, 3);
+    const nor = L.load('assets/sabbia_rossa_rilievo.jpg?v=20261005221637'); nor.wrapS = nor.wrapT = THREE.RepeatWrapping; nor.repeat.set(3, 3);
     const t2 = tex.clone(); t2.repeat.set(3, 3); t2.needsUpdate = true;
     const under = new THREE.Mesh(new THREE.CircleGeometry(4.5, 48), new THREE.MeshStandardMaterial({ map: t2, normalMap: nor, roughness: 0.95 }));
     under.rotation.x = -Math.PI / 2; under.position.y = -0.003; under.receiveShadow = true; this.group.add(under);
@@ -116,6 +116,34 @@ export class Desert {
     this.spray = new THREE.Points(geo, new THREE.PointsMaterial({ map: this._grain(), alphaTest: 0.3, color: 0xc29a6e, size: 0.009, transparent: true, opacity: 0.9, depthWrite: false }));
     this.spray.visible = false; this.spray.frustumCulled = false; this.group.add(this.spray);
     this.nextSc = 8 + Math.random() * 10; this.sc = null;
+    // nuvola di polvere (quando esce e quando si risotterra: copre lo scorpione che entra nella sabbia)
+    const dc = document.createElement('canvas'); dc.width = dc.height = 64; const dg = dc.getContext('2d');
+    const dgr = dg.createRadialGradient(32, 32, 2, 32, 32, 31); dgr.addColorStop(0, 'rgba(255,255,255,0.9)'); dgr.addColorStop(0.5, 'rgba(255,255,255,0.45)'); dgr.addColorStop(1, 'rgba(255,255,255,0)');
+    dg.fillStyle = dgr; dg.fillRect(0, 0, 64, 64);
+    const dtex = new THREE.CanvasTexture(dc);
+    this.dust = Array.from({ length: 40 }, () => {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: dtex, color: 0xb88f64, transparent: true, depthWrite: false, opacity: 0 }));
+      sp.visible = false; this.group.add(sp); return { sp, life: 0, max: 1, v: new THREE.Vector3(), s0: 0.1, s1: 0.5 };
+    });
+  }
+  _puff(p, n) {
+    for (let k = 0; k < n; k++) {
+      const D = this.dust.find(d => d.life <= 0) || this.dust.reduce((a, b) => (a.life < b.life ? a : b));
+      const a = Math.random() * Math.PI * 2, r = Math.random() * 0.05;
+      D.sp.position.set(p.x + Math.cos(a) * r, 0.03 + Math.random() * 0.03, p.z + Math.sin(a) * r);
+      D.v.set(Math.cos(a) * (0.08 + Math.random() * 0.12), 0.06 + Math.random() * 0.1, Math.sin(a) * (0.08 + Math.random() * 0.12));
+      D.max = D.life = 1.6 + Math.random() * 1.0; D.s0 = 0.14 + Math.random() * 0.08; D.s1 = 0.5 + Math.random() * 0.35; D.sp.visible = true;
+    }
+  }
+  _updDust(dt) {
+    for (const D of this.dust) {
+      if (D.life <= 0) continue;
+      D.life -= dt; const k = 1 - D.life / D.max;
+      D.sp.position.addScaledVector(D.v, dt); D.v.multiplyScalar(1 - dt * 1.2); D.v.y -= dt * 0.02;
+      D.sp.scale.setScalar(D.s0 + (D.s1 - D.s0) * Math.sqrt(k));
+      D.sp.material.opacity = 0.95 * Math.min(1, k * 8) * (1 - k * k);
+      if (D.life <= 0) D.sp.visible = false;
+    }
   }
   _grain() {                                              // granello tondo (non quadrato)
     const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d');
@@ -248,7 +276,7 @@ export class Desert {
   update(dt, cam) {
     this.t += dt;
     this._updEagles(dt, cam);
-    this._updSpray(dt);
+    this._updSpray(dt); this._updDust(dt);
     const S = this.scorp;
     this.clip.constant = -this.group.getWorldPosition(_gw).y - 0.001;
     if (!this.sc) {
@@ -258,7 +286,7 @@ export class Desert {
       do { const a = Math.random() * Math.PI * 2, r = SC_RMIN + Math.random() * (SC_RMAX - SC_RMIN - 0.3); x = Math.cos(a) * r; z = Math.sin(a) * r; } while (Math.max(Math.abs(x), Math.abs(z)) < SC_RING);
       this.sc = { phase: 'su', t: 0, x, z, yaw: Math.random() * Math.PI * 2, turn: 0, walk: 4 + Math.random() * 5 };
       S.position.set(x, -0.06, z); S.rotation.set(-0.5, this.sc.yaw, 0); S.visible = true;
-      this._burst(S.position, 1);
+      this._burst(S.position, 1); this._puff(S.position, 8);
       return;
     }
     const C = this.sc; C.t += dt;
@@ -278,12 +306,13 @@ export class Desert {
       else if (Math.max(Math.abs(C.x), Math.abs(C.z)) < SC_RING) C.yaw = Math.atan2(C.x, C.z);   // non sale sul ring
       C.x += Math.sin(C.yaw) * speed * dt; C.z += Math.cos(C.yaw) * speed * dt;
       S.position.set(C.x, 0, C.z); S.rotation.set(0, C.yaw, 0);
-      if (C.t > C.walk && go) { C.phase = 'giu'; C.t = 0; this._burst(S.position, 0.8); }
-    } else {                                               // si risotterra scavando (scende tremando)
-      const k = Math.min(1, C.t / 1.1);
-      S.position.y = -0.07 * k; S.rotation.set(0.35 * k, C.yaw + Math.sin(C.t * 30) * 0.08 * (1 - k), 0);
-      speed = 0.05;
-      if (k >= 1) { S.visible = false; this.sc = null; this.nextSc = 18 + Math.random() * 25; }
+      if (C.t > C.walk && go) { C.phase = 'giu'; C.t = 0; C.pf = 0; this._puff(S.position, 6); }
+    } else {                                               // si risotterra: gratta sul posto alzando tanta polvere, poi ci sparisce dentro
+      speed = 0.12;                                         // (le zampe grattano veloci)
+      if ((C.pf -= dt) <= 0) { C.pf = 0.07; this._puff(S.position, 3); if (C.t < 1.2) this._burst(S.position, 0.3); }
+      const k = Math.min(1, Math.max(0, (C.t - 0.6) / 0.9));             // scende solo quando la nuvola lo copre
+      S.position.y = -0.08 * k; S.rotation.set(0, C.yaw + Math.sin(C.t * 25) * 0.05, 0);
+      if (C.t > 1.8) { S.visible = false; this.sc = null; this.nextSc = 18 + Math.random() * 25; }
     }
     // zampe a passo alternato, chele che si aprono, coda che ondeggia
     const w = this.t * (speed > 0.06 ? 14 : 4);

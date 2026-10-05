@@ -2,17 +2,56 @@
 // ogni tanto si ferma e si guarda intorno, ai capi si gira e torna indietro. (modello e passo: blender/create_bear.py)
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { contactShadow } from './contact_shadow.js?v=20261005221349';
+import { contactShadow } from './contact_shadow.js?v=20261005221637';
 
 const R = 11.5, A0 = -2.45, A1 = -0.75, SPEED = 0.34;    // arco davanti a te (tu guardi verso -Z)
+
+// coordinate del modello (glTF): y in alto, muso verso +z. Occhi e naso come in create_bear.py
+function furMat(layer) {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 });
+  m.onBeforeCompile = sh => {
+    sh.uniforms.uL = { value: layer };
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>
+      uniform float uL; varying vec3 vB; varying float vL; varying float vF;
+      float furLen(vec3 p){ float f = 1.0;
+        f *= mix(1.0, 0.25, smoothstep(0.98, 1.10, p.z) * step(0.8, p.y));        // muso raso
+        f *= smoothstep(0.04, 0.16, p.y);                                          // piedi rasi
+        f *= smoothstep(0.03, 0.05, min(min(length(p - vec3(0.087, 1.063, 1.03)), length(p - vec3(-0.087, 1.063, 1.03))), length(p - vec3(0.0, 0.961, 1.236))));
+        f *= 1.0 + 0.4 * smoothstep(0.85, 1.05, p.y) * smoothstep(0.6, 0.2, p.z);   // dorso e collo un po' piu' folti
+        return f; }`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        vB = position; float fl0 = furLen(position); float fl = fl0 * uL; vF = fl0;
+        transformed += normal * 0.016 * fl; transformed.y -= 0.012 * fl * fl; transformed.z -= 0.008 * fl;   // corto e steso (pelo liscio) vL = uL;`);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+      varying vec3 vB; varying float vL; varying float vF;
+      float h3(vec3 p){ return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        if (vL > 0.0) { vec3 c = floor(vB * 340.0); float h = h3(c);
+          if (h < 0.04 + vL * 0.7 || vF < 0.05) discard; }
+        diffuseColor.rgb *= mix(0.78, 1.03, vL);`);
+  };
+  m.customProgramCacheKey = () => 'furOrso' + (layer > 0 ? 1 : 0);
+  return m;
+}
 
 export class Bear {
   constructor(parent) {
     this.group = new THREE.Group(); this.group.name = 'orso'; parent.add(this.group);
     this.shadow = contactShadow(1.1, 2.2, 0.45); this.shadow.position.y = 0.02; this.group.add(this.shadow);
     this.a = A0 + 0.3; this.dir = 1; this.state = 'walk'; this.t = 0; this.next = 8 + Math.random() * 10; this.yaw = 0;
-    new GLTFLoader().load('assets/orso.glb?v=20261005221349', g => {
+    new GLTFLoader().load('assets/orso.glb?v=20261005221637', g => {
       this.model = g.scene; this.model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+      // pelo a gusci (come il lupo): corto, morbido e pettinato verso il basso; raso su muso e piedi, occhi e naso puliti
+      let sk = null; this.model.traverse(o => { if (o.isSkinnedMesh) sk = o; });
+      if (sk) {
+        const NS = 12;
+        for (let k = 0; k <= NS; k++) {
+          const mat = furMat(k / NS);
+          if (k === 0) { sk.material = mat; continue; }
+          const sh = new THREE.SkinnedMesh(sk.geometry, mat); sh.bind(sk.skeleton, sk.bindMatrix); sh.frustumCulled = false;
+          sk.parent.add(sh); sh.position.copy(sk.position); sh.quaternion.copy(sk.quaternion); sh.scale.copy(sk.scale);
+        }
+      }
       this.group.add(this.model);
       this.mixer = new THREE.AnimationMixer(this.model);
       const clip = n => g.animations.find(c => c.name === n);
