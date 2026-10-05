@@ -5,7 +5,66 @@
 // Va al posto della sfera del cielo, che resta solo finche' la profondita' non e' caricata.
 import * as THREE from 'three';
 
+// quanti sfondi 3D sono ancora in costruzione (finche' ce n'e' uno, il caricamento resta al buio)
+export let panoPending = 0;
+
+// il worker: legge la mappa di profondita' e costruisce i due strati (davanti e riempimento dietro)
+const WORKER_URL = URL.createObjectURL(new Blob([`
 const GW = 512, GH = 256, SKY = 880;
+onmessage = async ({ data: { url, eye, uU, flat } }) => {
+  try {
+    const bmp = await createImageBitmap(await (await fetch(url)).blob(), { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
+    const c = new OffscreenCanvas(bmp.width, bmp.height), g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(bmp, 0, 0);
+    const px = g.getImageData(0, 0, c.width, c.height).data, W = c.width, H = c.height;
+    // distanza in un punto della foto: davanti la minima di un 3x3 (sui bordi vince la roccia, niente frange),
+    // dietro la massima di un 9x9 (vince lo sfondo)
+    const distMin = (x, y) => { let m = Infinity;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const xx = (x + dx + W) % W, yy = Math.min(H - 1, Math.max(0, y + dy)), i = (yy * W + xx) * 4;
+        const v = px[i] * 256 + px[i + 1]; if (v !== 65535) m = Math.min(m, v * 0.5); }
+      return m; };
+    const distMax = (x, y) => { let m = 0;
+      for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+        const xx = (x + dx + W) % W, yy = Math.min(H - 1, Math.max(0, y + dy)), i = (yy * W + xx) * 4;
+        const v = px[i] * 256 + px[i + 1]; m = Math.max(m, v === 65535 ? Infinity : v * 0.5); }
+      return m; };
+    const build = dist => {
+      const pos = new Float32Array((GW + 1) * (GH + 1) * 3);
+      for (let j = 0; j <= GH; j++) {
+        const lat = (0.5 - j / GH) * Math.PI;                    // j = 0 in alto
+        for (let i = 0; i <= GW; i++) {
+          const lon = (i / GW - 0.5 - uU) * 2 * Math.PI;
+          const dx = Math.cos(lat) * Math.cos(lon), dy = Math.sin(lat), dz = Math.cos(lat) * Math.sin(lon);
+          let uu = (Math.atan2(dz, dx) / (2 * Math.PI) + 0.5 + uU) % 1; if (uu < 0) uu += 1;
+          let R = Math.min(SKY, dist(Math.min(W - 1, (uu * W) | 0), Math.min(H - 1, (j / GH * H) | 0)));
+          if (flat > 0 && dy < -0.01) {                       // a terra: sul piano, con un raccordo morbido verso la foto
+            const tp = eye / -dy, rh = tp * Math.sqrt(1 - dy * dy);
+            const k = Math.min(1, Math.max(0, (rh - flat) / 6)), kk = k * k * (3 - 2 * k);
+            if (rh < flat + 6) R = tp + (Math.min(R, SKY) - tp) * kk;
+          }
+          const k = ((j * (GW + 1)) + i) * 3;
+          pos[k] = dx * R; pos[k + 1] = eye + dy * R; pos[k + 2] = dz * R;
+        }
+      }
+      return pos; };
+    // i triangoli a cavallo di un salto di distanza (bordo di una roccia davanti allo sfondo) si tolgono: tirati tra
+    // vicino e lontano facevano strisce stirate; nel buco si vede lo strato dietro o la sfera del cielo
+    const tris = (pos, ratio, far) => {
+      const d = v => Math.hypot(pos[v * 3], pos[v * 3 + 1] - eye, pos[v * 3 + 2]);
+      const keep = (p, q, r) => { const a = d(p), b = d(q), c = d(r), lo = Math.min(a, b, c), hi = Math.max(a, b, c); return hi < lo * ratio || lo > far; };
+      const idx = new Uint32Array(GW * GH * 6); let n = 0;
+      for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) {
+        const a = j * (GW + 1) + i, b = a + 1, cc = a + GW + 1, dd = cc + 1;
+        if (keep(a, cc, b)) { idx[n++] = a; idx[n++] = cc; idx[n++] = b; }
+        if (keep(b, cc, dd)) { idx[n++] = b; idx[n++] = cc; idx[n++] = dd; }
+      }
+      return idx.slice(0, n); };
+    const pos = build(distMin), posB = build(distMax);
+    const idx = tris(pos, 1.45, 120), idxB = tris(posB, 3, 200);   // dietro: si tolgono solo i salti enormi
+    postMessage({ pos, idx, posB, idxB }, [pos.buffer, idx.buffer, posB.buffer, idxB.buffer]);
+  } catch (e) { postMessage({ err: String(e) }); }
+};
+`], { type: 'text/javascript' }));
 
 // clip: raggio (m) attorno al ring dove lo sfondo non si disegna: li' c'e' il terreno 3D del gioco (che porta lupo,
 // impronte, scorpione...) e il terreno della foto, qualche cm piu' alto, lo copriva
@@ -36,72 +95,19 @@ export function panoDepth(url, tex, { eye = 1.65, uU = 0, onReady = null, clip =
   back.material.polygonOffsetFactor = 10; back.material.polygonOffsetUnits = 10;
   back.renderOrder = -9.5; back.frustumCulled = false; back.name = 'sfondo 3D dietro';
   const root = new THREE.Group(); root.name = 'sfondo 3D'; root.add(back); root.add(mesh); root.visible = false;
-  fetch(url).then(r => r.blob()).then(b => createImageBitmap(b, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' })).then(bmp => {
-    const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
-    const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(bmp, 0, 0);
-    const px = g.getImageData(0, 0, c.width, c.height).data, W = c.width, H = c.height;
-    // distanza in un punto della foto: davanti la minima di un 3x3 (sui bordi vince la roccia, niente frange),
-    // dietro la massima di un 9x9 (vince lo sfondo)
-    const distMin = (x, y) => {
-      let m = Infinity;
-      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-        const xx = (x + dx + W) % W, yy = Math.min(H - 1, Math.max(0, y + dy)), i = (yy * W + xx) * 4;
-        const v = px[i] * 256 + px[i + 1]; if (v !== 65535) m = Math.min(m, v * 0.5);
-      }
-      return m;
-    };
-    const distMax = (x, y) => {
-      let m = 0;
-      for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
-        const xx = (x + dx + W) % W, yy = Math.min(H - 1, Math.max(0, y + dy)), i = (yy * W + xx) * 4;
-        const v = px[i] * 256 + px[i + 1]; m = Math.max(m, v === 65535 ? Infinity : v * 0.5);
-      }
-      return m;
-    };
-    const build = dist => {
-    const pos = new Float32Array((GW + 1) * (GH + 1) * 3);
-    for (let j = 0; j <= GH; j++) {
-      const lat = (0.5 - j / GH) * Math.PI;                    // j = 0 in alto
-      for (let i = 0; i <= GW; i++) {
-        const u = i / GW, lon = (u - 0.5 - uU) * 2 * Math.PI;
-        const d = new THREE.Vector3(Math.cos(lat) * Math.cos(lon), Math.sin(lat), Math.cos(lat) * Math.sin(lon));
-        let uu = (Math.atan2(d.z, d.x) / (2 * Math.PI) + 0.5 + uU) % 1; if (uu < 0) uu += 1;
-        let R = Math.min(SKY, dist(Math.min(W - 1, (uu * W) | 0), Math.min(H - 1, (j / GH * H) | 0)));
-        if (flat > 0 && d.y < -0.01) {                       // a terra: sul piano, con un raccordo morbido verso la foto
-          const tp = eye / -d.y, rh = tp * Math.sqrt(1 - d.y * d.y);
-          const k = Math.min(1, Math.max(0, (rh - flat) / 6)), kk = k * k * (3 - 2 * k);
-          if (rh < flat + 6) R = tp + (Math.min(R, SKY) - tp) * kk;
-        }
-        const k = ((j * (GW + 1)) + i) * 3;
-        pos[k] = d.x * R; pos[k + 1] = eye + d.y * R; pos[k + 2] = d.z * R;
-      }
-    }
-    return pos; };
-    const pos = build(distMin), posB = build(distMax);
-    // i triangoli a cavallo di un salto di distanza (bordo di una roccia davanti allo sfondo) si tolgono: tirati tra
-    // vicino e lontano facevano strisce stirate; nel buco si vede la foto (la sfera del cielo, dietro)
-    const dist3 = v => Math.hypot(pos[v * 3], pos[v * 3 + 1] - eye, pos[v * 3 + 2]);
-    const keep = (p, q, r) => { const a = dist3(p), b = dist3(q), c = dist3(r), lo = Math.min(a, b, c), hi = Math.max(a, b, c); return hi < lo * 1.45 || lo > 120; };
-    const idx = new Uint32Array(GW * GH * 6); let n = 0;
-    for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) {
-      const a = j * (GW + 1) + i, b = a + 1, cc = a + GW + 1, dd = cc + 1;
-      if (keep(a, cc, b)) { idx[n++] = a; idx[n++] = cc; idx[n++] = b; }
-      if (keep(b, cc, dd)) { idx[n++] = b; idx[n++] = cc; idx[n++] = dd; }
-    }
-    const geo = mesh.geometry; geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(new THREE.BufferAttribute(idx.subarray(0, n), 1));
-    geo.computeBoundingSphere();
-    // dietro: si tolgono solo i salti enormi (oltre 3 volte: li' si vede la foto lontana, che quasi non si nota)
-    const distB = v => Math.hypot(posB[v * 3], posB[v * 3 + 1] - eye, posB[v * 3 + 2]);
-    const keepB = (p, q, r) => { const a = distB(p), b = distB(q), c = distB(r), lo = Math.min(a, b, c), hi = Math.max(a, b, c); return hi < lo * 3 || lo > 200; };
-    const idxB = new Uint32Array(GW * GH * 6); let m = 0;
-    for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) {
-      const a = j * (GW + 1) + i, b = a + 1, cc = a + GW + 1, dd = cc + 1;
-      if (keepB(a, cc, b)) { idxB[m++] = a; idxB[m++] = cc; idxB[m++] = b; }
-      if (keepB(b, cc, dd)) { idxB[m++] = b; idxB[m++] = cc; idxB[m++] = dd; }
-    }
-    back.geometry.setAttribute('position', new THREE.BufferAttribute(posB, 3)); back.geometry.setIndex(new THREE.BufferAttribute(idxB.subarray(0, m), 1));
+  panoPending++;
+  // il calcolo (milioni di letture della mappa) si fa in un worker: fatto qui bloccava il gioco per un attimo e nel
+  // visore restava congelata l'ultima immagine, come un pannello fermo con la stanza tutt'intorno
+  const w = new Worker(WORKER_URL);
+  w.onmessage = ({ data }) => {
+    w.terminate(); panoPending--;
+    if (data.err) { console.warn('profondita', url, data.err); return; }
+    mesh.geometry.setAttribute('position', new THREE.BufferAttribute(data.pos, 3)); mesh.geometry.setIndex(new THREE.BufferAttribute(data.idx, 1));
+    mesh.geometry.computeBoundingSphere();
+    back.geometry.setAttribute('position', new THREE.BufferAttribute(data.posB, 3)); back.geometry.setIndex(new THREE.BufferAttribute(data.idxB, 1));
     back.geometry.computeBoundingSphere();
     root.visible = true; if (onReady) onReady();
-  }).catch(e => console.warn('profondita', url, e));
+  };
+  w.postMessage({ url: new URL(url, location.href).href, eye, uU, flat });
   return root;
 }
