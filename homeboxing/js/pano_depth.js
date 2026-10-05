@@ -24,18 +24,25 @@ export function panoDepth(url, tex, { eye = 1.65, uU = 0, onReady = null, clip =
         vec2 uv = vec2(fract(atan(d.z, d.x) * 0.15915494 + 0.5 + uU), asin(clamp(d.y, -1.0, 1.0)) * 0.31830989 + 0.5);
         vec3 col = texture2D(uPano, uv).rgb;
         if (uFlat > 0.0 && vP.y < 0.2) { float k = 1.0 - smoothstep(uFlat - 4.0, uFlat + 4.0, length(vP.xz));
-          col *= mix(vec3(1.0), texture2D(uGrain, vP.xz / uGS).rgb / uGM, k); }
+          col *= mix(1.0, dot(texture2D(uGrain, vP.xz / uGS).rgb, vec3(0.299, 0.587, 0.114)) / uGM, k); }   // (solo chiaro/scuro: niente puntini colorati)
         gl_FragColor = vec4(col, 1.0);
         #include <colorspace_fragment>
       }`,
   }));
-  mesh.renderOrder = -9; mesh.frustumCulled = false; mesh.visible = false; mesh.name = 'sfondo 3D';
+  mesh.renderOrder = -9; mesh.frustumCulled = false; mesh.name = 'sfondo 3D';
+  // strato di riempimento, appena dietro: le cose vicine "assottigliate" (vince la distanza piu' lontana dei dintorni),
+  // cosi' dove al bordo di una roccia il primo strato e' tagliato si vede lo sfondo vero alla sua distanza (non un buco)
+  const back = new THREE.Mesh(new THREE.BufferGeometry(), mesh.material.clone());
+  back.material.polygonOffsetFactor = 10; back.material.polygonOffsetUnits = 10;
+  back.renderOrder = -9.5; back.frustumCulled = false; back.name = 'sfondo 3D dietro';
+  const root = new THREE.Group(); root.name = 'sfondo 3D'; root.add(back); root.add(mesh); root.visible = false;
   fetch(url).then(r => r.blob()).then(b => createImageBitmap(b, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' })).then(bmp => {
     const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
     const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(bmp, 0, 0);
     const px = g.getImageData(0, 0, c.width, c.height).data, W = c.width, H = c.height;
-    // distanza in un punto della foto: la minima di un 3x3 (sui bordi delle rocce vince la roccia, niente frange)
-    const dist = (x, y) => {
+    // distanza in un punto della foto: davanti la minima di un 3x3 (sui bordi vince la roccia, niente frange),
+    // dietro la massima di un 9x9 (vince lo sfondo)
+    const distMin = (x, y) => {
       let m = Infinity;
       for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
         const xx = (x + dx + W) % W, yy = Math.min(H - 1, Math.max(0, y + dy)), i = (yy * W + xx) * 4;
@@ -43,6 +50,15 @@ export function panoDepth(url, tex, { eye = 1.65, uU = 0, onReady = null, clip =
       }
       return m;
     };
+    const distMax = (x, y) => {
+      let m = 0;
+      for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+        const xx = (x + dx + W) % W, yy = Math.min(H - 1, Math.max(0, y + dy)), i = (yy * W + xx) * 4;
+        const v = px[i] * 256 + px[i + 1]; m = Math.max(m, v === 65535 ? Infinity : v * 0.5);
+      }
+      return m;
+    };
+    const build = dist => {
     const pos = new Float32Array((GW + 1) * (GH + 1) * 3);
     for (let j = 0; j <= GH; j++) {
       const lat = (0.5 - j / GH) * Math.PI;                    // j = 0 in alto
@@ -60,6 +76,8 @@ export function panoDepth(url, tex, { eye = 1.65, uU = 0, onReady = null, clip =
         pos[k] = d.x * R; pos[k + 1] = eye + d.y * R; pos[k + 2] = d.z * R;
       }
     }
+    return pos; };
+    const pos = build(distMin), posB = build(distMax);
     // i triangoli a cavallo di un salto di distanza (bordo di una roccia davanti allo sfondo) si tolgono: tirati tra
     // vicino e lontano facevano strisce stirate; nel buco si vede la foto (la sfera del cielo, dietro)
     const dist3 = v => Math.hypot(pos[v * 3], pos[v * 3 + 1] - eye, pos[v * 3 + 2]);
@@ -72,7 +90,18 @@ export function panoDepth(url, tex, { eye = 1.65, uU = 0, onReady = null, clip =
     }
     const geo = mesh.geometry; geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(new THREE.BufferAttribute(idx.subarray(0, n), 1));
     geo.computeBoundingSphere();
-    mesh.visible = true; if (onReady) onReady();
+    // dietro: si tolgono solo i salti enormi (oltre 3 volte: li' si vede la foto lontana, che quasi non si nota)
+    const distB = v => Math.hypot(posB[v * 3], posB[v * 3 + 1] - eye, posB[v * 3 + 2]);
+    const keepB = (p, q, r) => { const a = distB(p), b = distB(q), c = distB(r), lo = Math.min(a, b, c), hi = Math.max(a, b, c); return hi < lo * 3 || lo > 200; };
+    const idxB = new Uint32Array(GW * GH * 6); let m = 0;
+    for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) {
+      const a = j * (GW + 1) + i, b = a + 1, cc = a + GW + 1, dd = cc + 1;
+      if (keepB(a, cc, b)) { idxB[m++] = a; idxB[m++] = cc; idxB[m++] = b; }
+      if (keepB(b, cc, dd)) { idxB[m++] = b; idxB[m++] = cc; idxB[m++] = dd; }
+    }
+    back.geometry.setAttribute('position', new THREE.BufferAttribute(posB, 3)); back.geometry.setIndex(new THREE.BufferAttribute(idxB.subarray(0, m), 1));
+    back.geometry.computeBoundingSphere();
+    root.visible = true; if (onReady) onReady();
   }).catch(e => console.warn('profondita', url, e));
-  return mesh;
+  return root;
 }

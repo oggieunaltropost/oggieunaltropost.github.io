@@ -33,7 +33,7 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261006010638';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261006011316';
 // Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
@@ -55,7 +55,7 @@ let vbuf = {}, vLang = 'it';
 let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261006010638`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261006011316`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
@@ -194,9 +194,9 @@ const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261006010638`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261006011316`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
-  loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (snowWanted && !snowW) snowAmbient(true); if (lavaWanted && !lavaW) lavaAmbient(true); if (underWanted && !underW) underAmbient(true); if (windWanted && (!wind || wind.synth)) { if (wind) { wind.s.stop(); wind = null; } windAmbient(true); } });   // vento vero appena caricato
+  loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (snowWanted && !snowW) snowAmbient(true); if (lavaWanted && !lavaW) lavaAmbient(true); if (underWanted && !underW) underAmbient(true); if (spaceWanted && !spaceW) spaceAmbient(true); if (windWanted && (!wind || wind.synth)) { if (wind) { wind.s.stop(); wind = null; } windAmbient(true); } });   // vento vero appena caricato
   return loading;
 }
 function loopSrc(b, gain) {
@@ -477,6 +477,38 @@ export function eagleCry(pos, cam) {
 
 // ---------------------------------------------------------------- neve: vento freddo in loop, passi del lupo, ululato
 let snowW = null, snowWanted = false;
+// ---------------------------------------------------------------- luna: atmosfera "da spazio", bassissima
+// (sintetizzata qui: un rombo profondo che respira piano, un fruscio scuro e un luccichio lontano; 24 s che si ripetono)
+let spaceW = null, spaceWanted = false, spaceBuf = null;
+function makeSpace() {
+  const L = 24, sr = ctx.sampleRate, n = L * sr, b = ctx.createBuffer(2, n, sr);
+  const tones = [[41.25, 0.32], [55.0, 0.22], [61.875, 0.12], [82.5, 0.08], [123.75, 0.035]];   // (cicli interi in 24 s: giro senza scatti)
+  for (let ch = 0; ch < 2; ch++) {
+    const d = b.getChannelData(ch); let lp1 = 0, lp2 = 0;
+    const noise = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const w = Math.random() * 2 - 1; lp1 += (w - lp1) * 0.02; lp2 += (lp1 - lp2) * 0.02; noise[i] = lp2; }
+    const X = sr * 2;                                                   // giunta del fruscio: dissolvenza incrociata di 2 s
+    for (let i = 0; i < X; i++) { const k = i / X; noise[i] = noise[i] * k + noise[n - X + i] * (1 - k); }
+    for (let i = 0; i < n; i++) {
+      const t = i / sr; let v = 0;
+      for (const [f, a] of tones) v += a * Math.sin(2 * Math.PI * f * t + ch * 0.7 + f);
+      v *= 0.65 + 0.35 * Math.sin(2 * Math.PI * t / 24 + ch);            // respiro lentissimo
+      v += noise[i] * 3.5 * (0.6 + 0.4 * Math.sin(2 * Math.PI * t * 2 / 24 + 1.3));
+      v += 0.012 * Math.sin(2 * Math.PI * 1760 * t) * Math.max(0, Math.sin(2 * Math.PI * t * 3 / 24 + ch * 2));   // luccichio
+      v += 0.008 * Math.sin(2 * Math.PI * 2343.75 * t) * Math.max(0, Math.sin(2 * Math.PI * t * 2 / 24 + 2 + ch));
+      d[i] = v * 0.5;
+    }
+  }
+  return b;
+}
+export function spaceAmbient(on) {
+  spaceWanted = on;
+  if (!ctx) return;
+  if (on && !spaceW) {
+    if (!spaceBuf) spaceBuf = makeSpace();
+    spaceW = loopSrc(spaceBuf, 0.0); spaceW.g.gain.setTargetAtTime(0.22, ctx.currentTime, 2.0);
+  } else if (!on && spaceW) { const w = spaceW; spaceW = null; w.g.gain.setTargetAtTime(0, ctx.currentTime, 0.3); setTimeout(() => { try { w.s.stop(); } catch (e) {} }, 1200); }
+}
 export function snowAmbient(on) {
   snowWanted = on;
   if (!ctx) return;
