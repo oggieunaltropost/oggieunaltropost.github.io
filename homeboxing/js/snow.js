@@ -10,9 +10,10 @@
 //    poi si rialza e riprende a girare a caso.
 //  - vento freddo, passi nella neve e ululato con l'audio spaziale.
 import * as THREE from 'three';
-import { panoDepth } from './pano_depth.js?v=20261005221042';
+import { Bear } from './bear.js?v=20261005221349';
+import { panoDepth } from './pano_depth.js?v=20261005221349';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import * as sfx from './sfx.js?v=20261005221042';
+import * as sfx from './sfx.js?v=20261005221349';
 
 const EYE = 1.65;                     // altezza della camera della foto
 const R_FADE0 = 11, R_FADE1 = 17;     // la neve 3D sfuma nella foto tra questi raggi
@@ -45,13 +46,14 @@ export class Snow {
     this.sunDir = new THREE.Vector3(-0.45, 0.55, -0.7).normalize();     // sole velato basso
     this.t = 0;
     this._sky(); this._ground(); this._flakes(); this._prints(); this._wolf();
+    this.bear = new Bear(this.group);                          // l'orso polare che passeggia piu' in la'
   }
   // ---------------------------------------------------------------- foto a 360 gradi
   _sky() {
     const img = new Image();
     const tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     img.onload = () => { tex.needsUpdate = true; this.skyLoaded = true; this._tintGround(img); if (this.onSkyLoad) this.onSkyLoad(); };
-    img.src = 'assets/neve_panorama.jpg?v=20261005221042';
+    img.src = 'assets/neve_panorama.jpg?v=20261005221349';
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
@@ -202,7 +204,7 @@ export class Snow {
     g.setTransform(1, 0, 0, 0.5, 0, 16); g.fillStyle = gr; g.fillRect(0, -32, 128, 128);
     const sh = new THREE.Mesh(new THREE.PlaneGeometry(0.75, 1.5), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, opacity: 0.45, color: 0x223355, polygonOffset: true, polygonOffsetFactor: -3 }));
     sh.geometry.rotateX(-Math.PI / 2); sh.geometry.rotateY(Math.PI / 2); sh.renderOrder = -3; this.shadow = sh; this.group.add(sh);
-    new GLTFLoader().load('assets/lupo.glb?v=20261005221042', gl => {
+    new GLTFLoader().load('assets/lupo.glb?v=20261005221349', gl => {
       let skinned = null; gl.scene.traverse(o => { if (o.isSkinnedMesh) skinned = o; });
       if (!skinned) return;
       this.wolf.add(gl.scene);
@@ -406,6 +408,7 @@ export class Snow {
     this.flakeMat.uniforms.uH.value = (this._drawH || 1000) * 0.5;      // altezza in pixel dell'immagine di un occhio
     cam.getWorldPosition(_v2); const camLocal = this.group.worldToLocal(_v2.clone());
     this._updWolf(Math.min(dt, 0.05), camLocal);
+    this.bear.update(Math.min(dt, 0.05));
   }
   setDrawHeight(h) { this._drawH = h; }
   setRing(size) { this.ringHalf = (size + 0.5) / 2; this.flakeMat.uniforms.uRing.value = this.ringHalf; }
