@@ -42,6 +42,7 @@ export class CpuMatch {
     this.f = [A, B]; this.view = [new FighterAsPlayer(B), new FighterAsPlayer(A)];   // A vede B e viceversa
     this.dmg = [0, 0]; this.pts = [0, 0]; this.hits = [0, 0]; this.delay = delay; this.time = secs; this.done = false; this.winner = null; this.endT = 0;
     this.hooks = hooks;
+    this.kdN = [0, 0]; this.kd = null;                // atterramenti (come negli incontri veri: ci si puo' rialzare)
     for (const f of this.f) { f.resetPose(); f.enabled = delay <= 0; f.events.length = 0; }
   }
   update(dt) {
@@ -60,11 +61,27 @@ export class CpuMatch {
         this.pts[i] += e.zone === 'head' ? 2 : 1; this.hits[i]++;
         this.dmg[o] = Math.min(100, this.dmg[o] + (e.zone === 'head' ? 3.5 + 6 * power : 2 + 3.5 * power));
         if (this.hooks.onHit) this.hooks.onHit(e.zone, power);
-        if (this.dmg[o] >= 100) { this.winner = i; this.f[o].knockdown(); this.f[i].enabled = false; this.endT = 4; if (this.hooks.onKO) this.hooks.onKO(); }
+        if (this.dmg[o] >= 100 && !this.kd) {
+          // atterrato: si rialza (tra il 4 e l'8) se ha ancora energia da recuperare, se no e' KO. Stesse regole tue:
+          // "un atterramento e' KO", "regola dei 3 atterramenti", recupero 75 / 50 / 25 e poi sempre meno probabile
+          this.kdN[o]++;
+          const refill = [75, 50, 25][this.kdN[o] - 1] ?? 0;
+          const out = this.hooks.oneKO || (this.hooks.threeKO !== false && this.kdN[o] >= 3) || refill <= 0 || Math.random() < 0.12 * this.kdN[o];
+          this.f[o].knockdown(); this.f[i].enabled = false; this.f[o].enabled = false;
+          if (this.hooks.onKD) this.hooks.onKD();
+          if (out) { this.winner = i; this.endT = 6; if (this.hooks.onKO) this.hooks.onKO(); }
+          else this.kd = { o, t: 0, upAt: 4 + Math.random() * 4, refill };
+        }
       }
       this.f[i].events.length = 0;
     }
     for (let i = 0; i < 2; i++) this.f[i].fatigue = this.dmg[i] / 100;
+    if (this.kd) {                                    // conteggio: si rialza, un attimo per rimettersi in guardia e si riparte
+      const K = this.kd; K.t += dt;
+      if (K.t > K.upAt && !K.up) { K.up = true; this.f[K.o].getUp(); this.dmg[K.o] = 100 - K.refill; }
+      if (K.up && K.t > K.upAt + 2.5) { for (const f of this.f) { f.enabled = true; f.resetPose && f.resetPose(); } this.kd = null; }
+      if (this.kd) { if (this.delay <= 0) this.time -= dt; return; }
+    }
     if (this.endT) { this.endT -= dt; if (this.endT <= 0) this.finish(); return; }
     if (this.delay > 0) return;
     this.time -= dt;

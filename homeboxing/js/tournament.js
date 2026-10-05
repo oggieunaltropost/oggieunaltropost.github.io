@@ -4,7 +4,7 @@
 // a te; le animazioni (chi combatte, chi passa il turno, il campione che arriva alla coppa) sono oggetti 3D
 // che si muovono sopra la tela.
 import * as THREE from 'three';
-import { t } from './i18n.js?v=20261005003741';
+import { t } from './i18n.js?v=20261005191152';
 
 const W = 2048, H = 1024;                  // tela del tabellone
 const PW = 1.6, PH = PW * H / W;           // pannello in metri
@@ -24,29 +24,20 @@ const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.f
 export class Tournament {
   // fighters: { id: { name, thumb, face:[x,y,size] } }
   constructor(fighters) {
-    const ids = Object.keys(fighters);
-    // i tuoi 5 avversari: il maggior numero possibile di personaggi diversi, poi si ripetono (mai due di fila)
-    const opp = [];
-    while (opp.length < 5) for (const id of shuffle([...ids])) if (opp.length < 5 && opp[opp.length - 1] !== id) opp.push(id);
-    this.opp = opp;
+    const ids = shuffle(Object.keys(fighters));
     const used = new Set(), fake = () => {
       let n; do n = FIRST[Math.floor(Math.random() * FIRST.length)] + ' ' + LAST[Math.floor(Math.random() * LAST.length)]; while (used.has(n));
       used.add(n); return { kind: 'fake', name: n };
     };
     const slots = Array.from({ length: 32 }, () => null);
-    slots[0] = { kind: 'you' };
     const real = id => ({ kind: 'real', id, name: fighters[id].name });
-    // l'avversario del turno r arriva dal blocco di 2^r posti accanto al tuo (posizione a caso dentro il blocco).
-    // Dal blocco dei quarti in su c'e' un secondo pugile vero nell'altra meta': i due si affrontano tra loro
-    // (incontro tra personaggi della CPU, che puoi guardare) e il vincitore arriva a te.
-    for (let r = 0; r < 5; r++) {
-      const start = 1 << r, size = 1 << r;
-      if (r < 2) { slots[start + Math.floor(Math.random() * size)] = real(opp[r]); continue; }
-      const h = size / 2, other = ids.length > 1 ? shuffle(ids.filter(i => i !== opp[r]))[0] : opp[r];
-      const first = Math.random() < 0.5;
-      slots[start + Math.floor(Math.random() * h)] = real(first ? opp[r] : other);
-      slots[start + h + Math.floor(Math.random() * h)] = real(first ? other : opp[r]);
-    }
+    // Teste di serie: al primo turno ogni personaggio vero affronta un nome inventato (e lo batte), cosi' i veri si
+    // incontrano tra loro solo dal secondo turno in poi. Tu sei l'eccezione: il tuo primo avversario e' vero.
+    // Entrano 15 personaggi (tu + 15 = 16 vincitori del primo turno); gli altri restano fuori, a caso ogni volta.
+    slots[0] = { kind: 'you' }; slots[1] = real(ids[0]);
+    const rest = ids.slice(1, 15), pairs = shuffle(Array.from({ length: 15 }, (_, k) => k + 1));
+    rest.forEach((id, k) => { const pr = pairs[k], side = Math.random() < 0.5 ? 0 : 1; slots[pr * 2 + side] = real(id); });
+    this.opp = [ids[0]];
     for (let i = 0; i < 32; i++) if (!slots[i]) slots[i] = fake();
     this.p = slots;                                   // partecipanti
     this.ent = [slots.map((_, i) => i)];             // ent[r][j] = indice del partecipante in posizione j al turno r

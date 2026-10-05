@@ -1,6 +1,6 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261005003741';
+import { t as tr } from './i18n.js?v=20261005191152';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
 // ogni raggio: { o, d, hit, sel (grilletto / pizzico tenuto), click (appena premuto) }
@@ -19,12 +19,14 @@ function rayLocal(group, o, d, zf) {
 }
 // ---- barra di presa sotto un pannello: mano (o raggio) ferma sulla barra 0,4 s = presa, il pannello segue
 // la mano; mano ferma 0,6 s = lasciato li'
-function makeDragBar(group, y) {
+function makeDragBar(group, y, x = 0, vertical = false, len = 0.3) {
   const c = document.createElement('canvas'); c.width = 256; c.height = 40; const g = c.getContext('2d');
   g.fillStyle = '#ffffff'; g.beginPath(); g.roundRect(4, 6, 248, 28, 14); g.fill();
-  const bar = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.047), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), color: 0x9aa3b6, transparent: true, opacity: 0.85, depthTest: false }));
-  bar.position.set(0, y, 0.01); bar.renderOrder = 1103; group.add(bar);
-  return { bar, t: 0, grab: null };
+  const bar = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.047), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), color: 0x9aa3b6, transparent: true, opacity: 0.85, depthTest: false }));
+  bar.position.set(x, y, 0.01); bar.renderOrder = 1103; group.add(bar);
+  if (vertical) bar.rotation.z = Math.PI / 2;                 // maniglia di lato (in piedi)
+  const hw = len / 2 + 0.02, hh = 0.04;
+  return { bar, t: 0, grab: null, hw: vertical ? hh : hw, hh: vertical ? hw : hh };
 }
 function updateDragBar(D, group, dt, gloves) {
   const bw = D.bar.getWorldPosition(new THREE.Vector3());
@@ -55,7 +57,7 @@ function updateDragBar(D, group, dt, gloves) {
   const sc = group.scale.x || 1;
   if (!src) RAYS.forEach((r, i) => {
     const l = rayLocal(group, r.o, r.d, 0.01);
-    if (l && Math.abs(l.x - D.bar.position.x) < 0.17 && Math.abs(l.y - D.bar.position.y) < 0.04) {
+    if (l && Math.abs(l.x - D.bar.position.x) < D.hw && Math.abs(l.y - D.bar.position.y) < D.hh) {
       const w = l.clone().applyMatrix4(group.matrixWorld);
       if (!r.hit || r.o.distanceTo(w) < r.o.distanceTo(r.hit)) r.hit = w;
       src = { ray: i, p: w, dist: r.o.distanceTo(w) };
@@ -373,7 +375,8 @@ export class MenuPanel {
     this.spec = spec; this.rowLabels = [];
     if (spec.subtitle) { this.sub = lab(spec.subtitle, 0, H / 2 - 0.155, W - 0.1, 0.045, '#c9ced8', 30); this.group.add(this.sub); }
     this.buttons = []; this.carousels = [];
-    if (spec.draggable) this.drag = makeDragBar(this.group, -H / 2 - 0.085);   // barra sotto il pannello: lo si prende e lo si sposta
+    // barra sotto il pannello (o maniglia sul lato sinistro): la si prende e il pannello si sposta
+    if (spec.draggable) this.drag = spec.dragSide === 'left' ? makeDragBar(this.group, 0, -W / 2 - 0.04, true, Math.max(0.08, H - 0.02)) : makeDragBar(this.group, -H / 2 - 0.085);
     for (const row of spec.rows) {
       if (row.carousel) {                                  // riga a scorrimento: frecce ai lati (fuori dalla cornice)
         const k = this.carousels.length;
@@ -464,7 +467,7 @@ export class MenuPanel {
     this.time += dt;
     this.glow.material.opacity = 0.55 + 0.45 * Math.sin(this.time * 2.2);    // bagliore che pulsa
     this.group.updateMatrixWorld(true);
-    if (this.drag && this._updateDrag(dt, gloves)) return null;            // lo stai spostando: niente pulsanti
+    if (this.drag && this._updateDrag(dt, gloves)) { this.moved = true; return null; }   // lo stai spostando: niente pulsanti
     this.age = (this.age || 0) + dt;
     const aimed = this.age < 0.7 ? Object.assign(new Set(), { clicked: new Set() }) :      // appena aperto: il raggio non preme ancora
       pointed(this.group, this.buttons, 0.035, b => [b.g.position.x, b.g.position.y, b.w / 2 * b.g.scale.x, b.bh / 2 * b.g.scale.y], [this.W / 2 + 0.05, this.H / 2 + 0.05]);
