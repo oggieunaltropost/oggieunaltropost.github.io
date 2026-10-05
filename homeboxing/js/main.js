@@ -2,36 +2,36 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261005205847';
-import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261005205847';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261005205847';
-import { Player, SimInput } from './player.js?v=20261005205847';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261005205847';
-import { Room } from './room.js?v=20261005205847';
-import { Arena } from './arena.js?v=20261005205847';
-import { Beach } from './beach.js?v=20261005205847';
-import { Rooftop } from './rooftop.js?v=20261005205847';
-import { Desert } from './desert.js?v=20261005205847';
-import { Snow } from './snow.js?v=20261005205847';
-import { Volcano } from './volcano.js?v=20261005205847';
-import { Sea, WATER } from './sea.js?v=20261005205847';
-import { Moon } from './moon.js?v=20261005205847';
-import { FighterCard } from './roster.js?v=20261005205847';
-import { Gym } from './gym.js?v=20261005205847';
-import { BagTraining } from './training.js?v=20261005205847';
-import { RopeTraining } from './rope.js?v=20261005205847';
-import { SpeedBagTraining } from './speedbag.js?v=20261005205847';
-import { SlipLineTraining } from './slipline.js?v=20261005205847';
-import { DoubleEndTraining } from './doubleend.js?v=20261005205847';
-import { Sparring } from './sparring.js?v=20261005205847';
-import { RingGirl } from './ringgirl.js?v=20261005205847';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261005205847';
-import * as sfx from './sfx.js?v=20261005205847';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261005205847';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261005205847';
-import { Tournament, BracketView } from './tournament.js?v=20261005205847';
-import { CpuMatch } from './cpu_match.js?v=20261005205847';
-import { TowerView } from './tower.js?v=20261005205847';
+import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261005210153';
+import { Mike, LEVELS, loadMikeGLTF } from './mike.js?v=20261005210153';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261005210153';
+import { Player, SimInput } from './player.js?v=20261005210153';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261005210153';
+import { Room } from './room.js?v=20261005210153';
+import { Arena } from './arena.js?v=20261005210153';
+import { Beach } from './beach.js?v=20261005210153';
+import { Rooftop } from './rooftop.js?v=20261005210153';
+import { Desert } from './desert.js?v=20261005210153';
+import { Snow } from './snow.js?v=20261005210153';
+import { Volcano } from './volcano.js?v=20261005210153';
+import { Sea, WATER } from './sea.js?v=20261005210153';
+import { Moon } from './moon.js?v=20261005210153';
+import { FighterCard } from './roster.js?v=20261005210153';
+import { Gym } from './gym.js?v=20261005210153';
+import { BagTraining } from './training.js?v=20261005210153';
+import { RopeTraining } from './rope.js?v=20261005210153';
+import { SpeedBagTraining } from './speedbag.js?v=20261005210153';
+import { SlipLineTraining } from './slipline.js?v=20261005210153';
+import { DoubleEndTraining } from './doubleend.js?v=20261005210153';
+import { Sparring } from './sparring.js?v=20261005210153';
+import { RingGirl } from './ringgirl.js?v=20261005210153';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261005210153';
+import * as sfx from './sfx.js?v=20261005210153';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261005210153';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261005210153';
+import { Tournament, BracketView } from './tournament.js?v=20261005210153';
+import { CpuMatch } from './cpu_match.js?v=20261005210153';
+import { TowerView } from './tower.js?v=20261005210153';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -359,8 +359,8 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261005205847`); t.colorSpace = THREE.SRGBColorSpace; return t; };
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261005205847`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261005210153`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261005210153`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -392,7 +392,7 @@ function sizeArt(kind, n) {
   } else {
     const bg = g.createLinearGradient(0, 0, 0, 200); bg.addColorStop(0, '#1a0f3a'); bg.addColorStop(1, '#a04a3a'); g.fillStyle = bg; g.fillRect(0, 0, 320, 200);
     // la torre: piu' piani, piu' alta e stretta
-    const floors = n, h = 40 + (n / 32) * 150, w = n > 16 ? 46 : n > 8 ? 56 : 66, x0 = 72 - w / 2, y0 = 196 - h;
+    const floors = n, h = 40 + (n / 36) * 150, w = n > 16 ? 46 : n > 8 ? 56 : 66, x0 = 72 - w / 2, y0 = 196 - h;
     g.fillStyle = '#120d1e'; g.fillRect(x0, y0, w, h);
     for (let x = x0; x < x0 + w; x += 12) g.fillRect(x, y0 - 6, 7, 7);
     const fh = h / floors;
@@ -406,6 +406,7 @@ function sizeArt(kind, n) {
 }
 let tourSize = 32, towerSize = 16;
 try { tourSize = +localStorage.getItem('hb-toursize') || 32; towerSize = +localStorage.getItem('hb-towersize') || 16; } catch (e) {}
+if (towerSize === 32) towerSize = 36;                    // (la torre lunga ora ha tutti i 36 lottatori)
 // riquadri delle modalita' (menu iniziale): foto dal gioco per arcade e allenamento, disegni per torneo e torre
 function modeArt(kind) {
   const c = document.createElement('canvas'); c.width = 480; c.height = 300; const g = c.getContext('2d');
@@ -535,7 +536,7 @@ const tourMenu = new MenuPanel({ title: t('tour'), titleTk: 'tour', titleH: 0.1,
 // Sopravvivenza: come il torneo (stage e opzioni), poi la torre con tutti gli avversari in ordine casuale
 const survMenu = new MenuPanel({ title: t('surv'), titleTk: 'surv', titleH: 0.1, width: 1.0, height: 1.02, draggable: true, rows: withText([
   stageRow(0.22),
-  { label: t('tw_n'), tk: 'tw_n', y: -0.1, h: 0.17, buttons: [8, 16, 32].map(n => ({ id: 'tw:' + n, text: t('tw_size', { n }), w: 0.25, img: sizeArt('tower', n) })) },
+  { label: t('tw_n'), tk: 'tw_n', y: -0.1, h: 0.17, buttons: [8, 16, 36].map(n => ({ id: 'tw:' + n, text: t('tw_size', { n }), w: 0.25, img: sizeArt('tower', n) })) },
   { y: -0.38, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'start_surv', tk: 'start_surv', w: 0.5, color: 0x6a1f8a }] },
 ]) });
 // Opzioni: valgono per tutte le modalita'
@@ -596,9 +597,9 @@ const menuVisible = () => MENUS.some(m => m.group.visible) || bracket.group.visi
 const bracket = new BracketView(scene, FIGHTERS);
 const tower = new TowerView(scene, FIGHTERS);
 let surv = null;          // sopravvivenza in corso: { order, idx, state, stages }
-const tourBtns = new MenuPanel({ title: '', titleH: 0.03, width: 0.9, height: 0.16, rows: withText([
-  // (come in tutti i menu: uscire/indietro a sinistra, avanti a destra)
-  { y: -0.01, h: 0.09, buttons: [{ id: 'tquit', tk: 'tr_quit', w: 0.36, color: 0x7a2a2a }, { id: 'tgo', tk: 'tr_fight', w: 0.45, color: 0x1f8a4c }] }]) });
+const tourBtns = new MenuPanel({ title: '', titleH: 0.03, width: 1.2, height: 0.16, rows: withText([
+  // (come in tutti i menu: uscire/indietro a sinistra, avanti a destra; "esci" in piu' quando scegli se guardare)
+  { y: -0.01, h: 0.09, buttons: [{ id: 'texit', tk: 'tr_quit', w: 0.3, color: 0x7a2a2a }, { id: 'tquit', tk: 'tr_quit', w: 0.36, color: 0x3a4254 }, { id: 'tgo', tk: 'tr_fight', w: 0.42, color: 0x1f8a4c }] }]) });
 scene.add(tourBtns.group);
 // incontro CPU: pulsante piccolo per andare al risultato
 const skipBtn = new MenuPanel({ title: '', titleH: 0.02, width: 0.3, height: 0.1, draggable: true, dragSide: 'left', rows: withText([   // (maniglia a sinistra: lo sposti dove non ti da' fastidio)
@@ -1019,7 +1020,7 @@ function updateGame(dt) {
   const feats = xr && xr.enabledFeatures ? (xr.enabledFeatures.includes('plane-detection') ? 'piani sì' : 'piani no') : '';
   board.draw({ round: game.round, rounds: rounds, level: t('l_' + level), time: game.phase === 'rest' ? Math.max(0, REST_S - game.phaseT) : game.time,
     running: game.phase === 'fight', player: game.player, mike: game.mike, message: game.message,
-    names: pending && (pending.cm || pending.arcade) ? cpuNames().map(n => n.toUpperCase()) : undefined,   // (tra un incontro CPU e l'altro: niente "TU")
+    names: pending && ((pending.cm && tour) || pending.arcade) ? cpuNames().map(n => n.toUpperCase()) : undefined,   // (tra un incontro CPU e l'altro: niente "TU")
     diag: t('diag', { m: ringSize.toFixed(1), f: floorSource, e: (player.head.y + 0.06 - floorY).toFixed(1) }) + (feats ? ' · ' + feats : '') });
 }
 
@@ -1424,7 +1425,7 @@ function sparSounds(ev) {
   }
 }
 // ---- sparring: il partner (caschetto, alto come te) prende il posto dell'avversario sul ring della palestra
-const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261005205847', evenSkin: false,
+const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261005210153', evenSkin: false,
   band: { bg: '#1a1a1c', line: '#c4122a', text: '#f2ece0', label: 'SPARRING' } };
 let spar = null, partner = null, savedMike = null, sparLoading = false;
 async function startSparring(kind, defKinds = null) {
@@ -1573,10 +1574,15 @@ function showBracketNext() {
   setTourButtons('tr_fight', true, yaw);
 }
 function setTourButtons(goKey, showQuit, yaw = menuYaw(), quitKey = 'tr_quit') {
-  const go = tourBtns.buttons.find(b => b.id === 'tgo'), q = tourBtns.buttons.find(b => b.id === 'tquit');
+  const go = tourBtns.buttons.find(b => b.id === 'tgo'), q = tourBtns.buttons.find(b => b.id === 'tquit'), ex = tourBtns.buttons.find(b => b.id === 'texit');
   go.tk = goKey; q.tk = quitKey; q.g.visible = showQuit;
+  ex.g.visible = goKey === 'tr_watch';             // guarda / salta: in piu' si puo' anche uscire dal torneo
+  q.color = quitKey === 'tr_quit' || quitKey === 'sv_quit' ? 0x7a2a2a : 0x3a4254;
+  q.base.material.color.setHex(q.color); q.color0 = q.color;
   if (goKey !== 'tr_watch') tourStep = goKey === 'tr_fight' ? 'next' : 'end';
-  go.x0 = go.x0 ?? go.g.position.x; go.g.position.x = showQuit ? go.x0 : 0;     // da solo, al centro
+  const vis = [ex, q, go].filter(b => b.g.visible), gap = 0.03;       // centrati, uno accanto all'altro
+  let x = -(vis.reduce((a, b) => a + b.w, 0) + gap * (vis.length - 1)) / 2;
+  for (const b of vis) { b.g.position.x = x + b.w / 2; x += b.w + gap; }
   tourBtns.relabel();
   // sotto il tabellone
   const onTower = tower.group.visible, p = (onTower ? tower.group : bracket.group).position, dd = onTower ? 1.25 : 1.05;
@@ -1642,7 +1648,7 @@ function endCpuWatch() {
 // ---- torneo da spettatore: a ogni turno si guardano (o si saltano) gli incontri tra personaggi veri, poi si avanza
 let specQueue = [], specForced = {};
 const cpuNames = () => pending && pending.arcade ? [FIGHTERS[pending.a].name, FIGHTERS[pending.b].name]
-  : pending && pending.cm ? [tour.p[pending.cm.a].name, tour.p[pending.cm.b].name] : ['', ''];
+  : pending && pending.cm && tour ? [tour.p[pending.cm.a].name, tour.p[pending.cm.b].name] : ['', ''];
 function specRound() { specQueue = tour.cpuMatches(); specForced = {}; specChoice(); }
 function specChoice() {
   if (!specQueue.length) { specAdvance(); return; }
@@ -1739,6 +1745,7 @@ function updateMainMenu(dt, gloves) {
     const id = tourBtns.update(dt, gloves);
     if (!id) return;
     sfx.menuBlip();
+    if (id === 'texit') { pending = null; showMainMenu(); return; }
     if (tourStep === 'choice') {
       if (id === 'tgo') startCpuWatch();
       else if (pending && pending.spec) {           // non lo guardi: si decide a caso e si passa al prossimo
