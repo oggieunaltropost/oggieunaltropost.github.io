@@ -60,12 +60,17 @@ export function panoDepth(url, tex, { eye = 1.65, uU = 0, onReady = null, clip =
         pos[k] = d.x * R; pos[k + 1] = eye + d.y * R; pos[k + 2] = d.z * R;
       }
     }
+    // i triangoli a cavallo di un salto di distanza (bordo di una roccia davanti allo sfondo) si tolgono: tirati tra
+    // vicino e lontano facevano strisce stirate; nel buco si vede la foto (la sfera del cielo, dietro)
+    const dist3 = v => Math.hypot(pos[v * 3], pos[v * 3 + 1] - eye, pos[v * 3 + 2]);
+    const keep = (p, q, r) => { const a = dist3(p), b = dist3(q), c = dist3(r), lo = Math.min(a, b, c), hi = Math.max(a, b, c); return hi < lo * 1.45 || lo > 120; };
     const idx = new Uint32Array(GW * GH * 6); let n = 0;
     for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) {
       const a = j * (GW + 1) + i, b = a + 1, cc = a + GW + 1, dd = cc + 1;
-      idx[n++] = a; idx[n++] = cc; idx[n++] = b; idx[n++] = b; idx[n++] = cc; idx[n++] = dd;
+      if (keep(a, cc, b)) { idx[n++] = a; idx[n++] = cc; idx[n++] = b; }
+      if (keep(b, cc, dd)) { idx[n++] = b; idx[n++] = cc; idx[n++] = dd; }
     }
-    const geo = mesh.geometry; geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(new THREE.BufferAttribute(idx, 1));
+    const geo = mesh.geometry; geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(new THREE.BufferAttribute(idx.subarray(0, n), 1));
     geo.computeBoundingSphere();
     mesh.visible = true; if (onReady) onReady();
   }).catch(e => console.warn('profondita', url, e));
