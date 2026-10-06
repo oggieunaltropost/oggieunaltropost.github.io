@@ -62,6 +62,7 @@ const COUNTER_TABLE = {
 };
 const COUNTERS = combos('2', '3-2', '1-2', '6-3');
 const MOVES = new Set(['slip_l', 'slip_r', 'duck']);
+const DEFENSES = new Set(['slip_l', 'slip_r', 'duck', 'block', 'block_low', 'back']);
 
 // Livelli. reactChance = quante volte reagisce a un tuo pugno; reactDelay = riflessi (s);
 // threatDist/threatSpeed = da quanto lontano e da che velocita' "legge" il pugno;
@@ -590,11 +591,18 @@ transformed += uSwInv * uSwing * aSw;`);
 
   // --------------------------------------------------------------- animazioni
   play(name, timeScale = 1, hold = false) {
-    for (const l of this.layers) l.out = true;
+    // la stessa difesa gia' in corso (non ancora a meta' del ritorno) continua: farla ripartire da capo faceva
+    // saltare i guantoni all'inizio del movimento
+    const same = DEFENSES.has(name) && this.layers.find(l => !l.out && l.name === name && l.t < l.dur * 0.55);
+    if (same) { same.ts = Math.max(same.ts, timeScale); same.action.timeScale = same.ts; return same; }
+    // quello che viene interrotto sfuma via un po' piu' piano (prima 0,07 s: un movimento lasciato a meta' scattava
+    // nella posa nuova); i pugni pero' devono partire subito
+    const fade = PUNCH[name] ? 0.1 : 0.17;
+    for (const l of this.layers) if (!l.out) { l.out = true; l.fade = l.t < l.dur - 0.15 ? fade : 0.07; }
     const a = this.mixer.clipAction(this.clips[name]);
     a.reset(); a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true;
     a.timeScale = timeScale; a.setEffectiveWeight(0); a.play();
-    const layer = { name, action: a, t: 0, dur: this.clips[name].duration, ts: timeScale, w: 0, out: false, hold };
+    const layer = { name, action: a, t: 0, dur: this.clips[name].duration, ts: timeScale, w: 0, out: false, hold, fin: PUNCH[name] ? 0.07 : 0.1 };
     // se la stessa azione era in uscita, quella vecchia sparisce subito
     this.layers = this.layers.filter(l => l.action !== a);
     this.layers.push(layer);
@@ -608,9 +616,9 @@ transformed += uSwInv * uSwing * aSw;`);
     let total = 0;
     for (const l of this.layers) {
       l.t += dt * l.ts;
-      if (l.out) l.w = Math.max(0, l.w - dt / 0.07);
+      if (l.out) l.w = Math.max(0, l.w - dt / (l.fade || 0.07));
       else {
-        let w = Math.min(1, l.t / 0.07);
+        let w = Math.min(1, l.t / (l.fin || 0.07)); w = w * w * (3 - 2 * w);   // (entrata morbida, non a gradino)
         if (l.t > l.dur - 0.14 && !l.hold) w = Math.min(w, Math.max(0, (l.dur - l.t) / 0.14));
         l.w = w;
       }

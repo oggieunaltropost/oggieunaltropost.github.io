@@ -18,6 +18,10 @@ class GloveProxy {
     this.prev.copy(this.center);
     this.center.copy(this.f.glove(this.s).center);
     if (dt > 0 && this.t > dt) this.vel.subVectors(this.center, this.prev).divideScalar(dt);
+    // conta come pugno solo se sta davvero tirando: i guantoni che si muovono veloci per parare o schivare
+    // facevano reagire l'altro, che reagiva a sua volta... (difese a catena, movimenti a scatti)
+    const P = this.f.punch;
+    if (!(P && !P.move && this.f.state === 'attack')) this.vel.set(0, 0, 0);
     this.speed = this.vel.length();
     this.hist.push({ p: this.center.clone(), s: this.speed, t: this.t });
     while (this.hist.length && this.t - this.hist[0].t > 0.25) this.hist.shift();
