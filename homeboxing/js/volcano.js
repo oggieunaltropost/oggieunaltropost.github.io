@@ -8,9 +8,9 @@
 //  - l'eruzione sul vulcano lontano: bagliore del cratere che pulsa, lapilli incandescenti che salgono e ricadono,
 //    nuvole di fumo che escono e salgono; ogni tanto un'esplosione piu' forte col boato.
 import * as THREE from 'three';
-import { panoDepth } from './pano_depth.js?v=20261006203337';
-import { contactShadow } from './contact_shadow.js?v=20261006203337';
-import * as sfx from './sfx.js?v=20261006203337';
+import { panoDepth } from './pano_depth.js?v=20261006203715';
+import { contactShadow } from './contact_shadow.js?v=20261006203715';
+import * as sfx from './sfx.js?v=20261006203715';
 
 const EYE = 1.65;
 const R_FADE0 = 11, R_FADE1 = 17;
@@ -41,7 +41,7 @@ export class Volcano {
     const img = new Image();
     const tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     img.onload = () => { tex.needsUpdate = true; this.skyLoaded = true; this._tintGround(img); if (this.onSkyLoad) this.onSkyLoad(); };
-    img.src = 'assets/vulcano_panorama.jpg?v=20261006203337';
+    img.src = 'assets/vulcano_panorama.jpg?v=20261006203715';
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false, uniforms: { uPano: { value: tex } },

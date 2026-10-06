@@ -21,7 +21,7 @@ function drawIcon(g, kind, cx, cy, w) {
   g.restore();
 }
 import * as THREE from 'three';
-export { StyleLearner } from './style_learn.js?v=20261006203337';
+export { StyleLearner } from './style_learn.js?v=20261006203715';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const _lq = new THREE.Quaternion(), _lr = new THREE.Quaternion(), _qI = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ld = new THREE.Vector3();
 
@@ -63,6 +63,8 @@ const COUNTER_TABLE = {
 };
 const COUNTERS = combos('2', '3-2', '1-2', '6-3');
 // quante volte lascia un colpo appena partito per schivare il tuo (poi rientra col contrattacco)
+// quante volte un attacco comincia con una finta (per i pugili tecnici, con le finte nel loro stile, x1,35)
+const FEINT = { normale: 0.1, difficile: 0.25, impossibile: 0.4 };
 const BAIL = { normale: 0.05, difficile: 0.15, impossibile: 0.25 };
 // per chi si difende sempre allo stesso modo (lo impara durante l'incontro): schivi verso la sua sinistra -> gancio
 // sinistro, verso la sua destra -> gancio destro, ti abbassi -> montante, arretri -> jab doppio e diretto,
@@ -924,7 +926,8 @@ transformed += uSwInv * uSwing * aSw;`);
         if (!threat) continue;
         this.seen[g.side] = g.punchId;
         const open = this.time < this.openUntil;              // appena parato/schivato da te: e' scoperto
-        if (Math.random() < c.reactChance * (open ? c.openFactor : 1) * (1 - 0.35 * (this.fatigue || 0))) this.reaction = { at: this.time + rand(...c.reactDelay), glove: g, punchId: g.punchId, zone: threat };
+        const ready = this.state === 'feint';                 // stava fingendo: ti aspettava
+        if (ready || Math.random() < c.reactChance * (open ? c.openFactor : 1) * (1 - 0.35 * (this.fatigue || 0))) this.reaction = { at: this.time + (ready ? c.reactDelay[0] : rand(...c.reactDelay)), glove: g, punchId: g.punchId, zone: threat };
         break;
       }
     }
@@ -992,7 +995,10 @@ transformed += uSwInv * uSwing * aSw;`);
             const opts = PUNISH[hb.type].filter(cb => cb && cb.every(n => this.clips[n]));
             if (opts.length) this.combo = [...pick(opts)];
           } else this.readGuard(player);
-          this.setState('approach');
+          // finta: prima accenna un colpo per farti scoprire (piu' spesso ai livelli alti e se il pugile e' tecnico)
+          const fr = (FEINT[this.levelName] || 0) * (this.cfg0.feints ? 1.35 : 1);
+          if (!this.noAttack && dist < c.stalkDist + 0.4 && Math.random() < fr) this._startFeint(player);
+          else this.setState('approach');
         } else if (!this.defending && !this.layers.length && this.cfg0.feints && Math.random() < this.cfg0.feints.rate * dt) {
           const f = this.cfg0.feints, mv = pick(f.moves.filter(n => this.clips[n]));    // finta del suo stile (a vuoto)
           if (mv) this.play(mv, f.speed);
@@ -1000,6 +1006,29 @@ transformed += uSwInv * uSwing * aSw;`);
           this.play(pick(['slip_l', 'slip_r', 'duck', 'block']), c.defenseSpeed * 0.9);   // finta
         }
         break;
+      case 'feint': {
+        // guarda come reagisci alla finta e attacca dove ti sei scoperto
+        const F = this.feint; F.t += dt;
+        if (!F.bit) {
+          for (const g of Object.values(player.gloves)) if (g.mesh.visible && g.punchId !== F.ids[g.side] && g.speed > 1.5) F.bit = 'counter';
+          if (!F.bit) {
+            const d = this.root.worldToLocal(player.head.clone()).sub(F.head), gd = this._guardDist(player);
+            F.bit = d.y < -0.08 ? 'duck' : d.x > 0.07 ? 'slip_l' : d.x < -0.07 ? 'slip_r' : d.z > 0.1 ? 'back'
+              : gd < F.guard - 0.06 && gd < 0.32 ? 'block' : null;
+          }
+          if (F.bit) {
+            F.bitT = F.t; this.emit('feinted', { bit: F.bit });
+            if (F.bit !== 'counter') { const opts = PUNISH[F.bit].filter(cb => cb && cb.every(n => this.clips[n])); if (opts.length) this.combo = [...pick(opts)]; }
+          }
+        }
+        // hai provato a contrattaccare la finta: era pronto, si difende (la difesa e' gia' partita) e poi risponde
+        if (F.bit === 'counter') { this.feint = null; this.combo = []; this.setState('stalk'); this.nextAttack = 0.7; break; }
+        if ((F.bit && F.t - F.bitT > 0.06) || F.t > 0.45) {
+          this.feint = null; this.counterCombo = !!F.bit;     // ci sei cascato: ti prende scoperto (colpo pieno)
+          this.setState('approach');
+        }
+        break;
+      }
       case 'approach':
         if ((Math.abs(dist - this.attackDist()) < 0.07 || this.stateT > (this.counter ? 0.35 : 1.2)) && !this.defending) {
           this.counter = false;
@@ -1057,6 +1086,19 @@ transformed += uSwInv * uSwing * aSw;`);
       this._beat = L.seqStart;
       if (Math.random() < s * 0.8) this.nextAttack = 0;
     }
+  }
+
+  _guardDist(player) {
+    const gs = Object.values(player.gloves).filter(g => g.mesh.visible);
+    return gs.length ? gs.reduce((a, g) => a + g.center.distanceTo(player.head), 0) / gs.length : 1;
+  }
+  _startFeint(player) {
+    const opts = ['feint_jab', 'feint_jab', 'feint_dip'].filter(n => this.clips[n]);
+    if (!opts.length) { this.setState('approach'); return; }
+    this.play(pick(opts), 1.2);
+    this.feint = { t: 0, head: this.root.worldToLocal(player.head.clone()), guard: this._guardDist(player),
+      ids: { left: player.gloves.left.punchId, right: player.gloves.right.punchId }, bit: null };
+    this.setState('feint');
   }
 
   setState(s) { this.state = s; this.stateT = 0; }
