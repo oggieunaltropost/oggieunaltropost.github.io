@@ -119,7 +119,7 @@ export class CpuMatch {
     if (this.time <= 0) {
       if (this.round >= this.rounds) { this.finish(); return; }
       this.time = 0; this.rest = this.hooks.rest || 30;    // fine round: campana e riposo
-      for (const f of this.f) { f.enabled = false; f.resetPose(); }
+      for (const f of this.f) { f.enabled = false; f.resetPose(); }   // (all'angolo li manda il gioco: onRoundEnd)
       for (let i = 0; i < 2; i++) { this.dmg[i] = Math.max(0, this.dmg[i] - 25); this.kdLvl[i] = Math.max(0, this.kdLvl[i] - 0.5); }   // all'angolo ci si riprende
       if (this.hooks.onRoundEnd) this.hooks.onRoundEnd(this.round);
     }
