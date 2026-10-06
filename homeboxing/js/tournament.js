@@ -4,7 +4,7 @@
 // a te; le animazioni (chi combatte, chi passa il turno, il campione che arriva alla coppa) sono oggetti 3D
 // che si muovono sopra la tela.
 import * as THREE from 'three';
-import { t } from './i18n.js?v=20261006200500';
+import { t } from './i18n.js?v=20261006200731';
 
 // misure del tabellone: cambiano con il numero di partecipanti (32: 5 turni, 64: 6 turni e tela piu' alta)
 let W = 2048, H = 1024;                    // tela del tabellone
@@ -191,7 +191,13 @@ export class BracketView {
     g.lineWidth = opts.you ? 3 : 2; g.strokeStyle = opts.you ? '#e5484d' : opts.gold ? '#ffc928' : '#4a5163'; g.stroke();
     if (!P) return;
     const r = h * 0.38;
-    this._icon(g, P, x - w / 2 + r + (h < 36 ? 4 : 6), y, r);
+    const icx = x - w / 2 + r + (h < 36 ? 4 : 6);
+    this._icon(g, P, icx, y, r);
+    if (opts.out) {                                   // eliminato: croce rossa sulla foto
+      const d = r * 0.78; g.save(); g.lineCap = 'round'; g.strokeStyle = '#e5484d'; g.lineWidth = Math.max(3, r * 0.28);
+      g.shadowColor = 'rgba(0,0,0,0.7)'; g.shadowBlur = 4;
+      g.beginPath(); g.moveTo(icx - d, y - d); g.lineTo(icx + d, y + d); g.moveTo(icx + d, y - d); g.lineTo(icx - d, y + d); g.stroke(); g.restore();
+    }
     g.fillStyle = opts.out ? '#6b7280' : '#ffffff';
     let size = Math.round(h * 0.42);
     g.textAlign = 'left'; g.textBaseline = 'middle';
@@ -212,12 +218,21 @@ export class BracketView {
     g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillStyle = '#ffd34d'; g.font = '900 56px system-ui, sans-serif'; g.fillText(t('tr_title'), W / 2, 58);
     g.fillStyle = '#e6e8ee'; g.font = '700 32px system-ui, sans-serif'; g.fillText(this.subtitle || '', W / 2, 108);
+    // vincitore della coppia jj del turno r (indice del partecipante), se gia' deciso: a turno finito da T.ent, a turno
+    // in corso dagli incontri gia' giocati (T.forced, chiave = prima casella della coppia)
+    const known = (r, jj) => T.forced && T.forcedRound === r && T.forced[jj * 2] !== undefined;   // gia' mostrato prima
+    const win = (r, jj) => {
+      if (hideFrom !== null && r >= hideFrom) return r === hideFrom && known(r, jj) && T.ent[r + 1] ? T.ent[r + 1][jj] : undefined;
+      if (T.ent[r + 1]) return T.ent[r + 1][jj];
+      if (known(r, jj)) return T.forced[jj * 2];
+      return undefined;
+    };
     // linee: dal turno r al turno r+1 (dorate se il passaggio e' gia' avvenuto)
     for (let r = 0; r < NR; r++) {
       const n = (1 << NR) >> r;
       for (let j = 0; j < n; j++) {
         const a = boxPos(r, j), b = boxPos(r + 1, j >> 1), left = r < NR - 1 ? j < n / 2 : j === 0;
-        const done = T.ent[r + 1] && T.ent[r + 1][j >> 1] === T.ent[r][j] && !(hideFrom !== null && r >= hideFrom);
+        const done = T.ent[r] && win(r, j >> 1) === T.ent[r][j];
         g.strokeStyle = done ? '#ffc928' : '#3b4252'; g.lineWidth = done ? 4 : 3;
         const x0 = a.x + (left ? BW / 2 : -BW / 2), xm = x0 + (left ? 11 : -11);
         const xe = r === NR - 1 ? b.x + (left ? -95 : 95) : b.x + (left ? -BW / 2 : BW / 2);
@@ -229,15 +244,18 @@ export class BracketView {
       const row = T.ent[r]; if (!row || (hideFrom !== null && r > hideFrom)) continue;
       for (let j = 0; j < row.length; j++) {
         const P = T.p[row[j]], q = boxPos(r, j);
-        const out = T.ent[r + 1] && T.ent[r + 1][j >> 1] !== row[j] && !(hideFrom !== null && r >= hideFrom);
+        const w = win(r, j >> 1), out = w !== undefined && w !== row[j];
         this._box(g, P, q.x, q.y, { you: P.kind === 'you', out });
       }
     }
     // turni futuri: caselle vuote
-    for (let r = 1; r < NR; r++) if (!T.ent[r] || (hideFrom !== null && r > hideFrom)) for (let j = 0; j < (1 << NR) >> r; j++) { const q = boxPos(r, j); this._box(g, null, q.x, q.y); }
+    for (let r = 1; r < NR; r++) if (!T.ent[r] || (hideFrom !== null && r > hideFrom)) for (let j = 0; j < (1 << NR) >> r; j++) {
+      const q = boxPos(r, j), w = T.ent[r - 1] ? win(r - 1, j) : undefined;    // (chi ha gia' vinto il suo incontro di questo turno)
+      this._box(g, w !== undefined ? T.p[w] : null, q.x, q.y);
+    }
     // coppa e casella del campione
     this._trophy(g, W / 2, CUP_Y());
-    const champ = T.ent[NR] && !(hideFrom !== null && hideFrom >= NR - 1) ? T.p[T.ent[NR][0]] : null;
+    const cw = T.ent[NR - 1] ? win(NR - 1, 0) : undefined, champ = cw !== undefined ? T.p[cw] : null;
     this._box(g, champ, W / 2, CHAMP_Y(), { w: 210, h: 54, gold: true, you: champ && champ.kind === 'you' });
     // quanti partecipanti: targhetta sotto la casella del campione
     g.fillStyle = '#ffd34d'; g.font = '800 26px system-ui, sans-serif'; g.textAlign = 'center';
@@ -286,6 +304,7 @@ export class BracketView {
     this.draw(r);                                      // il turno r ancora senza vincitori
     const nxt = T.ent[r + 1];
     nxt.forEach((pi, jj) => {
+      if (T.forced && T.forcedRound === r && T.forced[jj * 2] !== undefined) return;   // (questo ha gia' fatto la sua corsa)
       const j = T.ent[r].indexOf(pi), a = boxPos(r, j), b = boxPos(r + 1, jj);
       const tok = this._token(T.p[pi], r === NR - 1 ? { w: 210, h: 54 } : {});
       tok.userData = { a, b, left: r < NR - 1 ? j < T.ent[r].length / 2 : j === 0 };
@@ -293,6 +312,18 @@ export class BracketView {
       this.group.add(tok); this.tokens.push(tok);
     });
     this.anim = { t: 0, dur: r === NR - 1 ? 2.0 : 1.4, r, onDone };
+  }
+  // un incontro del turno appena finito (da spettatore): il vincitore avanza subito, chi perde resta con la croce
+  showResult(T, j, w, subtitle, onDone) {
+    this.T = T; this._fit(T); this.subtitle = subtitle; this.hl.forEach(h => (h.visible = false)); this._clearTokens();
+    const r = T.round, F = T.forced || (T.forced = {}); T.forcedRound = r;
+    delete F[j]; this.draw(); F[j] = w;               // (prima senza: poi il gettone corre al suo posto)
+    const jw = T.ent[r].indexOf(w), a = boxPos(r, jw), b = boxPos(r + 1, j >> 1);
+    const tok = this._token(T.p[w], r === NR - 1 ? { w: 210, h: 54 } : {});
+    tok.userData = { a, b, left: r < NR - 1 ? jw < T.ent[r].length / 2 : jw === 0 };
+    tok.position.set(this._lx(a.x), this._ly(a.y), 0.004);
+    this.group.add(tok); this.tokens.push(tok);
+    this.anim = { t: 0, dur: r === NR - 1 ? 2.0 : 1.2, r, onDone };
   }
   _token(P, opts) {
     const w = opts.w || BW, h = opts.h || BH;
