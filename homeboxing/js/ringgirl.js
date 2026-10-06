@@ -33,11 +33,11 @@ export function fixHumanMaterial(o) {
 // cinque ragazze (blender/create_ringgirl.py var=0..4): stessa struttura e animazioni, cambiano pelle, capelli,
 // completo e colore del numero sul cartello. Una a caso per incontro, la stessa per tutto l'incontro.
 export const GIRLS = [
-  { glb: 'assets/ringgirl.glb?v=20261006224408', ink: '#c4161f', band: '#c4161f' },                          // mora, rosso e oro
-  { glb: 'assets/ringgirl_1.glb?v=20261006224408', ink: '#b8860b', band: '#111111' },                        // di colore, oro e nero
-  { glb: 'assets/ringgirl_2.glb?v=20261006224408', ink: '#c4161f', band: '#c4161f' },                        // cinese, bianco e rosso
-  { glb: 'assets/ringgirl_3.glb?v=20261006224408', ink: '#1d4fc4', band: '#1d4fc4', hair: '#e8c47c' },       // bionda, blu e argento
-  { glb: 'assets/ringgirl_4.glb?v=20261006224408', ink: '#8a2be2', band: '#d6407a' },                        // latina, viola e rosa
+  { glb: 'assets/ringgirl.glb?v=20261006224557', ink: '#c4161f', band: '#c4161f' },                          // mora, rosso e oro
+  { glb: 'assets/ringgirl_1.glb?v=20261006224557', ink: '#b8860b', band: '#111111' },                        // di colore, oro e nero
+  { glb: 'assets/ringgirl_2.glb?v=20261006224557', ink: '#c4161f', band: '#c4161f' },                        // cinese, bianco e rosso
+  { glb: 'assets/ringgirl_3.glb?v=20261006224557', ink: '#1d4fc4', band: '#1d4fc4', hair: '#e8c47c' },       // bionda, blu e argento
+  { glb: 'assets/ringgirl_4.glb?v=20261006224557', ink: '#8a2be2', band: '#d6407a' },                        // latina, viola e rosa
 ];
 // la coppa della premiazione: oro, due manici, base nera con la fascia dorata
 function makeCup() {
@@ -117,9 +117,11 @@ export class RingGirl {
     if (this.head) {
       this.headBase = this.head.quaternion.clone();   // posa della testa senza lo sguardo
       // in posa di riposo il viso guarda avanti (+Z): direzione del viso nel sistema dell'osso
-      this.model.updateMatrixWorld(true);
-      this.faceLocal = new THREE.Vector3(0, 0, 1).applyQuaternion(this.model.quaternion)
-        .applyQuaternion(this.head.getWorldQuaternion(new THREE.Quaternion()).invert());
+      // (rispetto a lei, non al mondo: cambiando ragazza a meta' serata lei era gia' girata e il viso risultava
+      // ruotato di quanto era girata la precedente: a volte ti guardava dalla parte opposta)
+      this.root.updateMatrixWorld(true);
+      const rel = this.root.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(this.head.getWorldQuaternion(new THREE.Quaternion()));
+      this.faceLocal = new THREE.Vector3(0, 0, 1).applyQuaternion(this.model.quaternion).applyQuaternion(rel.invert());
     }
   }
 
