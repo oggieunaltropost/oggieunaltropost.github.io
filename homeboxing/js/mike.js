@@ -21,7 +21,7 @@ function drawIcon(g, kind, cx, cy, w) {
   g.restore();
 }
 import * as THREE from 'three';
-export { StyleLearner } from './style_learn.js?v=20261006203104';
+export { StyleLearner } from './style_learn.js?v=20261006203337';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const _lq = new THREE.Quaternion(), _lr = new THREE.Quaternion(), _qI = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ld = new THREE.Vector3();
 
@@ -985,7 +985,7 @@ transformed += uSwInv * uSwing * aSw;`);
           // guardia alta (tutti e due i guantoni vicino al viso)? allora va al corpo o di gancio
           const high = Object.values(player.gloves).every(g => g.mesh.visible && g.center.distanceTo(player.head) < 0.42);
           const toBody = Math.random() < (high ? c.bodyBias : c.bodyBias * 0.3);
-          this.combo = [...pick(toBody ? BODY_COMBOS : c.combos)];
+          this.combo = [...pick(toBody ? BODY_COMBOS : c.combos)]; this.counterCombo = false;
           // conosce la tua difesa abituale: tira la combinazione che la punisce
           const hb = L && ls > 0 && L.defHabit();
           if (hb && Math.random() < ls * hb.share) {
@@ -1061,7 +1061,7 @@ transformed += uSwInv * uSwing * aSw;`);
 
   setState(s) { this.state = s; this.stateT = 0; }
   // sparring: tira questa combinazione adesso (nomi dei colpi, es. ['jab', 'cross'])
-  throwCombo(list) { this.combo = [...list]; this.counter = false; this.setState('approach'); }
+  throwCombo(list) { this.combo = [...list]; this.counter = false; this.counterCombo = false; this.setState('approach'); }
 
   // quale difesa usare contro questo pugno
   chooseDefense(g, zone) {
@@ -1099,7 +1099,7 @@ transformed += uSwInv * uSwing * aSw;`);
     if (this.stun > 0 || this.state === 'attack' || (!(d && d.bailed) && Math.random() >= this.cfg.counterChance)) return;
     const key = d && (d.type.startsWith('slip') ? 'slip' : d.type);
     const opts = d && COUNTER_TABLE[d.kind] && COUNTER_TABLE[d.kind][key];
-    this.combo = [...pick(opts || COUNTERS)];
+    this.combo = [...pick(opts || COUNTERS)]; this.counterCombo = true;      // (i contrattacchi fanno piu' male)
     this.setState('approach');
     this.counter = true;
   }
@@ -1160,7 +1160,7 @@ transformed += uSwInv * uSwing * aSw;`);
     const im = this.impact && this.impact[name];
     if (im && im.speed > 0 && this.refSpeed) ts *= THREE.MathUtils.clamp(this.refSpeed / im.speed, 0.4, 2.5);
     const layer = this.play(name, ts);
-    this.punch = { name, layer, resolved: false, inRange: false };
+    this.punch = { name, layer, resolved: false, inRange: false, counter: !!this.counterCombo };
     this.emit('mikeThrows', { name });
   }
 
@@ -1226,10 +1226,10 @@ transformed += uSwInv * uSwing * aSw;`);
       // il tuo corpo: dal petto alla pancia, sotto la testa
       const top = player.head.clone().add(new THREE.Vector3(0, -0.28, 0)), bot = player.head.clone().add(new THREE.Vector3(0, -0.62, 0));
       if (distPointSeg(tip, top, bot) < 0.2 || distPointSeg(center, top, bot) < 0.18) {
-        p.resolved = true; this.emit('mikeHit', { name: p.name, zone: 'body' });
+        p.resolved = true; this.emit('mikeHit', { name: p.name, zone: 'body', counter: p.counter });
       }
     } else if (tip.distanceTo(player.head) < 0.17 || center.distanceTo(player.head) < 0.15) {
-      p.resolved = true; this.emit('mikeHit', { name: p.name, zone: 'head' });
+      p.resolved = true; this.emit('mikeHit', { name: p.name, zone: 'head', counter: p.counter });
     }
   }
 
@@ -1290,6 +1290,8 @@ transformed += uSwInv * uSwing * aSw;`);
       // dove ha colpito, nel sistema di Mike (per i lividi): x>0 = sua sinistra, y rispetto al centro della testa
       ev.lx = lp.x; ev.ly = lp.y - lh.y;
       ev.point = g.center.clone(); ev.dir = g.vel.clone().normalize();
+      // preso mentre tirava o subito dopo aver mancato: e' un contrattacco tuo, fa piu' male
+      if (ev.type === 'playerHit') ev.counter = this.committed() || this.time < this.openUntil;
       this.emit(ev.type, ev);
       if (ev.type === 'playerHit') {
         if (this.defending) this.defending.hit = true;

@@ -63,7 +63,7 @@ export class CpuMatch {
         if (e.type !== 'mikeHit' || this.endT) continue;
         const o = 1 - i, power = 0.8 + Math.random() * 0.5;
         this.pts[i] += e.zone === 'head' ? 2 : 1; this.hits[i]++;
-        this.dmg[o] = Math.min(100, this.dmg[o] + (e.zone === 'head' ? 3.5 + 6 * power : 2 + 3.5 * power));
+        this.dmg[o] = Math.min(100, this.dmg[o] + (e.zone === 'head' ? 3.5 + 6 * power : 2 + 3.5 * power) * (e.counter ? 1.5 : 1));   // (contrattacco: di piu')
         if (this.hooks.onHit) this.hooks.onHit(e.zone, power);
         if (this.dmg[o] >= 100 && !this.kd) {
           // atterrato: si rialza (tra il 4 e l'8) se ha ancora energia da recuperare, se no e' KO. Stesse regole tue:
