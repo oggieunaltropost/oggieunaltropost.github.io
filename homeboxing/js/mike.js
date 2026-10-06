@@ -21,7 +21,7 @@ function drawIcon(g, kind, cx, cy, w) {
   g.restore();
 }
 import * as THREE from 'three';
-export { StyleLearner } from './style_learn.js?v=20261006211548';
+export { StyleLearner } from './style_learn.js?v=20261006212546';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const _lq = new THREE.Quaternion(), _lr = new THREE.Quaternion(), _qI = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ld = new THREE.Vector3();
 
@@ -1101,6 +1101,19 @@ transformed += uSwInv * uSwing * aSw;`);
     this.feint = { t: 0, head: this.root.worldToLocal(player.head.clone()), guard: this._guardDist(player),
       ids: { left: player.gloves.left.punchId, right: player.gloves.right.punchId }, bit: null };
     this.setState('feint');
+  }
+
+  // tolto di scena: libera la memoria della grafica (geometrie, materiali, immagini) e le animazioni
+  dispose() {
+    try { this.mixer.stopAllAction(); this.mixer.uncacheRoot(this.model); } catch (e) {}
+    this.root.traverse(o => {
+      if (o.geometry) o.geometry.dispose();
+      for (const m of [].concat(o.material || [])) {
+        for (const v of Object.values(m)) if (v && v.isTexture) v.dispose();
+        if (m.uniforms) for (const u of Object.values(m.uniforms)) if (u && u.value && u.value.isTexture) u.value.dispose();
+        m.dispose();
+      }
+    });
   }
 
   setState(s) { this.state = s; this.stateT = 0; }
