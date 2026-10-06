@@ -49,7 +49,7 @@ export class CpuMatch {
     this.dmg = [0, 0]; this.pts = [0, 0]; this.hits = [0, 0]; this.delay = delay; this.secs = secs; this.time = secs;
     this.done = false; this.winner = null; this.endT = 0;
     this.hooks = hooks; this.rounds = hooks.rounds || 1; this.round = 1; this.rest = 0;
-    this.kdN = [0, 0]; this.kdLvl = [0, 0]; this.kd = null;                // atterramenti (come negli incontri veri: ci si puo' rialzare)
+    this.kdN = [0, 0]; this.kdLvl = [0, 0]; this.kd = null; this.pen = [0, 0]; this.foul = null;                // atterramenti (come negli incontri veri: ci si puo' rialzare)
     for (const f of this.f) { f.resetPose(); f.enabled = delay <= 0; f.events.length = 0; }
   }
   update(dt) {
@@ -64,8 +64,18 @@ export class CpuMatch {
     for (let i = 0; i < 2; i++) {
       for (const e of this.f[i].events) {
         // il pugile i e' stato colpito (lo "vede" lui, dove e con che forza): lividi, sudore e sangue come nei tuoi incontri
-        if (e.type !== 'mikeHit' || this.endT || this.kd || this.rest > 0) continue;
+        if (e.type !== 'mikeHit' || this.endT || this.kd || this.rest > 0 || this.foul) continue;
         const o = 1 - i, power = 0.8 + Math.random() * 0.5;
+        // rarissimo: un colpo al corpo finisce sotto la cintura. Come nei tuoi incontri: niente punti, chi lo prende si
+        // piega, l'incontro si ferma, penalita' a chi l'ha tirato (alla terza squalifica)
+        if (e.zone === 'body' && this.dmg[o] <= 50 && Math.random() < 0.03) {   // (come nei tuoi: solo se ha ancora meta' energia)
+          const n = ++this.pen[i], dq = n >= 3;
+          this.dmg[o] = Math.min(99, this.dmg[o] + 10);
+          this.f[o].lowBlowed(); this.f[i].enabled = false;
+          this.foul = { t: 0, o, i, dq };
+          if (this.hooks.onLowBlow) this.hooks.onLowBlow(n, dq);
+          continue;
+        }
         // colpito o: livido dove e' arrivato il guantone (nel sistema del pugile: x sua sinistra, y rispetto alla testa),
         // sudore e sangue come nei tuoi incontri
         if (this.hooks.onMark && e.point) {
@@ -81,6 +91,17 @@ export class CpuMatch {
     }
     for (let i = 0; i < 2; i++) this.f[i].fatigue = this.dmg[i] / 100;
     if (this.kd) { this._count(dt); if (this.kd) return; }
+    if (this.foul) {                                  // colpo basso: chi l'ha preso si riprende, poi si riparte (o squalifica)
+      const F = this.foul; F.t += dt;
+      if (F.t > 5.5 && !F.rec) { F.rec = true; this.f[F.o].resetPose(); }
+      if (F.t > 7) {
+        this.foul = null;
+        if (F.dq) { this.winner = F.o; this.how = 'DQ'; this.finish(); return; }
+        for (const f of this.f) { f.enabled = true; f.resetPose(); }
+        if (this.hooks.onResume) this.hooks.onResume();
+      }
+      return;
+    }
     if (this.endT) { this.endT -= dt; if (this.endT <= 0) this.finish(); return; }
     if (this.delay > 0) return;
     if (this.rest > 0) {                              // riposo tra i round: fermi, poi la campana del round dopo
