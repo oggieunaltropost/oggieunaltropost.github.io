@@ -100,7 +100,7 @@ export function panoDepth(url, tex, { eye = 1.65, uU = 0, onReady = null, clip =
   // visore restava congelata l'ultima immagine, come un pannello fermo con la stanza tutt'intorno
   const w = new Worker(WORKER_URL);
   w.onmessage = ({ data }) => {
-    w.terminate(); panoPending--;
+    if (done) return; done = true; w.terminate(); panoPending--;
     if (data.err) { console.warn('profondita', url, data.err); return; }
     mesh.geometry.setAttribute('position', new THREE.BufferAttribute(data.pos, 3)); mesh.geometry.setIndex(new THREE.BufferAttribute(data.idx, 1));
     mesh.geometry.computeBoundingSphere();
@@ -108,6 +108,9 @@ export function panoDepth(url, tex, { eye = 1.65, uU = 0, onReady = null, clip =
     back.geometry.computeBoundingSphere();
     root.visible = true; if (onReady) onReady();
   };
+  // se il worker non risponde (errore o niente) il caricamento non deve restare al buio per sempre
+  let done = false; const fail = e => { if (done) return; done = true; panoPending--; try { w.terminate(); } catch (_) {} console.warn('profondita', url, e); };
+  w.onerror = e => fail(e.message || 'worker'); setTimeout(() => fail('tempo scaduto'), 25000);
   w.postMessage({ url: new URL(url, location.href).href, eye, uU, flat });
   return root;
 }
