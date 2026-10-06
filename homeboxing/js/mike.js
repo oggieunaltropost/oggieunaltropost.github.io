@@ -21,7 +21,7 @@ function drawIcon(g, kind, cx, cy, w) {
   g.restore();
 }
 import * as THREE from 'three';
-export { StyleLearner } from './style_learn.js?v=20261006210618';
+export { StyleLearner } from './style_learn.js?v=20261006211548';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const _lq = new THREE.Quaternion(), _lr = new THREE.Quaternion(), _qI = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ld = new THREE.Vector3();
 
@@ -863,6 +863,8 @@ transformed += uSwInv * uSwing * aSw;`);
       }
       const dl = Math.atan2(Math.sin(this.lockYaw - this.root.rotation.y), Math.cos(this.lockYaw - this.root.rotation.y));
       this.root.rotation.y += Math.max(-9 * dt, Math.min(9 * dt, dl));
+    } else if (this.down || !this.isUp()) {
+      this.lockFor = null;                            // a terra (e mentre si rialza) non si gira: il corpo sdraiato ruotava sul tappeto
     } else {
       this.lockFor = null;
       this.root.rotation.y += Math.max(-6 * dt, Math.min(6 * dt, dy));      // (non piu' di ~340 gradi/s: prima dopo una schivata si rigirava di scatto)
