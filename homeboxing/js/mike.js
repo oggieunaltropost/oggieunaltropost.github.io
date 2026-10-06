@@ -21,7 +21,7 @@ function drawIcon(g, kind, cx, cy, w) {
   g.restore();
 }
 import * as THREE from 'three';
-export { StyleLearner } from './style_learn.js?v=20261006224557';
+export { StyleLearner } from './style_learn.js?v=20261006230546';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const _lq = new THREE.Quaternion(), _lr = new THREE.Quaternion(), _qI = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ld = new THREE.Vector3();
 
@@ -1283,10 +1283,10 @@ transformed += uSwInv * uSwing * aSw;`);
       // il tuo corpo: dal petto alla pancia, sotto la testa
       const top = player.head.clone().add(new THREE.Vector3(0, -0.28, 0)), bot = player.head.clone().add(new THREE.Vector3(0, -0.62, 0));
       if (distPointSeg(tip, top, bot) < 0.2 || distPointSeg(center, top, bot) < 0.18) {
-        p.resolved = true; this.emit('mikeHit', { name: p.name, zone: 'body', counter: p.counter });
+        p.resolved = true; this.emit('mikeHit', { name: p.name, zone: 'body', counter: p.counter, point: tip.clone(), dir: tip.distanceTo(prevTip) > 1e-4 ? tip.clone().sub(prevTip).normalize() : this.forward() });   // (dove: lividi negli incontri tra pugili)
       }
     } else if (tip.distanceTo(player.head) < 0.17 || center.distanceTo(player.head) < 0.15) {
-      p.resolved = true; this.emit('mikeHit', { name: p.name, zone: 'head', counter: p.counter });
+      p.resolved = true; this.emit('mikeHit', { name: p.name, zone: 'head', counter: p.counter, point: tip.clone(), dir: tip.distanceTo(prevTip) > 1e-4 ? tip.clone().sub(prevTip).normalize() : this.forward() });   // (dove: lividi negli incontri tra pugili)
     }
   }
 
