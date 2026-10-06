@@ -33,11 +33,11 @@ export function fixHumanMaterial(o) {
 // cinque ragazze (blender/create_ringgirl.py var=0..4): stessa struttura e animazioni, cambiano pelle, capelli,
 // completo e colore del numero sul cartello. Una a caso per incontro, la stessa per tutto l'incontro.
 export const GIRLS = [
-  { glb: 'assets/ringgirl.glb?v=20261006212546', ink: '#c4161f', band: '#c4161f' },                          // mora, rosso e oro
-  { glb: 'assets/ringgirl_1.glb?v=20261006212546', ink: '#b8860b', band: '#111111' },                        // di colore, oro e nero
-  { glb: 'assets/ringgirl_2.glb?v=20261006212546', ink: '#c4161f', band: '#c4161f' },                        // cinese, bianco e rosso
-  { glb: 'assets/ringgirl_3.glb?v=20261006212546', ink: '#1d4fc4', band: '#1d4fc4', hair: '#e8c47c' },       // bionda, blu e argento
-  { glb: 'assets/ringgirl_4.glb?v=20261006212546', ink: '#8a2be2', band: '#d6407a' },                        // latina, viola e rosa
+  { glb: 'assets/ringgirl.glb?v=20261006212936', ink: '#c4161f', band: '#c4161f' },                          // mora, rosso e oro
+  { glb: 'assets/ringgirl_1.glb?v=20261006212936', ink: '#b8860b', band: '#111111' },                        // di colore, oro e nero
+  { glb: 'assets/ringgirl_2.glb?v=20261006212936', ink: '#c4161f', band: '#c4161f' },                        // cinese, bianco e rosso
+  { glb: 'assets/ringgirl_3.glb?v=20261006212936', ink: '#1d4fc4', band: '#1d4fc4', hair: '#e8c47c' },       // bionda, blu e argento
+  { glb: 'assets/ringgirl_4.glb?v=20261006212936', ink: '#8a2be2', band: '#d6407a' },                        // latina, viola e rosa
 ];
 // la coppa della premiazione: oro, due manici, base nera con la fascia dorata
 function makeCup() {
@@ -152,7 +152,7 @@ export class RingGirl {
     this.root.position.copy(pts[0]);
     this.root.visible = true;
   }
-  stop() { this.root.visible = false; this.trophyMode = false; if (this.cup) this.cup.visible = false; if (this.card) this.card.visible = true; }
+  stop() { this.root.visible = false; this.trophyMode = false; this.lookAt = null; if (this.cup) this.cup.visible = false; if (this.card) this.card.visible = true; }
   // braccia in avanti all'altezza del petto, mani ai lati della coppa (porta la coppa e te la porge): si punta ogni
   // osso del braccio verso il suo bersaglio (gomito un po' basso e in fuori), sopra la posa dell'animazione
   _offerCup() {
@@ -179,12 +179,16 @@ export class RingGirl {
     this.cup.position.copy(hm).addScaledVector(fwd, 0.04).add(new THREE.Vector3(0, -0.01, 0)); this.cup.rotation.y = this.root.rotation.y;
   }
   // premiazione (finale del torneo o cima della torre): entra con la coppa in mano e te la porge, ferma davanti a te
-  trophy(arena, ringSize, viewer) {
+  // winner: { pos, fwd } (mondo) se il campione e' un pugile della CPU: la porta a lui, 75 cm davanti a lui
+  trophy(arena, ringSize, viewer, winner = null) {
     if (!this.ready) return;
     if (!this.cup) this.cup = makeCup(), this.root.parent.add(this.cup);
     const a = Math.max(0.35, ringSize / 2 - 0.6);
-    const v = viewer.clone().applyMatrix4(arena.matrixWorld.clone().invert());
-    const end = new THREE.Vector3(v.x * 0.9, 0, v.z - 0.75);                    // 75 cm davanti a te
+    const inv = arena.matrixWorld.clone().invert();
+    const v = viewer.clone().applyMatrix4(inv);
+    const end = winner ? winner.pos.clone().addScaledVector(winner.fwd, 0.75).applyMatrix4(inv).setY(0)
+      : new THREE.Vector3(v.x * 0.9, 0, v.z - 0.75);                            // 75 cm davanti a te
+    this.lookAt = winner ? winner.head : null;          // guarda (e porge la coppa a) chi ha vinto
     this.path = [new THREE.Vector3(-a, 0, -a), end].map(p => p.applyMatrix4(arena.matrixWorld));
     this.seg = 0; this.u = 0; this.pause = 0; this.paused = true; this.gestured = false; this.gesture = null;
     this.trophyMode = true;
@@ -194,6 +198,7 @@ export class RingGirl {
 
   update(dt, look) {
     if (!this.root.visible || !this.ready) return;
+    if (this.lookAt) look = this.lookAt;
     if (this.trophyMode && this.u >= 1) { this.u = 1; this.pause = 1; }        // arrivata davanti a te: resta li' a porgerti la coppa
     let a = this.path[this.seg], b = this.path[this.seg + 1];
     const len = a.distanceTo(b);
