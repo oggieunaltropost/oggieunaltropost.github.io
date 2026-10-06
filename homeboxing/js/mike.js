@@ -21,6 +21,7 @@ function drawIcon(g, kind, cx, cy, w) {
   g.restore();
 }
 import * as THREE from 'three';
+export { StyleLearner } from './style_learn.js?v=20261006203104';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const _lq = new THREE.Quaternion(), _lr = new THREE.Quaternion(), _qI = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ld = new THREE.Vector3();
 
@@ -61,6 +62,13 @@ const COUNTER_TABLE = {
   body: { block_low: combos('3-2', '2-3', '3-4'), back: combos('1-2') },
 };
 const COUNTERS = combos('2', '3-2', '1-2', '6-3');
+// quante volte lascia un colpo appena partito per schivare il tuo (poi rientra col contrattacco)
+const BAIL = { normale: 0.05, difficile: 0.15, impossibile: 0.25 };
+// per chi si difende sempre allo stesso modo (lo impara durante l'incontro): schivi verso la sua sinistra -> gancio
+// sinistro, verso la sua destra -> gancio destro, ti abbassi -> montante, arretri -> jab doppio e diretto,
+// chiudi la guardia -> al corpo
+const PUNISH = { slip_l: combos('1-2-3', '2-3'), slip_r: combos('1-2-3-4', '3-4'), duck: combos('1-6', '5-2', '6-3'),
+  back: combos('1-1-2', '1-2-1'), block: combos('1-2b', '2-3b', '3b-3') };
 const MOVES = new Set(['slip_l', 'slip_r', 'duck']);
 const DEFENSES = new Set(['slip_l', 'slip_r', 'duck', 'block', 'block_low', 'back']);
 
@@ -879,8 +887,22 @@ transformed += uSwInv * uSwing * aSw;`);
     //    (non qualunque movimento delle mani), letto appena parte la spinta.
     // pugno partito: finche' il braccio non rientra e' impegnato e non puo' parare ne' schivare (a tutti i livelli:
     // prima ai livelli alti lasciava il colpo a meta' per schivare il tuo e non si riusciva mai a entrare)
-    const committed = this.committed();
+    let committed = this.committed();
+    // come i pugili veri, ogni tanto (dai livelli alti) lascia il colpo appena partito, schiva e rientra col
+    // contrattacco: solo nella prima parte del pugno, a braccio non ancora disteso
+    if (committed) {
+      const P = this.punch;
+      if (P.bail === undefined) P.bail = Math.random() < (BAIL[this.levelName] || 0);
+      if (P.bail && P.layer.t < Math.max(PUNCH[P.name].from / 30, 0.16)) committed = false;   // (il jab arriva a segno quasi subito)
+    }
     if (committed) this.reaction = null;
+    // impara il tuo stile (Difficile e Impossibile) e, col passare dell'incontro, ne approfitta
+    const L = this.learnOn && this.learner, ls = L ? L.strength(this.levelName) : 0;
+    if (L) {
+      L.observe(dt, this, player);
+      if (L.ready(this.levelName)) { L.announced = true; this.emit('adapted'); }
+      if (ls > 0) this._exploit(L, ls, committed);
+    }
     if (!this.reaction && this.stun <= 0 && !committed) {
       const hc = this.headCenter();
       const [t0, t1] = this.torso();
@@ -912,11 +934,12 @@ transformed += uSwInv * uSwing * aSw;`);
       // che pugno era (tu in guardia normale: sinistro = jab, destro = diretto)
       const lvx = Math.abs(g.vel.clone().applyQuaternion(_q.copy(this.root.quaternion).invert()).x) / Math.max(0.01, g.speed);
       const kind = this.reaction.zone === 'body' ? 'body' : lvx > 0.5 ? 'hook' : g.side === 'left' ? 'jab' : 'cross';
+      const bailed = !!(this.punch && !this.punch.move && PUNCH[this.punch.name]);
       if (this.punch) { this.punch = null; this.combo = []; this.setState('retreat'); }
       if (type === 'back') this.backOff = 0.3;                       // indietro di un passo
       else this.play(type, c.defenseSpeed);
       this.defending = { kind, start: this.time, type, until: this.time + 0.55 / Math.max(1, c.defenseSpeed * 0.75), glove: g.side,
-        punchId: this.reaction.punchId, hit: false };
+        punchId: this.reaction.punchId, hit: false, bailed };
       this.reaction = null;
     }
     if (this.defending) {
@@ -963,7 +986,12 @@ transformed += uSwInv * uSwing * aSw;`);
           const high = Object.values(player.gloves).every(g => g.mesh.visible && g.center.distanceTo(player.head) < 0.42);
           const toBody = Math.random() < (high ? c.bodyBias : c.bodyBias * 0.3);
           this.combo = [...pick(toBody ? BODY_COMBOS : c.combos)];
-          this.readGuard(player);
+          // conosce la tua difesa abituale: tira la combinazione che la punisce
+          const hb = L && ls > 0 && L.defHabit();
+          if (hb && Math.random() < ls * hb.share) {
+            const opts = PUNISH[hb.type].filter(cb => cb && cb.every(n => this.clips[n]));
+            if (opts.length) this.combo = [...pick(opts)];
+          } else this.readGuard(player);
           this.setState('approach');
         } else if (!this.defending && !this.layers.length && this.cfg0.feints && Math.random() < this.cfg0.feints.rate * dt) {
           const f = this.cfg0.feints, mv = pick(f.moves.filter(n => this.clips[n]));    // finta del suo stile (a vuoto)
@@ -996,6 +1024,38 @@ transformed += uSwInv * uSwing * aSw;`);
       case 'retreat':
         if (this.stateT > c.retreatTime) { this.setState('stalk'); this.nextAttack = rand(...c.attackEvery); }
         break;
+    }
+  }
+
+  // quello che ha imparato di te, in pratica (s = quanto ne approfitta, 0..1)
+  _exploit(L, s, committed) {
+    const T = L.t, last = L.last;
+    // a) sa cosa tiri dopo: si difende dal colpo che sta per arrivare prima ancora che parta
+    const pred = L.predictNext();
+    if (pred && last && !last.antic && T - last.t > 0.12 && T - last.t < 0.4) {
+      last.antic = true;
+      // (anche se si sta ancora difendendo dal colpo di prima: passa subito alla difesa dal prossimo)
+      if (!committed && !(this.defending && this.defending.read) && this.stun <= 0 && !this.down && Math.random() < s * pred.p) {
+        this.reaction = null;
+        const type = { jab: 'slip_l', cross: 'slip_r', hook: 'duck', upper: 'back', body: 'block_low' }[pred.kind];
+        const glove = pred.kind === 'jab' ? 'left' : pred.kind === 'cross' ? 'right' : last.side === 'left' ? 'right' : 'left';
+        if (this.punch) { this.punch = null; this.combo = []; this.setState('retreat'); }
+        if (type === 'back') this.backOff = 0.3; else this.play(type, this.cfg.defenseSpeed);
+        this.defending = { kind: pred.kind === 'upper' ? 'jab' : pred.kind, start: this.time, type, until: this.time + 0.55 / Math.max(1, this.cfg.defenseSpeed * 0.75),
+          glove, punchId: -1, hit: false, read: true };
+      }
+    }
+    if (this.state !== 'stalk' || this.defending || this.stun > 0) return;
+    // b) dopo che hai attaccato resti scoperto: parte subito, mentre rientri
+    if (L.justEnded && T - L.justEnded < 0.15) {
+      if (Math.random() < s * L.openAfter()) this.nextAttack = 0;
+      L.justEnded = null;
+    }
+    // c) attacchi sempre con lo stesso ritmo: ti anticipa partendo un attimo prima di te
+    const n = L.nextAttackIn();
+    if (n !== null && n > 0.15 && n < 0.45 && this._beat !== L.seqStart) {
+      this._beat = L.seqStart;
+      if (Math.random() < s * 0.8) this.nextAttack = 0;
     }
   }
 
@@ -1035,7 +1095,8 @@ transformed += uSwInv * uSwing * aSw;`);
 
   // dopo una difesa riuscita: contrattacco immediato
   maybeCounter(d) {
-    if (this.stun > 0 || this.state === 'attack' || Math.random() >= this.cfg.counterChance) return;
+    // (ha lasciato il suo colpo per schivare: rientra sempre)
+    if (this.stun > 0 || this.state === 'attack' || (!(d && d.bailed) && Math.random() >= this.cfg.counterChance)) return;
     const key = d && (d.type.startsWith('slip') ? 'slip' : d.type);
     const opts = d && COUNTER_TABLE[d.kind] && COUNTER_TABLE[d.kind][key];
     this.combo = [...pick(opts || COUNTERS)];
