@@ -33,11 +33,11 @@ export function fixHumanMaterial(o) {
 // cinque ragazze (blender/create_ringgirl.py var=0..4): stessa struttura e animazioni, cambiano pelle, capelli,
 // completo e colore del numero sul cartello. Una a caso per incontro, la stessa per tutto l'incontro.
 export const GIRLS = [
-  { glb: 'assets/ringgirl.glb?v=20261006212936', ink: '#c4161f', band: '#c4161f' },                          // mora, rosso e oro
-  { glb: 'assets/ringgirl_1.glb?v=20261006212936', ink: '#b8860b', band: '#111111' },                        // di colore, oro e nero
-  { glb: 'assets/ringgirl_2.glb?v=20261006212936', ink: '#c4161f', band: '#c4161f' },                        // cinese, bianco e rosso
-  { glb: 'assets/ringgirl_3.glb?v=20261006212936', ink: '#1d4fc4', band: '#1d4fc4', hair: '#e8c47c' },       // bionda, blu e argento
-  { glb: 'assets/ringgirl_4.glb?v=20261006212936', ink: '#8a2be2', band: '#d6407a' },                        // latina, viola e rosa
+  { glb: 'assets/ringgirl.glb?v=20261006224408', ink: '#c4161f', band: '#c4161f' },                          // mora, rosso e oro
+  { glb: 'assets/ringgirl_1.glb?v=20261006224408', ink: '#b8860b', band: '#111111' },                        // di colore, oro e nero
+  { glb: 'assets/ringgirl_2.glb?v=20261006224408', ink: '#c4161f', band: '#c4161f' },                        // cinese, bianco e rosso
+  { glb: 'assets/ringgirl_3.glb?v=20261006224408', ink: '#1d4fc4', band: '#1d4fc4', hair: '#e8c47c' },       // bionda, blu e argento
+  { glb: 'assets/ringgirl_4.glb?v=20261006224408', ink: '#8a2be2', band: '#d6407a' },                        // latina, viola e rosa
 ];
 // la coppa della premiazione: oro, due manici, base nera con la fascia dorata
 function makeCup() {
@@ -150,6 +150,7 @@ export class RingGirl {
     this.path = [...pts, pts[0]];
     this.seg = 0; this.u = 0; this.pause = 0; this.paused = false; this.gestured = false; this.gesture = null;
     this.root.position.copy(pts[0]);
+    this.root.rotation.y = Math.atan2(pts[1].x - pts[0].x, pts[1].z - pts[0].z);   // (gia' girata dove va)
     this.root.visible = true;
   }
   stop() { this.root.visible = false; this.trophyMode = false; this.lookAt = null; if (this.cup) this.cup.visible = false; if (this.card) this.card.visible = true; }
@@ -193,6 +194,7 @@ export class RingGirl {
     this.seg = 0; this.u = 0; this.pause = 0; this.paused = true; this.gestured = false; this.gesture = null;
     this.trophyMode = true;
     this.root.position.copy(this.path[0]); this.root.visible = true;
+    this.root.rotation.y = Math.atan2(this.path[1].x - this.path[0].x, this.path[1].z - this.path[0].z);
     if (this.card) this.card.visible = false; this.cup.visible = true;
   }
 
@@ -205,8 +207,12 @@ export class RingGirl {
     // a meta' del lato davanti a te si ferma un attimo e mostra il cartello
     if (!this.paused && this.seg === 2 && this.u > 0.5) { this.paused = true; this.pause = 3.4; }
     const stopNow = this.pause > 0;
+    // girata ancora dall'altra parte (ripartendo dopo essersi fermata a guardarti, o a un angolo): prima si gira,
+    // poi cammina (camminava di lato o all'indietro mentre si girava piano)
+    const wantYaw = Math.atan2(b.x - a.x, b.z - a.z);
+    const turning = Math.abs(Math.atan2(Math.sin(wantYaw - this.root.rotation.y), Math.cos(wantYaw - this.root.rotation.y))) > 0.6;
     if (stopNow) this.pause -= dt;
-    else {
+    else if (!turning) {
       this.u += SPEED * dt / Math.max(0.01, len);
       if (this.u >= 1 && !this.trophyMode) { this.u = 0; this.seg = (this.seg + 1) % (this.path.length - 1); a = this.path[this.seg]; b = this.path[this.seg + 1]; }
       if (this.trophyMode) this.u = Math.min(1, this.u);
@@ -217,7 +223,7 @@ export class RingGirl {
     if (stopNow) yaw = Math.atan2(look.x - this.root.position.x, look.z - this.root.position.z);
     let dy = Math.atan2(Math.sin(yaw - this.root.rotation.y), Math.cos(yaw - this.root.rotation.y));
     this.root.rotation.y += Math.max(-4 * dt, Math.min(4 * dt, dy));
-    const w = stopNow ? 1 : 0;
+    const w = stopNow || turning ? 1 : 0;              // (girandosi sul posto: ferma, non i passi)
     this.stand.setEffectiveWeight(w); this.walk.setEffectiveWeight(1 - w);
     this.mixer.update(dt);
     this.root.updateMatrixWorld(true);
