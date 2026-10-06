@@ -868,11 +868,19 @@ transformed += uSwInv * uSwing * aSw;`);
     if (this.enabled) this.resolveMyPunch(player, dist);
   }
 
+  // sta tirando un pugno (partito e non ancora rientrato in guardia)
+  committed() {
+    const P = this.punch;
+    return !!(P && !P.move && PUNCH[P.name] && this.state === 'attack' && P.layer.t > 0.02 && P.layer.t < P.layer.dur * 0.8);
+  }
   think(dt, player, dist) {
     const c = this.cfg;
     // 1) difesa: guarda i tuoi guantoni. Conta solo un pugno in rotta di collisione con testa o corpo
     //    (non qualunque movimento delle mani), letto appena parte la spinta.
-    const committed = this.punch && this.punch.layer.t > 0.03 && !c.chain;
+    // pugno partito: finche' il braccio non rientra e' impegnato e non puo' parare ne' schivare (a tutti i livelli:
+    // prima ai livelli alti lasciava il colpo a meta' per schivare il tuo e non si riusciva mai a entrare)
+    const committed = this.committed();
+    if (committed) this.reaction = null;
     if (!this.reaction && this.stun <= 0 && !committed) {
       const hc = this.headCenter();
       const [t0, t1] = this.torso();
@@ -898,7 +906,7 @@ transformed += uSwInv * uSwing * aSw;`);
         break;
       }
     }
-    if (this.reaction && this.time >= this.reaction.at) {
+    if (this.reaction && this.time >= this.reaction.at && !committed) {
       const g = this.reaction.glove;
       const type = this.chooseDefense(g, this.reaction.zone);
       // che pugno era (tu in guardia normale: sinistro = jab, destro = diretto)
@@ -1208,7 +1216,7 @@ transformed += uSwInv * uSwing * aSw;`);
       if (ev.type === 'playerHit' && this.stun <= 0 && !this.down) {
         const d = this.defending;
         if (d && Math.random() < (this.cfg.evade ?? 0)) ev = { type: d.type.startsWith('block') ? 'mikeBlocked' : 'mikeDodged' };
-        else if (!d && Math.random() < (this.cfg.reflex ?? 0)) {
+        else if (!d && !this.committed() && Math.random() < (this.cfg.reflex ?? 0)) {
           const mv = ev.zone === 'body' ? 'block_low' : pick(['slip_l', 'slip_r', 'duck', 'block']);
           this.play(mv, this.cfg.defenseSpeed);
           ev = { type: mv.startsWith('block') ? 'mikeBlocked' : 'mikeDodged' };
