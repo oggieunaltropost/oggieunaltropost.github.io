@@ -4,7 +4,7 @@
 // La citta' si muove (city_life.js): auto, battelli, navi, uccelli, aerei. Ogni tanto passa un elicottero (il suono lo fa sfx.heli, spaziale: piu' forte quando e' vicino).
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
 import * as THREE from 'three';
-import { CityLife } from './city_life.js?v=20261006200731';
+import { CityLife } from './city_life.js?v=20261006201452';
 
 const PANO_U = 0.0;               // rotazione del panorama (il sole della foto a sinistra, un po' dietro)
 const TOWER_H = 260;              // dal tetto alla strada
@@ -25,7 +25,7 @@ export class Rooftop {
   }
 
   _sky() {
-    const tex = new THREE.TextureLoader().load(this.night ? 'assets/citta_notte_panorama.jpg?v=20261006200731' : 'assets/citta_panorama.jpg?v=20261006200731', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load(this.night ? 'assets/citta_notte_panorama.jpg?v=20261006201452' : 'assets/citta_panorama.jpg?v=20261006201452', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
