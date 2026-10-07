@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 
 const _v = new THREE.Vector3(), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3();
-const _m = new THREE.Matrix4(), _q = new THREE.Quaternion();
+const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _lowV = new THREE.Vector3();
 
 // Sezioni del guantone lungo l'asse -Z (dal polsino alla punta): [z, semiasse trasversale, semiasse dorso/palmo]
 const PROFILE = [[0.12, 0.044, 0.038], [0.105, 0.045, 0.039], [0.08, 0.046, 0.040], [0.062, 0.047, 0.041],
@@ -262,6 +262,10 @@ export class Player {
           const iv = I.getWorldPosition(new THREE.Vector3()).sub(w), pv = P.getWorldPosition(new THREE.Vector3()).sub(w);
           const back = s.handedness === 'right' ? new THREE.Vector3().crossVectors(pv, iv) : new THREE.Vector3().crossVectors(iv, pv);
           g.setPose(w, fwd.normalize(), back.normalize());
+          // punto piu' basso della mano (dita, palmo): serve per sistemare il pavimento toccandolo con la mano
+          let lowY = w.y;
+          for (const k in j) { const J = j[k]; if (J && J.visible) lowY = Math.min(lowY, J.getWorldPosition(_lowV).y); }
+          g.lowY = lowY;
           // pugno chiuso: le punte di indice, medio e anulare vicine al polso (aperta ~18 cm, chiusa ~9 cm)
           let dsum = 0, nt = 0;
           for (const n of ['index-finger-tip', 'middle-finger-tip', 'ring-finger-tip']) { const T = j[n]; if (T && T.visible) { dsum += T.getWorldPosition(new THREE.Vector3()).distanceTo(w); nt++; } }
@@ -273,6 +277,7 @@ export class Player {
           _q.setFromRotationMatrix(s.ray.matrixWorld);
           const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(_q);
           const back = new THREE.Vector3(0, 1, 0).applyQuaternion(_q);
+          g.lowY = p.y - 0.045;                                     // (le nocche / la base del controller appoggiate a terra)
           g.setPose(p.addScaledVector(fwd, -0.05), fwd, back);
           const b = s.gamepad && s.gamepad.buttons;
           this.fist[s.handedness] = !!(b && b[1] && b[1].pressed);   // tasto laterale di presa

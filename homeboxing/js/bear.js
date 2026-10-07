@@ -2,7 +2,7 @@
 // ogni tanto si ferma e si guarda intorno, ai capi si gira e torna indietro. (modello e passo: blender/create_bear.py)
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { contactShadow } from './contact_shadow.js?v=20261008003546';
+import { contactShadow } from './contact_shadow.js?v=20261008003909';
 
 const R = 11.5, A0 = -2.45, A1 = -0.75, SPEED = 0.7;    // (velocita' = passo delle zampe: niente scivolate)    // arco davanti a te (tu guardi verso -Z)
 
@@ -41,7 +41,7 @@ export class Bear {
     this.group = new THREE.Group(); this.group.name = 'orso'; parent.add(this.group);
     this.shadow = contactShadow(1.4, 2.9, 0.5); this.shadow.position.y = 0.02; this.group.add(this.shadow);
     this.a = A0 + 0.3; this.dir = 1; this.state = 'walk'; this.t = 0; this.next = 8 + Math.random() * 10; this.yaw = 0;
-    new GLTFLoader().load('assets/orso.glb?v=20261008003546', g => {
+    new GLTFLoader().load('assets/orso.glb?v=20261008003909', g => {
       this.model = g.scene; this.model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
       // pelo a gusci (come il lupo): corto, morbido e pettinato verso il basso; raso su muso e piedi, occhi e naso puliti
       let sk = null; this.model.traverse(o => { if (o.isSkinnedMesh) sk = o; });
