@@ -2,38 +2,38 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261008001620';
-import { Mike, LEVELS, loadMikeGLTF, StyleLearner } from './mike.js?v=20261008001620';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261008001620';
-import { Player, SimInput } from './player.js?v=20261008001620';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261008001620';
-import { Room } from './room.js?v=20261008001620';
-import { Arena } from './arena.js?v=20261008001620';
-import { Beach } from './beach.js?v=20261008001620';
-import { Rooftop } from './rooftop.js?v=20261008001620';
-import { Desert } from './desert.js?v=20261008001620';
-import { Snow } from './snow.js?v=20261008001620';
-import { Volcano } from './volcano.js?v=20261008001620';
-import { Sea, WATER } from './sea.js?v=20261008001620';
-import { Moon } from './moon.js?v=20261008001620';
-import { FighterCard } from './roster.js?v=20261008001620';
-import { Gym } from './gym.js?v=20261008001620';
-import { BagTraining } from './training.js?v=20261008001620';
-import { RopeTraining } from './rope.js?v=20261008001620';
-import { SpeedBagTraining } from './speedbag.js?v=20261008001620';
-import { SlipLineTraining } from './slipline.js?v=20261008001620';
-import { RingSkirt } from './ring_skirt.js?v=20261008001620';
-import { panoPending } from './pano_depth.js?v=20261008001620';
-import { DoubleEndTraining } from './doubleend.js?v=20261008001620';
-import { Sparring } from './sparring.js?v=20261008001620';
-import { RingGirl } from './ringgirl.js?v=20261008001620';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261008001620';
-import * as sfx from './sfx.js?v=20261008001620';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261008001620';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261008001620';
-import { Tournament, BracketView } from './tournament.js?v=20261008001620';
-import { CpuMatch } from './cpu_match.js?v=20261008001620';
-import { TowerView } from './tower.js?v=20261008001620';
+import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261008002739';
+import { Mike, LEVELS, loadMikeGLTF, StyleLearner } from './mike.js?v=20261008002739';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261008002739';
+import { Player, SimInput } from './player.js?v=20261008002739';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261008002739';
+import { Room } from './room.js?v=20261008002739';
+import { Arena } from './arena.js?v=20261008002739';
+import { Beach } from './beach.js?v=20261008002739';
+import { Rooftop } from './rooftop.js?v=20261008002739';
+import { Desert } from './desert.js?v=20261008002739';
+import { Snow } from './snow.js?v=20261008002739';
+import { Volcano } from './volcano.js?v=20261008002739';
+import { Sea, WATER } from './sea.js?v=20261008002739';
+import { Moon } from './moon.js?v=20261008002739';
+import { FighterCard } from './roster.js?v=20261008002739';
+import { Gym } from './gym.js?v=20261008002739';
+import { BagTraining } from './training.js?v=20261008002739';
+import { RopeTraining } from './rope.js?v=20261008002739';
+import { SpeedBagTraining } from './speedbag.js?v=20261008002739';
+import { SlipLineTraining } from './slipline.js?v=20261008002739';
+import { RingSkirt } from './ring_skirt.js?v=20261008002739';
+import { panoPending } from './pano_depth.js?v=20261008002739';
+import { DoubleEndTraining } from './doubleend.js?v=20261008002739';
+import { Sparring } from './sparring.js?v=20261008002739';
+import { RingGirl } from './ringgirl.js?v=20261008002739';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261008002739';
+import * as sfx from './sfx.js?v=20261008002739';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261008002739';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261008002739';
+import { Tournament, BracketView } from './tournament.js?v=20261008002739';
+import { CpuMatch } from './cpu_match.js?v=20261008002739';
+import { TowerView } from './tower.js?v=20261008002739';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -421,8 +421,8 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261008001620`); t.colorSpace = THREE.SRGBColorSpace; return t; };
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261008001620`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261008002739`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261008002739`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -807,6 +807,12 @@ scene.add(floorMenu.group);
 let floorGate = 'wait';                               // wait -> ask -> ok (finche' non e' ok si resta qui); 'force': aperto dalle opzioni
 let floorForce = null;                                // { sets, scan }: dalle opzioni conta solo la mano o una scansione nuova
 // apre il pannello del pavimento: all'avvio (stanza non scansionata, obbligatorio) o dalle opzioni (con "indietro")
+// il sito ha il permesso "dati spaziali"? (senza, il Quest non da' la stanza e non fa partire la scansione)
+function spatialOK() {
+  const ss = renderer.xr.getSession && renderer.xr.getSession();
+  const f = ss && ss.enabledFeatures;
+  return !f || f.includes('plane-detection') || f.includes('mesh-detection');
+}
 function openFloorMenu(force) {
   floorGate = force ? 'force' : 'ask'; floorForce = force ? { sets: floorSets, scan: false } : null;
   closeMenus();
@@ -815,7 +821,7 @@ function openFloorMenu(force) {
   const vis = bs.filter(b => b.g.visible), gap = 0.03;          // centrati, uno accanto all'altro (indietro a sinistra)
   let x = -(vis.reduce((a, b) => a + b.w, 0) + gap * (vis.length - 1)) / 2;
   for (const b of vis) { b.g.position.x = x + b.w / 2; x += b.w + gap; }
-  floorMenu.setTitle(t(force ? 'floor_title2' : 'floor_title')); floorMenu.open(player.head, menuYaw(), 0.7, 0.1);
+  floorMenu.setTitle(t(!spatialOK() ? 'floor_noperm' : force ? 'floor_title2' : 'floor_title')); floorMenu.open(player.head, menuYaw(), 0.7, 0.1);
 }
 const floorOK = () => ['stanza', 'mano', 'manuale'].includes(floorSource);
 window.floorTest = { ask: () => openFloorMenu(false), force: () => openFloorMenu(true), set: () => setFloor(floorY, 'mano'), get state() { return floorGate; }, menu: floorMenu };   // (prove)
@@ -1639,7 +1645,7 @@ function sparSounds(ev) {
   }
 }
 // ---- sparring: il partner (caschetto, alto come te) prende il posto dell'avversario sul ring della palestra
-const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261008001620', evenSkin: false,
+const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261008002739', evenSkin: false,
   band: { bg: '#1a1a1c', line: '#c4122a', text: '#f2ece0', label: 'SPARRING' } };
 let spar = null, partner = null, savedMike = null, sparLoading = false;
 async function startSparring(kind, defKinds = null) {
@@ -2036,7 +2042,8 @@ function updateMainMenu(dt, gloves) {
     const id = floorMenu.update(dt, gloves);
     if (id) sfx.menuBlip();
     if (id === 'fl:back') { floorGate = 'ok'; floorForce = null; floorMenu.close(); openMenu(optionsMenu); return; }
-    if (id === 'fl:scan') {
+    if (id === 'fl:scan' && !spatialOK()) floorMenu.setTitle(t('floor_perm_how'));   // senza permesso non partirebbe
+    else if (id === 'fl:scan') {
       floorMenu.setTitle(t('floor_scan_hint'));
       const session = renderer.xr.getSession();
       // (dalle opzioni: finita la scansione il pavimento si rilegge, anche se e' quello di prima)
@@ -2187,10 +2194,14 @@ function updatePause(dt) {
 function calibrateByHand(dt) {
   const head = player.head;
   headMax = Math.max(headMax * (1 - dt * 0.02), head.y);       // altezza da in piedi (si adatta piano)
-  const crouched = head.y < headMax - 0.3;
+  const crouched = head.y < headMax - 0.25;
+  let best = 0;
   for (const g of Object.values(player.gloves)) {
-    const low = g.mesh.visible && head.y - g.center.y > 0.45 && g.speed < 0.25;
-    floorTouch[g.side] = crouched && low ? floorTouch[g.side] + dt : 0;
+    // (piu' tollerante: un attimo di tracciamento perso o la mano che trema non azzerano piu' il conteggio)
+    const low = g.mesh.visible && head.y - g.center.y > 0.4 && g.speed < 0.4;
+    if (floorTouch[g.side] < 0) floorTouch[g.side] = Math.min(0, floorTouch[g.side] + dt);
+    else floorTouch[g.side] = crouched && low ? floorTouch[g.side] + dt : Math.max(0, floorTouch[g.side] - dt * 1.5);
+    best = Math.max(best, floorTouch[g.side]);
     if (floorTouch[g.side] > 2) {
       floorTouch[g.side] = -3;                                    // pausa prima di poterlo rifare
       setFloor(g.center.y - 0.035, 'mano');
@@ -2198,6 +2209,8 @@ function calibrateByHand(dt) {
       game.message = t('floor_fixed');
     }
   }
+  // col pannello del pavimento aperto: si vede che la mano a terra viene contata
+  if (floorMenu.group.visible && best > 0.25) floorMenu.setTitle(t('floor_hold', { s: Math.min(2, Math.ceil(best)) }));
 }
 
 // ---------------------------------------------------------------- avvio

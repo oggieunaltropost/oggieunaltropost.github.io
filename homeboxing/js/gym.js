@@ -5,9 +5,9 @@
 // la retta delle sue due mani fino a terra, cosi' resta sempre in mano.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261008001620';
-import { makeGloveMesh } from './player.js?v=20261008001620';
-import { contactShadow } from './contact_shadow.js?v=20261008001620';
+import { buildRing, RING_SIZE } from './ring.js?v=20261008002739';
+import { makeGloveMesh } from './player.js?v=20261008002739';
+import { contactShadow } from './contact_shadow.js?v=20261008002739';
 
 const FLOOR = -1.0;
 const WALK_SPEED = 0.42;                       // m/s (come la clip "cammina" di Blender)
@@ -24,7 +24,7 @@ export class Gym {
     this.group = new THREE.Group(); this.group.name = 'palestra';
     this.t = 0; this.bags = [];
     const L = new GLTFLoader();
-    L.load('assets/palestra.glb?v=20261008001620', g => {
+    L.load('assets/palestra.glb?v=20261008002739', g => {
       g.scene.traverse(o => {
         if (!o.isMesh) return;
         const m = o.material;
@@ -36,7 +36,7 @@ export class Gym {
       this.group.add(g.scene);
       this.loaded = true; if (this.onLoad) this.onLoad();
     });
-    L.load('assets/inserviente.glb?v=20261008001620', g => this._janitor(g));
+    L.load('assets/inserviente.glb?v=20261008002739', g => this._janitor(g));
     // in allenamento il ring del gioco sparisce: sulla pedana restano corde, pali e angoli (girano con la palestra)
     this.ring = buildRing(RING_SIZE); this.ring.visible = false; this.group.add(this.ring);
   }

@@ -6,8 +6,8 @@
 // la cintura. Si parte dal massimo.
 // Sistema: quello del ring (arena), pavimento a 0, il giocatore in (0, 0, playerZ) guarda verso -Z.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261008001620';
-import { t as tr } from './i18n.js?v=20261008001620';
+import * as sfx from './sfx.js?v=20261008002739';
+import { t as tr } from './i18n.js?v=20261008002739';
 
 const N = 40, ROPE_R = 0.0075, HEAD_R = 0.115, SIDE = 0.11;
 const RX = -0.3;                  // lo spago passa 30 cm alla tua sinistra: si parte da un lato
