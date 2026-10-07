@@ -5,8 +5,8 @@
 // Colpi a segno / a vuoto come la pera veloce.
 // Sistema: quello del ring (arena): il giocatore in (0, 0, playerZ) guarda verso -Z, pavimento a 0.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261008002739';
-import { t as tr } from './i18n.js?v=20261008002739';
+import * as sfx from './sfx.js?v=20261008003034';
+import { t as tr } from './i18n.js?v=20261008003034';
 
 const M = 0.4, R = 0.105, PUNCH_MASS = 2.4, E_HIT = 0.55, E_HEAD = 0.35;
 const TENSION = 110, STRETCH = 0.25;           // tensione a riposo (N) e allungamento a riposo degli elastici (25%)
