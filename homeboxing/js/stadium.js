@@ -1,0 +1,178 @@
+// Stage "Stadio": il ring al centro di uno stadio vuoto, aperto in alto, di giorno. Sfondo = foto a 360 gradi fatta in
+// Blender (blender/create_stadium.py: prato a strisce, cartelloni, due anelli di gradinate vuote, torri faro, cielo con
+// nuvole) con la sua profondita' per il 3D vero. Davanti, in 3D: ogni tanto passa un aereo da traino che si porta dietro
+// lo striscione "HOME BOXING" (stoffa che ondeggia nel vento), con il rumore del motore che cambia passando (effetto
+// Doppler).
+// Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
+import * as THREE from 'three';
+import { panoDepth } from './pano_depth.js?v=20261009220132';
+import { contactShadow } from './contact_shadow.js?v=20261009220132';
+import * as sfx from './sfx.js?v=20261009220132';
+
+const EYE = 1.65;
+// il Sole della foto: Blender (-0.2484, -0.5327, 0.809) -> gioco (y, z, x)
+const SUN = new THREE.Vector3(-0.5327, 0.809, -0.2484).normalize();
+
+const BANNER_L = 30, BANNER_H = 6.5, SEG_X = 60, SEG_Y = 8;
+const _v = new THREE.Vector3(), _w = new THREE.Vector3();
+
+export class Stadium {
+  constructor() {
+    this.group = new THREE.Group(); this.group.name = 'stadio';
+    this.sunDir = SUN.clone();
+    this.t = 0;
+    this._sky(); this._plane();
+    this.nextPlane = 12 + Math.random() * 14;           // il primo passaggio dopo un po'
+    this.fly = null;
+  }
+  // ---------------------------------------------------------------- foto a 360 gradi
+  _sky() {
+    const tex = new THREE.TextureLoader().load('assets/stadio_panorama.jpg?v=20261009220132', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
+    this.skyTex = tex;
+    const m = new THREE.ShaderMaterial({
+      side: THREE.BackSide, depthWrite: false, fog: false, uniforms: { uPano: { value: tex } },
+      vertexShader: `varying vec3 vD; void main(){ vD = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      fragmentShader: `uniform sampler2D uPano; varying vec3 vD;
+        void main(){ vec3 d = normalize(vD);
+          vec2 uv = vec2(fract(atan(d.z, d.x) * 0.15915494 + 0.5), asin(clamp(d.y, -1.0, 1.0)) * 0.31830989 + 0.5);
+          gl_FragColor = vec4(texture2D(uPano, uv).rgb, 1.0);
+          #include <colorspace_fragment>
+        }`,
+    });
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 64, 32), m);
+    sky.renderOrder = -10; sky.frustumCulled = false; this.group.add(sky);
+    // sfondo in 3D vero: il prato piatto, le gradinate e le torri alla loro distanza
+    this.group.add(panoDepth('assets/stadio_profondita.png', tex, { eye: EYE, flat: 40 }));
+  }
+
+  // ---------------------------------------------------------------- l'aereo
+  _plane() {
+    const P = new THREE.Group(); P.visible = false;
+    const yellow = new THREE.MeshStandardMaterial({ color: 0xf3c431, roughness: 0.55, metalness: 0.05 });
+    const red = new THREE.MeshStandardMaterial({ color: 0xc4161f, roughness: 0.55 });
+    const white = new THREE.MeshStandardMaterial({ color: 0xf2f2f0, roughness: 0.5 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x1b1b1e, roughness: 0.6 });
+    const glass = new THREE.MeshStandardMaterial({ color: 0x2a3b4c, roughness: 0.1, metalness: 0.3 });
+    const add = (geo, mat, x = 0, y = 0, z = 0) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); P.add(o); return o; };
+    // fusoliera: ellissoide affusolato verso la coda (muso verso +Z)
+    const body = add(new THREE.SphereGeometry(1, 20, 14), yellow, 0, 0, 0.3); body.scale.set(0.62, 0.66, 2.3);
+    const tail = add(new THREE.ConeGeometry(0.42, 3.4, 12), yellow, 0, 0.12, -2.9); tail.rotation.x = -Math.PI / 2; tail.scale.set(1, 1, 0.9);
+    add(new THREE.BoxGeometry(0.66, 0.14, 1.6), red, 0, 0.06, 0.3).scale.set(1, 1, 1);             // fascia rossa lungo la fiancata (appoggiata)
+    add(new THREE.SphereGeometry(0.5, 12, 8), glass, 0, 0.45, 0.55).scale.set(0.95, 0.62, 1.4);   // tettuccio
+    // ala alta con i due montanti
+    add(new THREE.BoxGeometry(10.6, 0.13, 1.55), yellow, 0, 0.88, 0.45);
+    add(new THREE.BoxGeometry(10.6, 0.14, 0.12), red, 0, 0.9, 1.2);                                    // bordo d'attacco rosso
+    for (const s of [-1, 1]) { const st = add(new THREE.BoxGeometry(0.07, 1.35, 0.09), dark, s * 1.6, 0.32, 0.5); st.rotation.z = s * 0.52; }
+    // coda
+    add(new THREE.BoxGeometry(3.4, 0.09, 0.95), yellow, 0, 0.12, -3.9);
+    add(new THREE.BoxGeometry(0.09, 1.25, 1.05), red, 0, 0.7, -3.85);
+    // carrello
+    add(new THREE.CylinderGeometry(0.28, 0.28, 0.14, 12), dark, -0.78, -0.95, 0.75).rotation.z = Math.PI / 2;
+    add(new THREE.CylinderGeometry(0.28, 0.28, 0.14, 12), dark, 0.78, -0.95, 0.75).rotation.z = Math.PI / 2;
+    // elica e cuffia
+    add(new THREE.ConeGeometry(0.2, 0.5, 12), dark, 0, 0, 2.95).rotation.x = Math.PI / 2;
+    this.prop = new THREE.Group(); this.prop.position.set(0, 0, 2.75); P.add(this.prop);
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.3, 0.05), dark); this.prop.add(blade);
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(1.2, 24), new THREE.MeshBasicMaterial({ color: 0xcfd3d8, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false }));
+    this.prop.add(disc);
+    P.scale.setScalar(1.45);                           // (un po' piu' grande del vero: da lontano si legga)
+    this.plane = P; this.group.add(P);
+
+    // striscione: stoffa 30 x 6,5 m; l'origine e' sull'asta davanti, +x va verso la coda
+    const cv = document.createElement('canvas'); cv.width = 2048; cv.height = 448; const g = cv.getContext('2d');
+    g.fillStyle = '#f6f2e8'; g.fillRect(0, 0, 2048, 448);
+    g.fillStyle = '#c4161f'; g.fillRect(0, 0, 2048, 26); g.fillRect(0, 422, 2048, 26);
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '900 262px system-ui, "Arial Black", sans-serif';
+    g.lineJoin = 'round'; g.lineWidth = 16; g.strokeStyle = '#141416'; g.strokeText('HOME BOXING', 1024, 236);
+    g.fillStyle = '#d81e2c'; g.fillText('HOME BOXING', 1024, 236);
+    const btex = new THREE.CanvasTexture(cv); btex.colorSpace = THREE.SRGBColorSpace; btex.anisotropy = 8;
+    this.bannerMat = new THREE.ShaderMaterial({
+      side: THREE.DoubleSide, uniforms: { uTex: { value: btex }, uT: { value: 0 }, uL: { value: BANNER_L } },
+      vertexShader: `uniform float uT; uniform float uL; varying vec2 vUv; varying float vShade;
+        void main(){
+          vUv = uv; float s = uv.x;                                   // 0 = asta davanti, 1 = coda
+          vec3 p = position;                                          // x in [0, L], y in [-H/2, H/2]
+          float w = 1.1 * s * s + 0.15 * s;                            // l'ondeggiare cresce verso la coda
+          float ph = s * 9.0 - uT * 5.0;
+          p.z += sin(ph) * (0.9 + 1.5 * s) * w + sin(ph * 0.55 + 1.3 + p.y * 0.35) * 0.5 * s;
+          p.y += sin(ph * 0.8 + 0.7) * 0.35 * s * s - 0.55 * s * s;    // un po' di sacco verso il basso
+          p.x -= 0.25 * s * s * (1.0 + sin(uT * 2.0 + s * 3.0) * 0.3);    // la stoffa si accorcia dove ondeggia
+          vShade = 0.86 + 0.14 * cos(ph);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+        }`,
+      fragmentShader: `uniform sampler2D uTex; varying vec2 vUv; varying float vShade;
+        void main(){
+          vec2 uv = vUv; if (!gl_FrontFacing) uv.x = 1.0 - uv.x;      // dietro: stampato al contrario, si legge giusto anche li'
+          vec4 c = texture2D(uTex, uv);
+          gl_FragColor = vec4(c.rgb * vShade, 1.0);
+          #include <colorspace_fragment>
+        }`,
+    });
+    const geo = new THREE.PlaneGeometry(BANNER_L, BANNER_H, SEG_X, SEG_Y); geo.translate(BANNER_L / 2, 0, 0);
+    this.banner = new THREE.Mesh(geo, this.bannerMat); this.banner.frustumCulled = false; this.banner.visible = false;
+    this.group.add(this.banner);
+    // asta davanti allo striscione e cavo di traino (due fili: in alto e in basso)
+    this.pole = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, BANNER_H, 6), dark); this.pole.visible = false; this.group.add(this.pole);
+    const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(12), 3));
+    this.line = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0x20242c })); this.line.frustumCulled = false; this.line.visible = false;
+    this.group.add(this.line);
+  }
+
+  // un passaggio: retta a quota 75-125 m, a 30-110 m dal ring, da un lato all'altro (lunga ~1 km: ~30 s)
+  _launch() {
+    const a = Math.random() * Math.PI * 2;
+    const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));                        // direzione del volo
+    const side = new THREE.Vector3(-dir.z, 0, dir.x);
+    const off = (Math.random() < 0.5 ? -1 : 1) * (30 + Math.random() * 80);
+    const h = 75 + Math.random() * 50;
+    const L = 520;
+    this.fly = { dir, side, off, h, p: new THREE.Vector3().copy(dir).multiplyScalar(-L).addScaledVector(side, off).setY(h), v: 30 + Math.random() * 5, L, t: 0, roll: 0 };
+    this.plane.visible = this.banner.visible = this.pole.visible = this.line.visible = true;
+  }
+
+  setRing(size) {
+    if (!this.ringShadow) { this.ringShadow = contactShadow(1, 1, 0.55, 0.66); this.ringShadow.position.y = 0.008; this.group.add(this.ringShadow); }
+    this.ringShadow.scale.set((size + 0.3) * 1.45, (size + 0.3) * 1.45, 1);
+  }
+
+  update(dt, cam) {
+    this.t += dt;
+    this.bannerMat.uniforms.uT.value = this.t;
+    const F = this.fly;
+    if (!F) {
+      if ((this.nextPlane -= dt) <= 0) this._launch();
+      return;
+    }
+    F.t += dt;
+    F.p.addScaledVector(F.dir, F.v * dt);
+    const pos = F.p, P = this.plane;
+    // assetto: muso lungo il volo, un po' di rollio e beccheggio lenti
+    const yaw = Math.atan2(F.dir.x, F.dir.z);
+    P.position.copy(pos); P.rotation.set(Math.sin(this.t * 0.6) * 0.03, yaw, Math.sin(this.t * 0.45 + 1) * 0.06 + Math.sin(this.t * 0.17) * 0.03, 'YXZ');
+    this.prop.rotation.z += dt * 90;
+    // striscione: dietro la coda, 18 m di cavo; l'asta e' verticale e la stoffa parte da li'
+    const back = _v.copy(F.dir).negate();
+    const tail = _w.copy(pos).addScaledVector(back, 5.6).add(new THREE.Vector3(0, -0.15, 0));       // coda dell'aereo
+    const poleC = new THREE.Vector3().copy(tail).addScaledVector(back, 18).add(new THREE.Vector3(0, -2.6 + Math.sin(this.t * 0.8) * 0.15, 0));
+    this.banner.position.copy(poleC);
+    this.banner.rotation.set(0, Math.atan2(F.dir.z, F.dir.x) * -1 + Math.PI, 0);   // +x locale = verso la coda (-direzione del volo)
+    this.pole.position.copy(poleC);
+    const lp = this.line.geometry.attributes.position;
+    lp.setXYZ(0, tail.x, tail.y, tail.z); lp.setXYZ(1, poleC.x, poleC.y + BANNER_H / 2, poleC.z);
+    lp.setXYZ(2, tail.x, tail.y, tail.z); lp.setXYZ(3, poleC.x, poleC.y - BANNER_H / 2, poleC.z); lp.needsUpdate = true;
+    // rumore del motore, con l'effetto Doppler (piu' acuto quando si avvicina)
+    if (cam) {
+      const cp = cam.getWorldPosition(new THREE.Vector3()), wp = this.group.localToWorld(pos.clone());
+      const to = wp.clone().sub(cp), dist = to.length();
+      const vr = to.dot(this.group.localToWorld(pos.clone().add(F.dir)).sub(wp)) / Math.max(1, dist) * F.v;   // > 0: si allontana
+      sfx.planeBuzz(wp, cam, 1 - vr / 340);
+    }
+    // finito il passaggio (oltre la fine della retta): sparisce e riparte dopo un po'
+    if (F.t * F.v > 2 * F.L) {
+      this.fly = null; this.plane.visible = this.banner.visible = this.pole.visible = this.line.visible = false;
+      sfx.planeStop(); this.nextPlane = 30 + Math.random() * 40;
+    }
+  }
+  dispose() { sfx.planeStop(); }
+}

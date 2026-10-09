@@ -9,10 +9,10 @@
 //    (poca gravita' e niente aria: traiettorie pulite) e ricade piano, anello di polvere; resta il cratere
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
 import * as THREE from 'three';
-import { contactShadow } from './contact_shadow.js?v=20261009205355';
-import { panoDepth } from './pano_depth.js?v=20261009205355';
-import { Astronaut } from './astronaut.js?v=20261009205355';
-import * as sfx from './sfx.js?v=20261009205355';
+import { contactShadow } from './contact_shadow.js?v=20261009220132';
+import { panoDepth } from './pano_depth.js?v=20261009220132';
+import { Astronaut } from './astronaut.js?v=20261009220132';
+import * as sfx from './sfx.js?v=20261009220132';
 
 const EYE = 1.65, R_FADE0 = 10, R_FADE1 = 16, G = 1.62;          // gravita' lunare
 const SUN = new THREE.Vector3(-0.4532, 0.4226, 0.7849).normalize();  // dalla foto (Blender (0.7849,-0.4532,0.4226))
@@ -46,7 +46,7 @@ export class Moon {
     const img = new Image();
     const tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     img.onload = () => { tex.needsUpdate = true; this.skyLoaded = true; this._tintGround(img); if (this.onSkyLoad) this.onSkyLoad(); };
-    img.src = 'assets/luna_panorama.jpg?v=20261009205355';
+    img.src = 'assets/luna_panorama.jpg?v=20261009220132';
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false, uniforms: { uPano: { value: tex } },
@@ -331,6 +331,6 @@ export class Moon {
     const camL = cam ? this.group.worldToLocal(cam.getWorldPosition(new THREE.Vector3())) : null;
     this._updComet(dt, camL);
     this._updImpact(dt, cam);
-    this.astro.update(Math.min(dt, 0.05));
+    this.astro.update(Math.min(dt, 0.05), cam);
   }
 }

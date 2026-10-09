@@ -33,7 +33,7 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261009205355';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261009220132';
 // Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
@@ -55,7 +55,7 @@ let vbuf = {}, vLang = 'it';
 let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261009205355`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261009220132`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
@@ -194,7 +194,7 @@ const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261009205355`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261009220132`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
   loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (snowWanted && !snowW) snowAmbient(true); if (lavaWanted && !lavaW) lavaAmbient(true); if (underWanted && !underW) underAmbient(true); if (spaceWanted && !spaceW) spaceAmbient(true); if (windWanted && (!wind || wind.synth)) { if (wind) { wind.s.stop(); wind = null; } windAmbient(true); } });   // vento vero appena caricato
   return loading;
@@ -320,6 +320,62 @@ export function heliStop() {
   if (!heliSrc) return;
   const h = heliSrc; heliSrc = null;
   h.g.gain.setTargetAtTime(0, ctx.currentTime, 0.4); setTimeout(() => { try { h.s.stop(); } catch (e) {} }, 1500);
+}
+// sibilo del gas dello zaino (astronauta sulla Luna): fruscio a banda larga che sale subito e cala, ovattato dalla distanza;
+// `dur` = quanto dura la spinta (s). La sorgente e' nel mondo (pos) e panneggiata.
+let gasNoise = null;
+export function gasPuff(pos, cam, dur = 0.7, gain = 1) {
+  if (!ctx || ctx.state !== 'running') return;
+  if (!gasNoise) { gasNoise = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate); const d = gasNoise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+  const t0 = ctx.currentTime + 0.02, s = ctx.createBufferSource(); s.buffer = gasNoise; s.loop = true;
+  const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 700;
+  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.setValueAtTime(3200, t0); bp.frequency.exponentialRampToValueAtTime(1500, t0 + dur + 0.3); bp.Q.value = 0.6;
+  const g = ctx.createGain(); g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(0.55 * gain, t0 + 0.05);
+  g.gain.setValueAtTime(0.42 * gain, t0 + dur * 0.7); g.gain.linearRampToValueAtTime(0, t0 + dur + 0.35);
+  const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 4; p.rolloffFactor = 1.2; p.maxDistance = 200;
+  if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);
+  setListener(cam);
+  s.connect(hp); hp.connect(bp); bp.connect(g); g.connect(p); p.connect(master);
+  s.start(t0, Math.random() * 1.5); s.stop(t0 + dur + 0.45);
+  // un colpetto sordo all'inizio (la valvola che si apre)
+  const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(180, t0); o.frequency.exponentialRampToValueAtTime(90, t0 + 0.12);
+  const og = ctx.createGain(); og.gain.setValueAtTime(0.0, t0); og.gain.linearRampToValueAtTime(0.35 * gain, t0 + 0.01); og.gain.exponentialRampToValueAtTime(0.001, t0 + 0.16);
+  o.connect(og); og.connect(p); o.start(t0); o.stop(t0 + 0.2);
+}
+// aereo da traino (stage Stadio): motore a pistoni a 2200 giri, elica a 74 Hz, un po' di vento; la posizione e' nel mondo e
+// `rate` e' l'effetto Doppler (1 = fermo, >1 si avvicina)
+let planeSrc = null, planeBuf = null;
+export function planeBuzz(pos, cam, rate = 1) {
+  if (!ctx || ctx.state !== 'running') return;
+  if (!planeSrc) {
+    if (!planeBuf) planeBuf = synthBuffer(2, (d, sr) => {
+      let lp = 0;
+      for (let i = 0; i < d.length; i++) {
+        const t = i / sr, w = 2 * Math.PI * t;
+        const fire = Math.sin(w * 37 + 1.6 * Math.sin(w * 37));                      // gli scoppi dei cilindri
+        const blade = Math.sin(w * 74) * (0.65 + 0.35 * Math.sin(w * 3));            // le pale dell'elica
+        lp = lp * 0.9 + (Math.random() * 2 - 1) * 0.1;                               // vento e rumore
+        d[i] = fire * 0.34 + blade * 0.30 + Math.sin(w * 148) * 0.12 + Math.sin(w * 222) * 0.06 + lp * 0.32;
+      }
+    });
+    const s = ctx.createBufferSource(); s.buffer = planeBuf; s.loop = true;
+    const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 70; p.rolloffFactor = 1.0; p.maxDistance = 3000;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2500;
+    const g = ctx.createGain(); g.gain.value = 0; g.gain.setTargetAtTime(0.5, ctx.currentTime, 1.2);
+    s.connect(lp); lp.connect(g); g.connect(p); p.connect(master); s.start(ctx.currentTime, Math.random() * 2);
+    planeSrc = { s, p, g, lp };
+  }
+  setListener(cam);
+  const cp = cam.getWorldPosition(new cam.position.constructor()), dist = cp.distanceTo(pos);
+  planeSrc.lp.frequency.setTargetAtTime(700 + 6000 * Math.exp(-dist / 160), ctx.currentTime, 0.2);   // lontano = piu' ovattato
+  planeSrc.s.playbackRate.setTargetAtTime(Math.max(0.8, Math.min(1.25, rate)), ctx.currentTime, 0.15);
+  const P = planeSrc.p;
+  if (P.positionX) { P.positionX.value = pos.x; P.positionY.value = pos.y; P.positionZ.value = pos.z; } else P.setPosition(pos.x, pos.y, pos.z);
+}
+export function planeStop() {
+  if (!planeSrc) return;
+  const h = planeSrc; planeSrc = null;
+  h.g.gain.setTargetAtTime(0, ctx.currentTime, 0.5); setTimeout(() => { try { h.s.stop(); } catch (e) {} }, 2000);
 }
 // x = eccitazione del pubblico (0..1): il brusio cresce e partono i cori
 export function crowdLevel(x) {
@@ -481,22 +537,26 @@ let snowW = null, snowWanted = false;
 // (sintetizzata qui: un rombo profondo che respira piano, un fruscio scuro e un luccichio lontano; 24 s che si ripetono)
 let spaceW = null, spaceWanted = false, spaceBuf = null;
 function makeSpace() {
+  // (prima i toni stavano tra 41 e 124 Hz: gli altoparlanti del Quest non li riproducono e non si sentiva niente)
+  // Un tappeto lento e sospeso: bordone a 110 Hz con quinta e ottava, ognuno con un compagno appena stonato (battimenti
+  // lenti che "respirano"), un soffio d'aria sottile e ogni tanto un luccichio. Tutte le frequenze sono multipli di 1/24 Hz:
+  // il giro di 24 s e' senza scatti.
   const L = 24, sr = ctx.sampleRate, n = L * sr, b = ctx.createBuffer(2, n, sr);
-  const tones = [[41.25, 0.32], [55.0, 0.22], [61.875, 0.12], [82.5, 0.08], [123.75, 0.035]];   // (cicli interi in 24 s: giro senza scatti)
+  const tones = [[110, 0.20], [110.5, 0.16], [165, 0.13], [165.75, 0.10], [220, 0.10], [220.5, 0.08], [330, 0.05], [440.25, 0.035], [660, 0.02]];
   for (let ch = 0; ch < 2; ch++) {
-    const d = b.getChannelData(ch); let lp1 = 0, lp2 = 0;
+    const d = b.getChannelData(ch); let lp = 0, hp = 0;
     const noise = new Float32Array(n);
-    for (let i = 0; i < n; i++) { const w = Math.random() * 2 - 1; lp1 += (w - lp1) * 0.02; lp2 += (lp1 - lp2) * 0.02; noise[i] = lp2; }
-    const X = sr * 2;                                                   // giunta del fruscio: dissolvenza incrociata di 2 s
+    for (let i = 0; i < n; i++) { const w = Math.random() * 2 - 1; lp += (w - lp) * 0.18; hp += (lp - hp) * 0.012; noise[i] = lp - hp; }   // fruscio "d'aria" (banda larga, senza il rombo)
+    const X = sr * 2;                                                     // giunta del fruscio: dissolvenza incrociata di 2 s
     for (let i = 0; i < X; i++) { const k = i / X; noise[i] = noise[i] * k + noise[n - X + i] * (1 - k); }
     for (let i = 0; i < n; i++) {
       const t = i / sr; let v = 0;
-      for (const [f, a] of tones) v += a * Math.sin(2 * Math.PI * f * t + ch * 0.7 + f);
-      v *= 0.65 + 0.35 * Math.sin(2 * Math.PI * t / 24 + ch);            // respiro lentissimo
-      v += noise[i] * 3.5 * (0.6 + 0.4 * Math.sin(2 * Math.PI * t * 2 / 24 + 1.3));
-      v += 0.012 * Math.sin(2 * Math.PI * 1760 * t) * Math.max(0, Math.sin(2 * Math.PI * t * 3 / 24 + ch * 2));   // luccichio
-      v += 0.008 * Math.sin(2 * Math.PI * 2343.75 * t) * Math.max(0, Math.sin(2 * Math.PI * t * 2 / 24 + 2 + ch));
-      d[i] = v * 0.5;
+      for (const [f, a] of tones) v += a * Math.sin(2 * Math.PI * f * t + ch * 0.9 + f * 0.37);
+      v *= 0.62 + 0.38 * Math.sin(2 * Math.PI * t * 2 / 24 + ch * 1.1);     // respiro lento
+      v += noise[i] * 0.9 * (0.5 + 0.5 * Math.sin(2 * Math.PI * t * 3 / 24 + 1.3 + ch));
+      v += 0.03 * Math.sin(2 * Math.PI * 1760 * t) * Math.max(0, Math.sin(2 * Math.PI * t * 3 / 24 + ch * 2));    // luccichio
+      v += 0.02 * Math.sin(2 * Math.PI * 2343.75 * t) * Math.max(0, Math.sin(2 * Math.PI * t * 2 / 24 + 2 + ch));
+      d[i] = v * 0.55;
     }
   }
   return b;
@@ -506,7 +566,7 @@ export function spaceAmbient(on) {
   if (!ctx) return;
   if (on && !spaceW) {
     if (!spaceBuf) spaceBuf = makeSpace();
-    spaceW = loopSrc(spaceBuf, 0.0); spaceW.g.gain.setTargetAtTime(0.22, ctx.currentTime, 2.0);
+    spaceW = loopSrc(spaceBuf, 0.0); spaceW.g.gain.setTargetAtTime(0.28, ctx.currentTime, 2.5);   // molto soft, di sottofondo
   } else if (!on && spaceW) { const w = spaceW; spaceW = null; w.g.gain.setTargetAtTime(0, ctx.currentTime, 0.3); setTimeout(() => { try { w.s.stop(); } catch (e) {} }, 1200); }
 }
 export function snowAmbient(on) {

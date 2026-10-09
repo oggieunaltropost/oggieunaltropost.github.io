@@ -134,15 +134,15 @@ export class CpuMatch {
     const n = ++this.kdN[o], R = this.hooks.refills || [75, 50, 25];
     this.kdLvl[o] += 1; const lvl = Math.max(1, Math.round(this.kdLvl[o]));      // (atterramenti lontani nel tempo pesano meno)
     const refill = this.hooks.oneKO ? 0 : R[lvl - 1] ?? (this.hooks.threeKO !== false ? 0 : [15, 8][lvl - 4] ?? 0);
-    const tko = this.hooks.threeKO !== false && !this.hooks.oneKO && n >= 3;
+    const tko = (this.hooks.threeKO !== false && n >= 3) || !!this.hooks.oneKO;      // (un KO, fine partita: niente conteggio)
     this.f[o].knockdown(); this.f[0].enabled = false; this.f[1].enabled = false;
     if (this.hooks.onKD) this.hooks.onKD();
-    this.kd = { o, t: 0, count: 0, upAt: refill <= 0 || tko ? 99 : 4 + Math.floor(Math.random() * 5), refill, out: refill <= 0 || tko, tko };
+    this.kd = { o, t: 0, count: 0, upAt: refill <= 0 || tko ? 99 : 4 + Math.floor(Math.random() * 5), refill, out: refill <= 0 || tko, tko, instant: !!this.hooks.oneKO };
   }
   _count(dt) {
     const K = this.kd; K.t += dt;
     if (K.tko) {                                       // terzo atterramento: l'arbitro ferma l'incontro
-      if (K.t > 1.5) { this.winner = 1 - K.o; this.how = 'TKO'; this.endT = 4; this.kd = null; if (this.hooks.onKO) this.hooks.onKO(); }
+      if (K.t > (K.instant ? 1.2 : 1.5)) { this.winner = 1 - K.o; this.how = K.instant ? 'KO' : 'TKO'; this.endT = K.instant ? 1 : 4; this.kd = null; if (this.hooks.onKO) this.hooks.onKO(); }
       return;
     }
     const c = Math.floor(K.t);                         // conteggio: un numero al secondo
