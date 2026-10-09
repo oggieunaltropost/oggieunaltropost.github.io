@@ -4,7 +4,7 @@
 // a te; le animazioni (chi combatte, chi passa il turno, il campione che arriva alla coppa) sono oggetti 3D
 // che si muovono sopra la tela.
 import * as THREE from 'three';
-import { t } from './i18n.js?v=20261009202947';
+import { t } from './i18n.js?v=20261009205355';
 
 // misure del tabellone: cambiano con il numero di partecipanti (32: 5 turni, 64: 6 turni e tela piu' alta)
 let W = 2048, H = 1024;                    // tela del tabellone
