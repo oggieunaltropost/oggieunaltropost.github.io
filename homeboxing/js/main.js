@@ -2,38 +2,38 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261008012145';
-import { Mike, LEVELS, loadMikeGLTF, StyleLearner } from './mike.js?v=20261008012145';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261008012145';
-import { Player, SimInput } from './player.js?v=20261008012145';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261008012145';
-import { Room } from './room.js?v=20261008012145';
-import { Arena } from './arena.js?v=20261008012145';
-import { Beach } from './beach.js?v=20261008012145';
-import { Rooftop } from './rooftop.js?v=20261008012145';
-import { Desert } from './desert.js?v=20261008012145';
-import { Snow } from './snow.js?v=20261008012145';
-import { Volcano } from './volcano.js?v=20261008012145';
-import { Sea, WATER } from './sea.js?v=20261008012145';
-import { Moon } from './moon.js?v=20261008012145';
-import { FighterCard } from './roster.js?v=20261008012145';
-import { Gym } from './gym.js?v=20261008012145';
-import { BagTraining } from './training.js?v=20261008012145';
-import { RopeTraining } from './rope.js?v=20261008012145';
-import { SpeedBagTraining } from './speedbag.js?v=20261008012145';
-import { SlipLineTraining } from './slipline.js?v=20261008012145';
-import { RingSkirt } from './ring_skirt.js?v=20261008012145';
-import { panoPending } from './pano_depth.js?v=20261008012145';
-import { DoubleEndTraining } from './doubleend.js?v=20261008012145';
-import { Sparring } from './sparring.js?v=20261008012145';
-import { RingGirl } from './ringgirl.js?v=20261008012145';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261008012145';
-import * as sfx from './sfx.js?v=20261008012145';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261008012145';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261008012145';
-import { Tournament, BracketView } from './tournament.js?v=20261008012145';
-import { CpuMatch } from './cpu_match.js?v=20261008012145';
-import { TowerView } from './tower.js?v=20261008012145';
+import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261009193358';
+import { Mike, LEVELS, loadMikeGLTF, StyleLearner } from './mike.js?v=20261009193358';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261009193358';
+import { Player, SimInput } from './player.js?v=20261009193358';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261009193358';
+import { Room } from './room.js?v=20261009193358';
+import { Arena } from './arena.js?v=20261009193358';
+import { Beach } from './beach.js?v=20261009193358';
+import { Rooftop } from './rooftop.js?v=20261009193358';
+import { Desert } from './desert.js?v=20261009193358';
+import { Snow } from './snow.js?v=20261009193358';
+import { Volcano } from './volcano.js?v=20261009193358';
+import { Sea, WATER } from './sea.js?v=20261009193358';
+import { Moon } from './moon.js?v=20261009193358';
+import { FighterCard, ROSTER } from './roster.js?v=20261009193358';
+import { Gym } from './gym.js?v=20261009193358';
+import { BagTraining } from './training.js?v=20261009193358';
+import { RopeTraining } from './rope.js?v=20261009193358';
+import { SpeedBagTraining } from './speedbag.js?v=20261009193358';
+import { SlipLineTraining } from './slipline.js?v=20261009193358';
+import { RingSkirt } from './ring_skirt.js?v=20261009193358';
+import { panoPending } from './pano_depth.js?v=20261009193358';
+import { DoubleEndTraining } from './doubleend.js?v=20261009193358';
+import { Sparring } from './sparring.js?v=20261009193358';
+import { RingGirl } from './ringgirl.js?v=20261009193358';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261009193358';
+import * as sfx from './sfx.js?v=20261009193358';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261009193358';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261009193358';
+import { Tournament, BracketView } from './tournament.js?v=20261009193358';
+import { CpuMatch } from './cpu_match.js?v=20261009193358';
+import { TowerView } from './tower.js?v=20261009193358';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -421,8 +421,8 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261008012145`); t.colorSpace = THREE.SRGBColorSpace; return t; };
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261008012145`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261009193358`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261009193358`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -712,8 +712,35 @@ function keepInRing(pos) {
 // della stanza (plane-detection), come in Lumino; se manca si stima dall'altezza della testa.
 let floorY = 0, floorSource = 'visore';
 let floorSets = 0;
+// Pavimento sistemato a mano: si ricorda per la prossima volta (uscendo e rientrando nel gioco il Quest non da' piu'
+// la stanza). Si riconosce lo stesso posto dal perimetro del confine del Quest (area e lunghezza, uguali anche se
+// ruoti la stanza); senza confine, solo se e' stato fatto da meno di 12 ore.
+let floorSpace = null;                                  // { bounded, area, per } del posto dove sei adesso (null = ancora da leggere)
+async function readSpace(session) {
+  try {
+    const bs = await session.requestReferenceSpace('bounded-floor');
+    const pts = bs.boundsGeometry || [], n = pts.length;
+    if (n < 3) return { bounded: false, area: 0, per: 0 };
+    let a = 0, per = 0;
+    for (let i = 0; i < n; i++) { const p = pts[i], q = pts[(i + 1) % n]; a += p.x * q.z - q.x * p.z; per += Math.hypot(q.x - p.x, q.z - p.z); }
+    return { bounded: true, area: Math.abs(a) / 2, per };
+  } catch (e) { return { bounded: false, area: 0, per: 0 }; }
+}
+function saveFloor(y) {
+  if (!floorSpace) return;
+  try { localStorage.setItem('hb-floor', JSON.stringify({ y, t: Date.now(), ...floorSpace })); } catch (e) {}
+}
+function savedFloor() {
+  try {
+    const o = JSON.parse(localStorage.getItem('hb-floor')); if (!o || !isFinite(o.y) || Math.abs(o.y) > 1.0 || !floorSpace) return null;
+    if (o.bounded && floorSpace.bounded) return Math.abs(o.area - floorSpace.area) < 0.3 && Math.abs(o.per - floorSpace.per) < 0.4 ? o : null;
+    if (!o.bounded && !floorSpace.bounded) return Date.now() - o.t < 12 * 3600e3 ? o : null;
+    return null;                                          // un posto con confine e uno senza: non e' lo stesso
+  } catch (e) { return null; }
+}
 function setFloor(y, source) {
   floorY = y; floorSource = source; floorSets++;
+  if (source === 'mano' || source === 'manuale') saveFloor(y);
   arena.position.y = y; arena.updateMatrixWorld(true);
   if (mike) mike.root.position.y = y;
   console.log('pavimento', y.toFixed(3), source);
@@ -840,8 +867,8 @@ function openFloorMenu(force) {
   floorMenu.select([]);
   floorMenu.setTitle(t(!spatialOK() ? 'floor_noperm' : force ? 'floor_title2' : 'floor_title')); floorMenu.open(player.head, menuYaw(), 0.7, 0.1);
 }
-const floorOK = () => ['stanza', 'mano', 'manuale'].includes(floorSource);
-window.floorTest = { ask: () => openFloorMenu(false), force: () => openFloorMenu(true), set: () => setFloor(floorY, 'mano'), get state() { return floorGate; }, menu: floorMenu };   // (prove)
+const floorOK = () => ['stanza', 'mano', 'manuale', 'salvato'].includes(floorSource);
+window.floorTest = { space: sp => { floorSpace = sp; }, save: y => saveFloor(y), saved: () => savedFloor(), ask: () => openFloorMenu(false), force: () => openFloorMenu(true), set: () => setFloor(floorY, 'mano'), get state() { return floorGate; }, menu: floorMenu };   // (prove)
 // durante la presentazione dello speaker: conto alla rovescia e pulsante per iniziare subito
 const introMenu = new MenuPanel({ title: t('intro_title', { s: 20 }), titleH: 0.045, titleW: 0.3, width: 0.38, height: 0.2, rows: [
   { y: -0.04, h: 0.06, buttons: [{ id: 'skip', tk: 'skip_intro', text: t('skip_intro'), w: 0.29, color: 0x1f8a4c }] },
@@ -1156,6 +1183,7 @@ function updateGame(dt) {
   board.draw({ round: game.round, rounds: rounds, level: t('l_' + level), time: game.phase === 'rest' ? Math.max(0, REST_S - game.phaseT) : game.time,
     running: game.phase === 'fight', player: game.player, mike: game.mike, message: game.message,
     names: pending && ((pending.cm && tour) || pending.arcade) ? cpuNames().map(n => n.toUpperCase()) : undefined,   // (tra un incontro CPU e l'altro: niente "TU")
+    flags: pending && ((pending.cm && tour) || pending.arcade) ? cpuIds().map(id => id && ROSTER[id] && ROSTER[id].flag) : [null, ROSTER[fighterId] && ROSTER[fighterId].flag],
     diag: t('diag', { m: ringSize.toFixed(1), f: floorSource, e: (player.head.y + 0.06 - floorY).toFixed(1) }) + (feats ? ' · ' + feats : '') });
 }
 
@@ -1411,8 +1439,15 @@ function tick(dt, frame) {
       if (h < 1.2 || h > 2.1) setFloor(player.head.y + 0.06 - 1.55, 'stima');
       else floorSource = 'visore ok';
     }
-    // nessuna scansione dopo ~4 s (la stanza scansionata arriva subito): si chiede come sistemare il pavimento
-    if (floorGate === 'wait' && xrFrames > 480 && !floorOK()) {   // (~8 s: la scansione della stanza puo' arrivare dopo qualche secondo)
+    // nessuna scansione dopo ~2 s: se qui il pavimento e' stato sistemato a mano di recente, si riusa (se poi arriva la
+    // scansione della stanza vince quella)
+    if (floorGate === 'wait' && xrFrames > 120 && floorSource === 'visore' && floorSpace) {
+      const sv = savedFloor();
+      if (sv) { setFloor(sv.y, 'salvato'); game.message = t('floor_remembered'); }
+      else floorSource = 'visore';
+    }
+    // nessuna scansione dopo ~8 s (la scansione della stanza puo' arrivare dopo qualche secondo): si chiede come sistemare il pavimento
+    if (floorGate === 'wait' && xrFrames > 480 && !floorOK()) {
       openFloorMenu(false);
     }
   }
@@ -1480,36 +1515,33 @@ function tick(dt, frame) {
     for (const g of Object.values(player.gloves)) g.mesh.visible = false;      // guardi soltanto
     cpu.update(dt);
     const st = i => ({ points: cpu.pts[i], dmg: cpu.dmg[i], hits: cpu.hits[i], blocks: 0, dodges: 0, kd: cpu.kdN[i], penalties: cpu.pen[i] });
-    board.draw({ round: cpu.round, rounds: cpu.rounds, level: t('l_' + level), time: Math.max(0, cpu.rest > 0 ? cpu.rest : cpu.time), running: cpu.delay <= 0 && !cpu.kd, player: st(0), mike: st(1),
+    board.draw({ flags: cpuIds().map(id => id && ROSTER[id] && ROSTER[id].flag), round: cpu.round, rounds: cpu.rounds, level: t('l_' + level), time: Math.max(0, cpu.rest > 0 ? cpu.rest : cpu.time), running: cpu.delay <= 0 && !cpu.kd, player: st(0), mike: st(1),
       names: cpuNames().map(n => n.toUpperCase()), message: t('cpu_vs', { a: cpuNames()[0], b: cpuNames()[1] }), diag: '' });
     // "vai al risultato": alla tua sinistra, girato verso di te (davanti copriva l'incontro)
     if (skipOpen > 0) {
       skipOpen -= dt;
       if (skipOpen < 2.3 && (headOutOfRing(0) || mode === 'stanza' || !renderer.xr.isPresenting || skipOpen <= 0)) { skipOpen = 0; skipBtn.open(player.head, menuYaw() + 1.2, 0.5, 0.3); }
     }
-    if (skipBtn.update(dt, []) === 'skip') { sfx.menuBlip(); cpu.finish(true); }
+    if (skipBtn.update(dt, []) === 'skip') { sfx.menuBlip(); cpu.skipped = true; cpu.finish(true); }
     if (cpu.rest > 0) {                               // riposo: ragazza quando sono seduti tutti e due; pulsante "prossimo round"
       if (!cpuGirl && mike.atGoal && cpuB && cpuB.atGoal) { cpuGirl = true; girl.start(arena, ringSize, cpu.round + 1, player.head); }
       for (const [f, st] of [[mike, stool], [cpuB, stoolB]]) if (f && f.atGoal) st.position.copy(f.root.position).addScaledVector(f.forward(), -0.07);
       nextMenu.setTitle(t('next_title', { n: cpu.round + 1, s: Math.ceil(cpu.rest) }));
       if (nextMenu.update(dt, []) === 'next') { sfx.menuBlip(); cpu.rest = 0.001; }
     }
-    if (cpu.done) {
-      // finale del torneo: il vincitore esulta e la ragazza gli porta la coppa, poi il tabellone
-      if (pending && pending.cm && tour && tour.isFinal() && !cpu.award) {
-        const W = cpu.winner === 0 ? mike : cpuB;
-        cpu.award = { t: 0, W };
-        W.enabled = false; W.celebrate(); skipBtn.close(); sfx.cheer('applauso', 1); sfx.announce(['winner_intro', 'name_' + W.cfg0.id]);
+    // incontro deciso (KO, KO tecnico, squalifica o ai punti allo scadere): come nei tuoi incontri il gong, il pubblico, lo
+    // speaker annuncia il vincitore, lui esulta e ci sono i coriandoli. Nella finale del torneo la ragazza gli porta la
+    // coppa. Solo se premi "vai al risultato" si salta tutto.
+    if (cpu.winner !== null && !cpu.award && !cpu.skipped) startCpuCeremony();
+    if (cpu.award) {
+      const A = cpu.award; A.t += dt;
+      if (A.final && !A.girl && A.t > 2.5) {
+        A.girl = true; A.W.root.updateMatrixWorld(true);
+        girl.trophy(arena, ringSize, player.head, { pos: A.W.root.getWorldPosition(new THREE.Vector3()), fwd: A.W.forward(), head: A.W.headCenter() });
       }
-      if (cpu.award) {
-        const A = cpu.award; A.t += dt;
-        if (!A.girl && A.t > 2.0) {
-          A.girl = true; A.W.root.updateMatrixWorld(true);
-          girl.trophy(arena, ringSize, player.head, { pos: A.W.root.getWorldPosition(new THREE.Vector3()), fwd: A.W.forward(), head: A.W.headCenter() });
-        }
-        if (A.t > 11) { girl.stop(); endCpuWatch(); }
-      } else endCpuWatch();
-    }
+      // finita la cerimonia: lo speaker ha finito di parlare e l'incontro e' chiuso (almeno qualche secondo di festa)
+      if (cpu.done && (cpu.skipped || (A.t > (A.final ? 9 : 6) && !sfx.voiceBusy()) || A.t > 18)) { if (cpu.skipped) sfx.stopVoices(); girl.stop(); party.hideAll(); endCpuWatch(); }
+    } else if (cpu.done) endCpuWatch();
   } else if (game.phase === 'sparring') {
     if (!game.paused) { mike.update(dt, player); const ev = mike.events.slice(); mike.events.length = 0; sparSounds(ev); spar.update(dt, player, ev); }
   } else if (game.phase === 'training') {
@@ -1662,7 +1694,7 @@ function sparSounds(ev) {
   }
 }
 // ---- sparring: il partner (caschetto, alto come te) prende il posto dell'avversario sul ring della palestra
-const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261008012145', evenSkin: false,
+const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261009193358', evenSkin: false,
   band: { bg: '#1a1a1c', line: '#c4122a', text: '#f2ece0', label: 'SPARRING' } };
 let spar = null, partner = null, savedMike = null, sparLoading = false;
 async function startSparring(kind, defKinds = null) {
@@ -1932,6 +1964,24 @@ async function startCpuWatch() {
   // ogni incontro di nuovo alla tua sinistra (prima, spostato una volta, restava in mezzo al ring negli incontri dopo)
   skipBtn.moved = false; skipBtn.close(); skipOpen = 2.5;
 }
+function startCpuCeremony() {
+  const wi = cpu.winner, W = wi === 0 ? mike : cpuB, L = wi === 0 ? cpuB : mike;
+  const how = (cpu.how || 'points').toLowerCase(), kind = how === 'ko' ? 'ko' : how === 'tko' ? 'tko' : how === 'dq' ? 'dq' : 'points';
+  cpu.award = { t: 0, W, final: !!(pending && pending.cm && tour && tour.isFinal()) };
+  nextMenu.close();                                   // (il pulsante per saltare resta: salta anche la cerimonia)
+  sfx.bell(3);
+  if (arenaEnv) { arenaEnv.cheer(2); }
+  if (mode === 'arena') { sfx.cheer('boato', 1); setTimeout(() => sfx.cheer('applauso', 0.9), 2500); }
+  W.enabled = false; W.celebrate();
+  if (kind !== 'ko' && kind !== 'tko') L.enabled = false;
+  // verdetto: angolo rosso (il primo pugile) o blu (il secondo), come nella presentazione
+  const verdict = [`win_${wi === 0 ? 'red' : 'opp'}_${kind}`, 'name_' + W.cfg0.id];
+  setTimeout(() => sfx.announce(kind === 'points' ? ['scorecards', 'winner_intro', ...verdict] : kind === 'dq' ? verdict : ['winner_intro', ...verdict]), kind === 'dq' ? 1200 : 900);
+  // coriandoli e fuochi sopra il ring
+  const c = new THREE.Vector3(0, 1.8, 0).applyMatrix4(arena.matrixWorld);
+  party.start(c, [0xffc928, 0xffffff, wi === 0 ? 0xd81e2c : 0x1d4fc4], 10);
+  setTimeout(() => sfx.firework(), 600);
+}
 function endCpuWatch() {
   const P = pending, { cm, youWon } = P, win0 = cpu.winner === 0, w = cm ? (win0 ? cm.a : cm.b) : null;
   sfx.bell(3);
@@ -1946,6 +1996,9 @@ function endCpuWatch() {
 }
 // ---- torneo da spettatore: a ogni turno si guardano (o si saltano) gli incontri tra personaggi veri, poi si avanza
 let specQueue = [], specForced = {};
+// i due pugili CPU dell'incontro in corso o proposto (id): per le bandiere
+const cpuIds = () => pending && pending.arcade ? [pending.a, pending.b]
+  : pending && pending.cm && tour ? [tour.p[pending.cm.a].id, tour.p[pending.cm.b].id] : [null, null];
 const cpuNames = () => pending && pending.arcade ? [FIGHTERS[pending.a].name, FIGHTERS[pending.b].name]
   : pending && pending.cm && tour ? [tour.p[pending.cm.a].name, tour.p[pending.cm.b].name] : ['', ''];
 function specRound() { specQueue = tour.cpuMatches(); specForced = {}; tour.forced = specForced; tour.forcedRound = tour.round; specChoice(); }
@@ -2283,13 +2336,13 @@ $('enter').onclick = async () => {
     // nella stanza: realta' mista; nell'arena: realta' virtuale (il palazzetto copre tutto)
     // sempre realta' mista: l'arena e' un ambiente che copre la stanza, cosi' si cambia dal menu senza uscire
     const session = await navigator.xr.requestSession('immersive-ar', {
-      requiredFeatures: ['local-floor'], optionalFeatures: ['hand-tracking', 'plane-detection', 'mesh-detection', 'anchors', 'layers'],
+      requiredFeatures: ['local-floor'], optionalFeatures: ['hand-tracking', 'plane-detection', 'mesh-detection', 'anchors', 'layers', 'bounded-floor'],
     });
     applyMode();
     renderer.xr.setFoveation(1);
     await renderer.xr.setSession(session);
     if (bruises) bruises.reset();
-    placed = false; xrFrames = 0; floorSource = 'visore'; floorY = 0; roomCaptureAsked = false; headMax = 0; greetPending = true; floorGate = 'wait'; floorMenu.close();
+    placed = false; xrFrames = 0; floorSource = 'visore'; floorY = 0; roomCaptureAsked = false; headMax = 0; greetPending = true; floorGate = 'wait'; floorMenu.close(); floorSpace = null; readSpace(session).then(sp => { floorSpace = sp; });
     newMatch(); game.phase = 'menu'; setPeople(false);       // si entra nello stage con il menu, la partita non parte
     $('overlay').hidden = true;
     // visore tolto e rimesso (la sessione torna visibile) o "centro" del Quest cambiato: riallinea appena il tracciamento riparte

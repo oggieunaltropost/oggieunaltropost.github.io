@@ -21,7 +21,7 @@ function drawIcon(g, kind, cx, cy, w) {
   g.restore();
 }
 import * as THREE from 'three';
-export { StyleLearner } from './style_learn.js?v=20261008012145';
+export { StyleLearner } from './style_learn.js?v=20261009193358';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const _lq = new THREE.Quaternion(), _lr = new THREE.Quaternion(), _qI = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ld = new THREE.Vector3();
 

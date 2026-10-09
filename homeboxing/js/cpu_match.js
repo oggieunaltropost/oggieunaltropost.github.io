@@ -53,7 +53,11 @@ export class CpuMatch {
     for (const f of this.f) { f.resetPose(); f.enabled = delay <= 0; f.events.length = 0; }
   }
   update(dt) {
-    if (this.done) return;
+    if (this.done) {                                  // finito: i pugili continuano ad animarsi (esultanza, a terra...)
+      for (const v of this.view) v.update(dt);
+      for (let i = 0; i < 2; i++) this.f[i].update(dt, this.view[i]);
+      return;
+    }
     if (this.delay > 0) {                             // presentazione: fermi in guardia, poi la campana
       this.delay -= dt;
       if (this.delay <= 0) { for (const f of this.f) f.enabled = true; if (this.hooks.onStart) this.hooks.onStart(); }

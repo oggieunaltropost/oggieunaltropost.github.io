@@ -1,6 +1,7 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261008012145';
+import { t as tr } from './i18n.js?v=20261009193358';
+import { drawFlag } from './roster.js?v=20261009193358';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
 // ogni raggio: { o, d, hit, sel (grilletto / pizzico tenuto), click (appena premuto) }
@@ -142,13 +143,13 @@ export class Scoreboard {
     g.fillStyle = '#0b0d12'; g.fillRect(0, 0, W, H);
     g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillStyle = '#ffd34d'; g.font = '900 54px system-ui, sans-serif';
-    g.fillText(`ROUND ${s.round}${s.rounds ? '/' + s.rounds : ''}`, W * 0.2, 52);
+    g.fillText(`ROUND ${s.round}${s.rounds ? '/' + s.rounds : ''}`, W * 0.19, 52);
     g.fillStyle = '#c9ced8'; g.font = '700 34px system-ui, sans-serif';
-    g.fillText((s.level || '').toUpperCase(), W * 0.45, 54);
+    g.fillText((s.level || '').toUpperCase(), W * 0.5, 54);             // (livello di difficolta' al centro)
     const mm = Math.floor(s.time / 60), ss = String(Math.floor(s.time % 60)).padStart(2, '0');
     g.fillStyle = s.time < 10 && s.running ? '#ff5a5a' : '#ffffff';
     g.font = '800 64px ui-monospace, monospace';
-    g.fillText(`${mm}:${ss}`, W * 0.72, 54);
+    g.fillText(`${mm}:${ss}`, W * 0.81, 54);
     // colonne giocatore / Mike
     const col = (x, name, color, p) => {
       g.fillStyle = color; g.fillRect(x - 230, 100, 460, 64);
@@ -170,6 +171,13 @@ export class Scoreboard {
     g.fillText(s.message || '', W / 2, 482);
     g.fillStyle = '#9aa3b6'; g.font = '500 27px system-ui, sans-serif';
     g.fillText(s.diag || '', W / 2, 535);
+    // bandierine del paese dei due pugili in basso, agli angoli: a sinistra quello a sinistra, a destra l'altro
+    (s.flags || []).forEach((code, i) => {
+      if (!code) return;
+      const w = 104, h = 70, x = i === 0 ? 22 : W - 22 - w, y = H - 22 - h;
+      g.save(); g.translate(x, y); g.beginPath(); g.roundRect(0, 0, w, h, 6); g.clip(); drawFlag(g, code, w, h); g.restore();
+      g.lineWidth = 3; g.strokeStyle = 'rgba(255,255,255,0.5)'; g.beginPath(); g.roundRect(x, y, w, h, 6); g.stroke();
+    });
     this.tex.needsUpdate = true;
   }
 }
