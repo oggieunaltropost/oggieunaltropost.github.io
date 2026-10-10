@@ -1,7 +1,7 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261010164635';
-import { drawFlagAny } from './roster.js?v=20261010164635';
+import { t as tr } from './i18n.js?v=20261010170259';
+import { drawFlagAny } from './roster.js?v=20261010170259';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
 // ogni raggio: { o, d, hit, sel (grilletto / pizzico tenuto), click (appena premuto) }
@@ -541,6 +541,7 @@ export class MenuPanel {
       if (Math.abs(l.y - c.y) < c.h / 2 + 0.04 && Math.abs(l.x) < this.W / 2 && Math.abs(l.z) < 0.16) { hand = l; break; }
     }
     c.vel = c.vel || 0;
+    if (hand) c.fling = 0;                                     // la mano sulla fila ferma la ruota
     if (hand) {
       if (c.drag) {
         // la fila va un po' piu' della mano (1,5x: meno fatica), con la velocita' misurata per lo slancio
@@ -553,14 +554,24 @@ export class MenuPanel {
     } else if (c.drag) {
       // lasciata: scivola con lo slancio (al massimo ~2 voci) e si ferma esattamente su una voce
       c.drag = null;
-      const v = Math.max(-9, Math.min(9, c.vel));
-      c.vel = v; c.target = Math.max(0, Math.min(n - 1, Math.round(c.off + v * 0.22)));
+      // lasciata con una spinta: gira come una ruota (piu' forte la spinta, piu' scorre) e rallenta per attrito; si ferma sulla voce piu' vicina.
+      // Toccandola di nuovo la fermi. Una spinta piccola, invece, va sulla voce successiva come prima
+      const v = Math.max(-60, Math.min(60, c.vel));
+      if (Math.abs(v) > 3.2) { c.fling = v; c.vel = 0; c.goal = null; c.target = null; }
+      else { c.vel = Math.max(-9, Math.min(9, v)); c.target = Math.max(0, Math.min(n - 1, Math.round(c.off + c.vel * 0.22))); }
     }
     // puntare (raggio) o tenere ferma la mano su una voce laterale per mezzo secondo: va al centro
     let hov = -1;
     c.items.forEach((b, i) => { if (b.g.visible && aimed.has(b)) hov = i; });
     if (hov >= 0 && hov !== c.idx && !hand) { if (hov === c.hoverI) c.hoverT += dt; else { c.hoverI = hov; c.hoverT = 0; } if (c.hoverT > 0.45) { c.goal = hov; c.hoverT = 0; } }
     else { c.hoverI = -1; c.hoverT = 0; }
+    if (c.fling) {                                       // ruota in corsa: scorre e rallenta per attrito
+      c.off += c.fling * dt; c.fling *= Math.exp(-dt * 1.1);
+      if (c.off < 0 || c.off > n - 1) { c.off = Math.max(0, Math.min(n - 1, c.off)); c.fling *= -0.3; }                 // fine corsa: piccolo rimbalzo
+      if (Math.abs(c.fling) < 1.2) { c.vel = c.fling; c.fling = 0; c.target = Math.max(0, Math.min(n - 1, Math.round(c.off))); }
+      c.pend = 0; if (c.pendItem) { c.pendItem.fill.visible = false; c.pendItem = null; }
+      this._layout(c); return null;
+    }
     if (!c.drag) {                                   // lasciata: va (morbida) sulla voce scelta dallo slancio, o su quella chiesta
       const target = c.goal !== null ? c.goal : (c.target != null ? c.target : Math.max(0, Math.min(n - 1, Math.round(c.off))));
       const w = 9, h = Math.min(dt, 0.05);           // molla smorzata: parte con la velocita' della mano, arriva senza rimbalzi
