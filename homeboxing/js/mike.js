@@ -98,7 +98,7 @@ function legIcon(g, kind, cx, cy, s) {
   g.restore();
 }
 import * as THREE from 'three';
-export { StyleLearner } from './style_learn.js?v=20261010155321';
+export { StyleLearner } from './style_learn.js?v=20261010160517';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const _lq = new THREE.Quaternion(), _lr = new THREE.Quaternion(), _qI = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ld = new THREE.Vector3();
 
@@ -539,7 +539,7 @@ void main() {`).replace('#include <map_fragment>', `#include <map_fragment>
       const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
       g.fillStyle = '#fff'; g.font = '900 220px system-ui, "Arial Black", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(G.text, 128, 138);
       const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.NoColorSpace; tex.generateMipmaps = false; tex.minFilter = THREE.LinearFilter; tex.anisotropy = 1;
-      const col = new THREE.Color(G.color);
+      const col = new THREE.Color(G.color || '#ffffff'), strC = new THREE.Color(G.stripes ? G.stripes.color : '#ffffff'), strF = G.stripes ? G.stripes.freq : 0;
       o.skeleton.update();
       const pa = o.geometry.attributes.position, n = pa.count, B = new Array(n), P = new Array(n), tmp = new THREE.Vector3();
       let zmax = -Infinity;
@@ -558,13 +558,15 @@ void main() {`).replace('#include <map_fragment>', `#include <map_fragment>
       const m = o.material = o.material.clone();
       m.onBeforeCompile = shd => {
         shd.uniforms.uMk = { value: tex }; shd.uniforms.uC = { value: box }; shd.uniforms.uCol = { value: col };
-        shd.uniforms.uT = { value: T }; shd.uniforms.uU = { value: U }; shd.uniforms.uN = { value: N };
+        shd.uniforms.uT = { value: T }; shd.uniforms.uU = { value: U }; shd.uniforms.uN = { value: N }; shd.uniforms.uSC = { value: strC }; shd.uniforms.uSF = { value: strF };
         shd.vertexShader = shd.vertexShader.replace('void main() {', `varying vec3 vOP; varying vec3 vON;
 void main() {`).replace('#include <begin_vertex>', `#include <begin_vertex>
  vOP = position; vON = normal;`);
-        shd.fragmentShader = shd.fragmentShader.replace('void main() {', `uniform sampler2D uMk; uniform vec4 uC; uniform vec3 uCol; uniform vec3 uT; uniform vec3 uU; uniform vec3 uN; varying vec3 vOP; varying vec3 vON;
+        shd.fragmentShader = shd.fragmentShader.replace('void main() {', `uniform vec3 uSC; uniform float uSF; uniform sampler2D uMk; uniform vec4 uC; uniform vec3 uCol; uniform vec3 uT; uniform vec3 uU; uniform vec3 uN; varying vec3 vOP; varying vec3 vON;
 void main() {`).replace('#include <map_fragment>', `#include <map_fragment>
-        { vec3 d = vOP - uC.xyz; vec2 q = vec2(dot(d, uT) / uC.w + 0.5, dot(d, uU) / uC.w + 0.5);
+        { vec3 d = vOP - uC.xyz;
+          if (uSF > 0.0) { float sv = fract((dot(d, uT) + 0.7 * dot(d, uU)) * uSF); float st = smoothstep(0.30, 0.38, sv) * (1.0 - smoothstep(0.56, 0.64, sv)); diffuseColor.rgb = mix(diffuseColor.rgb, uSC, st * 0.95); }
+          vec2 q = vec2(dot(d, uT) / uC.w + 0.5, dot(d, uU) / uC.w + 0.5);
           if (q.x > 0.02 && q.x < 0.98 && q.y > 0.02 && q.y < 0.98 && dot(normalize(vON), uN) > 0.3) diffuseColor.rgb = mix(diffuseColor.rgb, uCol, smoothstep(0.4, 0.62, texture2D(uMk, q).a)); }`);
       };
       m.needsUpdate = true;
@@ -583,28 +585,31 @@ void main() {`).replace('#include <map_fragment>', `#include <map_fragment>
   }
   _tattooSetup() {
     const T = this.cfg0.shoulderTattoo; if (!T) return;
-    let skin = null, bone = null; this.model.traverse(o => { if (o.isSkinnedMesh && o.material.name === 'Pelle') skin = o; if (o.isBone && o.name === (T.side === 'right' ? 'upperarm_r' : 'upperarm_l')) bone = o; });
+    const neck = T.where === 'neck', boneName = neck ? 'neck_01' : (T.side === 'right' ? 'upperarm_r' : 'upperarm_l');
+    let skin = null, bone = null, head = null; this.model.traverse(o => { if (o.isSkinnedMesh && o.material.name === 'Pelle') skin = o; if (neck && o.isBone && o.name === 'head') head = o; if (o.isBone && o.name === boneName) bone = o; });
     if (!skin || !bone) return;
     this.model.updateMatrixWorld(true);
-    const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+    const c = document.createElement('canvas'); c.width = neck ? 512 : 256; c.height = neck ? 128 : 256; const g = c.getContext('2d');
     g.fillStyle = '#fff'; g.strokeStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
-    g.font = 'italic 900 230px Georgia, "Times New Roman", serif'; g.fillText(T.text, 128, 140);
+    if (neck) { let sz = 120; g.font = `italic 900 ${sz}px Georgia, "Times New Roman", serif`; while (g.measureText(T.text).width > 480 && sz > 30) { sz -= 4; g.font = `italic 900 ${sz}px Georgia, "Times New Roman", serif`; } g.fillText(T.text, 256, 70); }
+    else { g.font = 'italic 900 230px Georgia, "Times New Roman", serif'; g.fillText(T.text, 128, 140); }
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.NoColorSpace; tex.anisotropy = 4;
-    const p = skin.worldToLocal(bone.getWorldPosition(new THREE.Vector3())), sd = T.side === 'right' ? -1 : 1;
-    const N = new THREE.Vector3(sd * 0.93, 0, 0.37).normalize(), Tv = new THREE.Vector3(0.7 * sd * -1 * -1, 0, -0.7 * sd).normalize(), U = new THREE.Vector3(0, 1, 0);
+    const wp = bone.getWorldPosition(new THREE.Vector3()); if (neck && head) wp.lerp(head.getWorldPosition(new THREE.Vector3()), T.mix ?? 0.5);
+    const p = skin.worldToLocal(wp), sd = T.side === 'right' ? -1 : 1;
+    const N = neck ? new THREE.Vector3(sd * (T.nx ?? 0), 0, 1).normalize() : new THREE.Vector3(sd * 0.93, 0, 0.37).normalize(), Tv = new THREE.Vector3(0.7 * sd * -1 * -1, 0, -0.7 * sd).normalize(), U = new THREE.Vector3(0, 1, 0);
     const Tx = new THREE.Vector3().crossVectors(U, N).normalize();                                                  // "destra" sulla superficie vista da fuori
-    const c0 = p.clone().addScaledVector(N, 0.0).add(new THREE.Vector3(sd * 0.15, 0.015, -0.05));
+    const c0 = neck ? p.clone().add(new THREE.Vector3(sd * (T.dx ?? 0), T.dy ?? 0, 0)) : p.clone().addScaledVector(N, 0.0).add(new THREE.Vector3(sd * 0.15, 0.015, -0.05));
     const m = skin.material = skin.material.clone(); const col = new THREE.Color(T.color);
     m.onBeforeCompile = shd => {
       m.userData.shd = shd;
-      shd.uniforms.uTat = { value: tex }; shd.uniforms.uTC = { value: new THREE.Vector4(c0.x, c0.y, c0.z, T.size ?? 0.1) }; shd.uniforms.uTCol = { value: col };
+      shd.uniforms.uTat = { value: tex }; shd.uniforms.uTC = { value: new THREE.Vector4(c0.x, c0.y, c0.z, T.size ?? 0.1) }; shd.uniforms.uTA = { value: neck ? 0.25 : 1 }; shd.uniforms.uTCol = { value: col };
       shd.uniforms.uTX = { value: Tx }; shd.uniforms.uTN = { value: N };
       shd.vertexShader = shd.vertexShader.replace('void main() {', `varying vec3 vOP; varying vec3 vON;
 void main() {`).replace('#include <begin_vertex>', `#include <begin_vertex>
  vOP = position; vON = normal;`);
-      shd.fragmentShader = shd.fragmentShader.replace('void main() {', `uniform sampler2D uTat; uniform vec4 uTC; uniform vec3 uTCol; uniform vec3 uTX; uniform vec3 uTN; varying vec3 vOP; varying vec3 vON;
+      shd.fragmentShader = shd.fragmentShader.replace('void main() {', `uniform sampler2D uTat; uniform vec4 uTC; uniform float uTA; uniform vec3 uTCol; uniform vec3 uTX; uniform vec3 uTN; varying vec3 vOP; varying vec3 vON;
 void main() {`).replace('#include <map_fragment>', `#include <map_fragment>
-        { vec3 d = vOP - uTC.xyz; vec2 q = vec2(dot(d, uTX) / uTC.w + 0.5, dot(d, vec3(0.0, 1.0, 0.0)) / uTC.w + 0.5);
+        { vec3 d = vOP - uTC.xyz; vec2 q = vec2(dot(d, uTX) / uTC.w + 0.5, dot(d, vec3(0.0, 1.0, 0.0)) / (uTC.w * uTA) + 0.5);
           if (q.x > 0.0 && q.x < 1.0 && q.y > 0.0 && q.y < 1.0 && dot(normalize(vON), uTN) > 0.25) diffuseColor.rgb = mix(diffuseColor.rgb, uTCol, smoothstep(0.4, 0.62, texture2D(uTat, q).a) * 0.88); }`);
     };
     m.needsUpdate = true;
