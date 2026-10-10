@@ -44,6 +44,29 @@
     #langs button.on { border-color: #ffd34d; opacity: 1; box-shadow: 0 0 10px rgba(255,211,77,0.6); }
     #langs svg { display: block; width: 100%; height: 100%; }
   </style>
+  <script>
+    // App Home Boxing (APK) sul Quest: la realta' mista parte da sola appena la pagina e' caricata (come in Lumino).
+    // Il tocco sull'icona dell'app vale come "clic" dell'utente; senza questa richiesta il Quest resta sulla schermata di
+    // caricamento. I dati della stanza funzionano solo se l'app ha il permesso (lo chiede l'APK): con &scene=0 si parte senza.
+    // Niente depth-sensing: nell'app immersiva bloccava l'avvio.
+    (function () {
+      const qs = new URLSearchParams(location.search), APP = 'android-app://com.oggieunaltropost.homeboxing';
+      try {
+        if (document.referrer.startsWith(APP)) sessionStorage.setItem('hb-app', '1');
+        window.__inApp = sessionStorage.getItem('hb-app') === '1';
+      } catch (e) { window.__inApp = document.referrer.startsWith(APP); }
+      if (qs.has('pwa') && navigator.xr && window.__inApp) {
+        window.__xrInit = {
+          requiredFeatures: ['local-floor'],
+          optionalFeatures: qs.get('scene') === '0' ? ['hand-tracking', 'bounded-floor']
+            : ['hand-tracking', 'plane-detection', 'mesh-detection', 'anchors', 'layers', 'bounded-floor'],
+        };
+        window.__xrSession = new Promise(r => window.addEventListener('load', r, { once: true }))
+          .then(() => navigator.xr.requestSession('immersive-ar', window.__xrInit))
+          .catch(e => { window.__xrError = e; return null; });
+      }
+    })();
+  </script>
   <script type="importmap">
   {
     "imports": {
@@ -128,6 +151,6 @@
     Mouse = guantoni · clic sinistro = jab sinistro · clic destro = diretto destro · tieni premuto Spazio = guardia<br>
     A / D = schiva a sinistra/destra · C = abbassati · W / S = avanti/indietro · V = vista dall'esterno
   </div>
-  <script type="module" src="js/main.js?v=20261010193730"></script>
+  <script type="module" src="js/main.js?v=20261010231139"></script>
 </body>
 </html>
