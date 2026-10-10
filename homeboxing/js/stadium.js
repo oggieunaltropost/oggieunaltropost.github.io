@@ -5,12 +5,12 @@
 // Doppler).
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
 import * as THREE from 'three';
-import { panoDepth } from './pano_depth.js?v=20261010175956';
-import { contactShadow } from './contact_shadow.js?v=20261010175956';
-import * as sfx from './sfx.js?v=20261010175956';
-import { Footballer } from './footballer.js?v=20261010175956';
-import { NightFireworks } from './fireworks.js?v=20261010175956';
-import { StadiumScreen } from './stadium_screen.js?v=20261010175956';
+import { panoDepth } from './pano_depth.js?v=20261010181142';
+import { contactShadow } from './contact_shadow.js?v=20261010181142';
+import * as sfx from './sfx.js?v=20261010181142';
+import { Footballer } from './footballer.js?v=20261010181142';
+import { NightFireworks } from './fireworks.js?v=20261010181142';
+import { StadiumScreen } from './stadium_screen.js?v=20261010181142';
 
 const EYE = 1.65;
 // il Sole della foto: Blender (-0.2484, -0.5327, 0.809) -> gioco (y, z, x)
@@ -91,7 +91,7 @@ export class Stadium {
   }
   // ---------------------------------------------------------------- foto a 360 gradi
   _sky() {
-    const tex = new THREE.TextureLoader().load(this.night ? 'assets/stadio_notte_panorama.jpg?v=20261010175956' : 'assets/stadio_panorama.jpg?v=20261010175956', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load(this.night ? 'assets/stadio_notte_panorama.jpg?v=20261010181142' : 'assets/stadio_panorama.jpg?v=20261010181142', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
