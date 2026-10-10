@@ -98,7 +98,7 @@ function legIcon(g, kind, cx, cy, s) {
   g.restore();
 }
 import * as THREE from 'three';
-export { StyleLearner } from './style_learn.js?v=20261010153641';
+export { StyleLearner } from './style_learn.js?v=20261010154739';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const _lq = new THREE.Quaternion(), _lr = new THREE.Quaternion(), _qI = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ld = new THREE.Vector3();
 
@@ -248,7 +248,7 @@ export class Mike {
       else if (n.includes('high-poly')) { m.transparent = false; m.alphaTest = 0.9; m.depthWrite = true; m.roughness = 0.15; o.castShadow = false; }
       if (m.envMapIntensity !== undefined) m.envMapIntensity = 0.8;
     });
-    this.brandShorts(); this.recolor(); this.legName(); this.gloveLetter();
+    this.brandShorts(); this.recolor(); this.legName(); this.gloveLetter(); this.helmetSeams();
     if (this.cfg0.hairTint) this.model.traverse(o => { if (o.isMesh && o.material.name === 'Capelli folti') this.tintHair(o.material, this.cfg0.hairTint); });
     if (this.cfg0.fur) this.model.traverse(o => { if (o.isMesh && o.material.name === 'Capelli') this.furMaterial(o.material, this.cfg0.fur); });
     if (this.cfg0.noStubble) this.model.traverse(o => { if (o.isMesh && o.material.name === 'Capelli') o.visible = false; });
@@ -579,22 +579,25 @@ void main() {`).replace('#include <map_fragment>', `#include <map_fragment>
         o.material = o.material.clone(); o.material.color.set(R.color); if (o.material.map) o.material.map = null;
       });
     }
+    if (this.cfg0.shoulderTattoo) this._tatWait = 4;                                 // (il tatuaggio si mette dopo i primi fotogrammi)
+  }
+  _tattooSetup() {
     const T = this.cfg0.shoulderTattoo; if (!T) return;
     let skin = null, bone = null; this.model.traverse(o => { if (o.isSkinnedMesh && o.material.name === 'Pelle') skin = o; if (o.isBone && o.name === (T.side === 'right' ? 'upperarm_r' : 'upperarm_l')) bone = o; });
     if (!skin || !bone) return;
     this.model.updateMatrixWorld(true);
     const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
     g.fillStyle = '#fff'; g.strokeStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
-    g.font = 'italic 900 190px Georgia, "Times New Roman", serif'; g.fillText(T.text, 128, 138);
-    g.lineWidth = 7; g.beginPath(); g.arc(128, 128, 118, 0, Math.PI * 2); g.stroke();                              // cerchio attorno alla lettera
+    g.font = 'italic 900 230px Georgia, "Times New Roman", serif'; g.fillText(T.text, 128, 140);
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.NoColorSpace; tex.anisotropy = 4;
     const p = skin.worldToLocal(bone.getWorldPosition(new THREE.Vector3())), sd = T.side === 'right' ? -1 : 1;
-    const N = new THREE.Vector3(sd * 0.7, 0, 0.7).normalize(), Tv = new THREE.Vector3(0.7 * sd * -1 * -1, 0, -0.7 * sd).normalize(), U = new THREE.Vector3(0, 1, 0);
+    const N = new THREE.Vector3(sd * 0.93, 0, 0.37).normalize(), Tv = new THREE.Vector3(0.7 * sd * -1 * -1, 0, -0.7 * sd).normalize(), U = new THREE.Vector3(0, 1, 0);
     const Tx = new THREE.Vector3().crossVectors(U, N).normalize();                                                  // "destra" sulla superficie vista da fuori
-    const c0 = p.clone().addScaledVector(N, 0.0).add(new THREE.Vector3(sd * 0.035, -0.03, 0));
+    const c0 = p.clone().addScaledVector(N, 0.0).add(new THREE.Vector3(sd * 0.15, 0.015, -0.05));
     const m = skin.material = skin.material.clone(); const col = new THREE.Color(T.color);
     m.onBeforeCompile = shd => {
-      shd.uniforms.uTat = { value: tex }; shd.uniforms.uTC = { value: new THREE.Vector4(c0.x, c0.y, c0.z, T.size ?? 0.11) }; shd.uniforms.uTCol = { value: col };
+      m.userData.shd = shd;
+      shd.uniforms.uTat = { value: tex }; shd.uniforms.uTC = { value: new THREE.Vector4(c0.x, c0.y, c0.z, T.size ?? 0.1) }; shd.uniforms.uTCol = { value: col };
       shd.uniforms.uTX = { value: Tx }; shd.uniforms.uTN = { value: N };
       shd.vertexShader = shd.vertexShader.replace('void main() {', `varying vec3 vOP; varying vec3 vON;
 void main() {`).replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -603,6 +606,32 @@ void main() {`).replace('#include <begin_vertex>', `#include <begin_vertex>
 void main() {`).replace('#include <map_fragment>', `#include <map_fragment>
         { vec3 d = vOP - uTC.xyz; vec2 q = vec2(dot(d, uTX) / uTC.w + 0.5, dot(d, vec3(0.0, 1.0, 0.0)) / uTC.w + 0.5);
           if (q.x > 0.0 && q.x < 1.0 && q.y > 0.0 && q.y < 1.0 && dot(normalize(vON), uTN) > 0.25) diffuseColor.rgb = mix(diffuseColor.rgb, uTCol, smoothstep(0.4, 0.62, texture2D(uTat, q).a) * 0.88); }`);
+    };
+    m.needsUpdate = true;
+  }
+
+  // caschetto da sparring: pelle imbottita con cuciture scure (cresta centrale, fascia sopra le orecchie, fascia alta) e un po' di grana, cosi'
+  // non sembra plastica fusa. Righe disegnate nello shader in coordinate della mesh a riposo (restano attaccate al caschetto).
+  helmetSeams() {
+    let hg = null; this.model.traverse(o => { if (o.isMesh && o.material.name === 'Caschetto') hg = o; });
+    if (!hg) return;
+    const geo = hg.geometry; geo.computeBoundingBox(); const bb = geo.boundingBox, H = bb.max.y - bb.min.y;
+    const m = hg.material = hg.material.clone(); m.roughness = 0.7; if ('clearcoat' in m) m.clearcoat = 0.05;
+    const U = new THREE.Vector4((bb.max.x + bb.min.x) / 2, bb.min.y, H, 0);
+    m.onBeforeCompile = shd => {
+      shd.uniforms.uH = { value: U };
+      shd.vertexShader = shd.vertexShader.replace('void main() {', `varying vec3 vOP;
+void main() {`).replace('#include <begin_vertex>', `#include <begin_vertex>
+ vOP = position;`);
+      shd.fragmentShader = shd.fragmentShader.replace('void main() {', `uniform vec4 uH; varying vec3 vOP;
+void main() {`).replace('#include <map_fragment>', `#include <map_fragment>
+        { float dx = abs(vOP.x - uH.x), hy = (vOP.y - uH.y) / uH.z;
+          float s1 = 1.0 - smoothstep(0.0022, 0.0042, dx);                                        // cresta centrale
+          float s2 = 1.0 - smoothstep(0.0022, 0.0042, abs(hy - 0.40) * uH.z);                     // fascia sopra le orecchie
+          float s3 = 1.0 - smoothstep(0.0022, 0.0042, abs(hy - 0.74) * uH.z);                     // fascia alta
+          float seam = max(s1, max(s2, s3));
+          float stitch = step(0.5, fract((vOP.z + vOP.x * 0.7 + vOP.y) * 260.0));               // punti di cucitura (tratteggio)
+          diffuseColor.rgb *= mix(1.0, 0.30, seam * (0.6 + 0.4 * stitch)); }`);
     };
     m.needsUpdate = true;
   }
@@ -915,6 +944,7 @@ transformed += uSwInv * uSwing * aSw;`);
     if (this._animQ) for (const [b, q] of this._animQ) b.quaternion.copy(q);
     this.mixer.update(dt);
     if (this._gloveWait && --this._gloveWait === 0) this._gloveSetup();
+    if (this._tatWait && --this._tatWait === 0) this._tattooSetup();
     this._updBraid(dt);
     this._animQ = ['spine_01', 'spine_02', 'spine_03', 'upperarm_l', 'upperarm_r', 'lowerarm_l', 'lowerarm_r', 'neck_01'].filter(n => this.bones[n]).map(n => [this.bones[n], this.bones[n].quaternion.clone()]);
     this.updateFace(dt);
