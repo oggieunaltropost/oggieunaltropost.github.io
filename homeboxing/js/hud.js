@@ -1,7 +1,7 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261010020251';
-import { drawFlag } from './roster.js?v=20261010020251';
+import { t as tr } from './i18n.js?v=20261010121051';
+import { drawFlag } from './roster.js?v=20261010121051';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
 // ogni raggio: { o, d, hit, sel (grilletto / pizzico tenuto), click (appena premuto) }
@@ -288,7 +288,7 @@ export class PauseMenu {
     for (const b of this.buttons) paint(b.label, tr(b.tk));
   }
   // result (solo a fine incontro): { win: true/false/null (pari), how: 'KO'... }
-  open(head, yaw, end = false, result = null, change = false) {
+  open(head, yaw, end = false, result = null, change = false, watch = false) {
     this.age = 0;
     if (end && result) {
       this.setTitle(tr(result.win === true ? 'res_win' : result.win === false ? 'res_lose' : 'res_draw'),
@@ -300,12 +300,15 @@ export class PauseMenu {
     // fine incontro: solo due pulsanti, centrati
     const ch = change && !end;
     // (come in tutti i menu: uscire a sinistra, continuare/rigiocare a destra)
-    const xs = end ? { exit: -0.145, restart: 0.145 } : ch ? { exit: -0.33, change: -0.11, restart: 0.11, resume: 0.33 } : { exit: -0.29, restart: 0, resume: 0.29 };
+    const w = watch && !end;                              // guardi un incontro: solo uscire (a sinistra) e continuare a guardare (a destra)
+    const xs = w ? { exit: -0.33, restart: 0, resume: 0.33 } : end ? { exit: -0.145, restart: 0.145 } : ch ? { exit: -0.33, change: -0.11, restart: 0.11, resume: 0.33 } : { exit: -0.29, restart: 0, resume: 0.29 };
     for (const b of this.buttons) if (xs[b.id] !== undefined) { b.x = xs[b.id]; b.group.position.x = b.x; b.group.scale.x = ch ? 0.8 : 1; }
     this.buttons[3].group.visible = ch;
     // fine incontro: due soli pulsanti -> pannello stretto e tutto un po' piu' piccolo; "RIGIOCA" invece di "RICOMINCIA"
     this.panel.scale.x = end ? 0.68 : 1; this.group.scale.setScalar(end ? 0.78 : 1);
-    const rb = this.buttons.find(b => b.id === 'restart'); rb.tk = end ? 'replay' : 'restart';
+    const rs = this.buttons[0]; rs.tk = w ? 'watch_on' : 'resume'; MenuPanel.prototype._paint(rs.label, tr(rs.tk), rs.label.userData.color);
+    this.buttons[1].group.visible = true;
+    const rb = this.buttons.find(b => b.id === 'restart'); rb.tk = end ? 'replay' : w ? 'tr_skip' : 'restart';
     MenuPanel.prototype._paint(rb.label, tr(rb.tk), rb.label.userData.color);
     this.buttons[1].group.children[2].visible = true;
     this.group.position.set(head.x - Math.sin(yaw) * 0.55, head.y - 0.1, head.z - Math.cos(yaw) * 0.55);

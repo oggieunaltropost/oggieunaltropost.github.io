@@ -5,12 +5,12 @@
 // Doppler).
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
 import * as THREE from 'three';
-import { panoDepth } from './pano_depth.js?v=20261010020251';
-import { contactShadow } from './contact_shadow.js?v=20261010020251';
-import * as sfx from './sfx.js?v=20261010020251';
-import { Footballer } from './footballer.js?v=20261010020251';
-import { NightFireworks } from './fireworks.js?v=20261010020251';
-import { StadiumScreen } from './stadium_screen.js?v=20261010020251';
+import { panoDepth } from './pano_depth.js?v=20261010121051';
+import { contactShadow } from './contact_shadow.js?v=20261010121051';
+import * as sfx from './sfx.js?v=20261010121051';
+import { Footballer } from './footballer.js?v=20261010121051';
+import { NightFireworks } from './fireworks.js?v=20261010121051';
+import { StadiumScreen } from './stadium_screen.js?v=20261010121051';
 
 const EYE = 1.65;
 // il Sole della foto: Blender (-0.2484, -0.5327, 0.809) -> gioco (y, z, x)
@@ -81,7 +81,8 @@ export class Stadium {
     this.t = 0;
     this._sky();
     this.screen = new StadiumScreen(this.group);          // il maxischermo (spento nel panorama): ogni tanto ci appare la scritta HOME BOXING
-    if (night) { this._nightLights(); this.fw = new NightFireworks(this.group); return; }
+    if (night) { this.screen2 = new StadiumScreen(this.group, { front: true });          // di notte un secondo schermo, di fronte a te (quello del panorama e' dietro)
+      this._nightLights(); this.fw = new NightFireworks(this.group); return; }
     this._plane();
     this.smoke = new Smoke(this.group); this.smokeT = 0;
     this.player = new Footballer(this.group);           // il calciatore col pallone
@@ -90,7 +91,7 @@ export class Stadium {
   }
   // ---------------------------------------------------------------- foto a 360 gradi
   _sky() {
-    const tex = new THREE.TextureLoader().load(this.night ? 'assets/stadio_notte_panorama.jpg?v=20261010020251' : 'assets/stadio_panorama.jpg?v=20261010020251', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load(this.night ? 'assets/stadio_notte_panorama.jpg?v=20261010121051' : 'assets/stadio_panorama.jpg?v=20261010121051', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -220,6 +221,7 @@ export class Stadium {
 
   update(dt, cam) {
     if (this.screen) this.screen.update(dt);
+    if (this.screen2) this.screen2.update(dt);
     if (this.night) { if (this.fw) this.fw.update(dt, cam); return; }
     this.t += dt;
     this.bannerMat.uniforms.uT.value = this.t;

@@ -5,8 +5,8 @@
 // (modello e animazioni: blender/create_calciatore.py; cicli "sul posto", la velocita' regola timeScale)
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { contactShadow } from './contact_shadow.js?v=20261010020251';
-import * as sfx from './sfx.js?v=20261010020251';
+import { contactShadow } from './contact_shadow.js?v=20261010121051';
+import * as sfx from './sfx.js?v=20261010121051';
 
 const SCALE = 1.18;                                       // il modello e' 1,5 m: diventa ~1,78 m
 const V_RUN = 4.5, V_SPRINT = 8.0;                        // velocita' di riferimento dei cicli (m/s)
@@ -41,7 +41,7 @@ export class Footballer {
     this.ball.castShadow = true; this.group.add(this.ball);
     this.ballShadow = contactShadow(0.22, 0.22, 0.6); this.ballShadow.position.y = 0.013; this.group.add(this.ballShadow);
     this.ball.position.copy(this.pos); this.bFrom = this.ball.position.clone(); this.bBlend = 1;
-    new GLTFLoader().load('assets/calciatore.glb?v=20261010020251', g => {
+    new GLTFLoader().load('assets/calciatore.glb?v=20261010121051', g => {
       this.model = g.scene; this.model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
       // pelle, occhi, sopracciglia e capelli sono esportati in "blend": ordinati male, girandosi spariva mezza faccia o i
       // capelli. Pelle e occhi opachi; capelli e sopracciglia con taglio netto dell'alpha (niente ordinamento)
@@ -51,12 +51,19 @@ export class Footballer {
         m.needsUpdate = true; });
       this.model.scale.setScalar(SCALE); this.group.add(this.model);
       this.mixer = new THREE.AnimationMixer(this.model); this.act = {};
-      for (const n of ['corsa', 'scatto', 'palleggio', 'fermo', 'tiro']) { const a = this.mixer.clipAction(g.animations.find(c => c.name === n)); a.play(); a.setEffectiveWeight(0); this.act[n] = a; }
+      for (const n of ['corsa', 'scatto', 'palleggio', 'fermo', 'tiro', 'cheer']) { const a = this.mixer.clipAction(g.animations.find(c => c.name === n)); a.play(); a.setEffectiveWeight(0); this.act[n] = a; }
       this.act.tiro.setLoop(THREE.LoopOnce, 1); this.act.tiro.clampWhenFinished = true;
       this.cur = 'corsa'; this.act.corsa.setEffectiveWeight(1);
     });
   }
   setRing(size) { this.ringR = size / 2 + 4; }
+  // fine incontro: si ferma, si gira verso di te (look = la tua testa, nello spazio dello stadio) ed esulta con le braccia in alto,
+  // chiunque abbia vinto; on = false: riprende a giocare
+  cheer(on, look = null) {
+    this.cheering = !!on; if (look) this.look = look.clone();
+    if (on) { this.sh = null; if (this.mode === 'shoot' || this.mode === 'fetch') this.mode = 'run'; }
+    else if (this.mixer) this._pickNext();
+  }
 
   _clip(name) {                                                // dissolvenza tra le animazioni
     if (name === this.cur) return;
@@ -161,7 +168,7 @@ export class Footballer {
     if (!this.mixer) return;
     dt = Math.min(dt, 0.1); this.t += dt; this.modeT += dt;
     const juggling = this.mode === 'juggle', shooting = this.mode === 'shoot', fetching = this.mode === 'fetch', S = this.sh;
-    if (this.modeT > this.modeDur) this._pickNext();
+    if (this.modeT > this.modeDur && !this.cheering) this._pickNext();
     let vWant = this.mode === 'sprint' ? V_SPRINT * (0.85 + 0.1 * Math.sin(this.t * 2)) : juggling ? 0 : 4.2 + 0.5 * Math.sin(this.t * 0.7);
     let want, kicking = false, bx = HALF_X, bz = HALF_Z;
     if (shooting) {
@@ -199,13 +206,14 @@ export class Footballer {
     }
     const mg = fetching ? 0 : 2;                                  // (a caccia della palla puo' arrivare fino ai cartelloni)
     if (Math.abs(this.pos.x) > bx - mg || Math.abs(this.pos.z) > bz - mg) want = Math.atan2(-this.pos.x, -this.pos.z);
-    const turn = (fetching ? (this._fd < 5 ? 6.5 : 2.4) : this.mode === 'sprint' ? 2.0 : 3.2) * dt;
+    if (this.cheering) { vWant = 0; if (this.look) want = Math.atan2(this.look.x - this.pos.x, this.look.z - this.pos.z); }       // fermo, guarda verso di te
+    const turn = (this.cheering ? 4.0 : fetching ? (this._fd < 5 ? 6.5 : 2.4) : this.mode === 'sprint' ? 2.0 : 3.2) * dt;
     this.heading += Math.max(-turn, Math.min(turn, Math.atan2(Math.sin(want - this.heading), Math.cos(want - this.heading))));
     this.speed += Math.max(-6 * dt, Math.min(3.2 * dt, vWant - this.speed));
     this.pos.x += Math.sin(this.heading) * this.speed * dt; this.pos.z += Math.cos(this.heading) * this.speed * dt;
     // animazione: la scelta dipende dalla velocita' vera
     const sp = this.speed;
-    const clip = kicking ? 'tiro' : sp < 0.35 ? (juggling && this.modeT > 0.6 ? 'palleggio' : 'fermo') : sp > 6.2 ? 'scatto' : 'corsa';
+    const clip = this.cheering && sp < 0.4 ? 'cheer' : kicking ? 'tiro' : sp < 0.35 ? (juggling && this.modeT > 0.6 ? 'palleggio' : 'fermo') : sp > 6.2 ? 'scatto' : 'corsa';
     this._clip(clip);
     const a = this.act[this.cur], dur = a.getClip().duration;
     a.timeScale = clip === 'corsa' ? Math.max(0.5, sp / V_RUN) : clip === 'scatto' ? Math.max(0.7, sp / V_SPRINT) : 1;

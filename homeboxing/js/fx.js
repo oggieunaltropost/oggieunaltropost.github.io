@@ -175,6 +175,12 @@ export class Celebration {
     this._m = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._sc = new THREE.Vector3();
     this.hideAll();
   }
+  stop() {                                                    // fine immediata: niente coriandoli ne' fuochi (nuovo incontro)
+    this.active = 0;
+    for (const d of this.c) d.life = 0;
+    for (const q of this.s) { q.life = 0; q.max = 0; }
+    this.hideAll();
+  }
   hideAll() {
     const z = new THREE.Matrix4().makeScale(0, 0, 0);
     for (let i = 0; i < this.c.length; i++) this.conf.setMatrixAt(i, z);

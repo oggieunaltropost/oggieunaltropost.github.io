@@ -8,14 +8,24 @@ const W = 640, H = 242;                                   // pixel della tela (s
 const SCREEN = { x: 0, y: 35.65, z: 115.2, w: 20.6, h: 7.8 };   // (spazio del ring: x = y di Blender, z = x di Blender)
 const FONT = '900 112px Impact, "Arial Black", system-ui, sans-serif';
 const rnd = (a, b) => a + Math.random() * (b - a);
+// parole a caso (la scritta HOME BOXING resta il tema delle altre animazioni): le lettere entrano una a una dall'alto con un rimbalzo
+const WORDS = ['KO!', 'ROUND 1', 'FIGHT!', 'CHAMPION', 'WIN BY KO', 'NO MERCY', 'GLOVES UP', 'TITLE FIGHT', 'ALLA GRANDE', 'SENZA PIETA\'', 'DI NUOVO!', 'ONE MORE ROUND', 'GO GO GO', 'GUARDIA ALTA', 'FUORI I SECONDI', 'FIGHT NIGHT'];
+const WCOL = [['#ffd34d', '#c4161f'], ['#ff5a5a', '#f2ece0'], ['#4cc3ff', '#1d4fc4'], ['#6bff9a', '#14803a'], ['#ff8fe0', '#7a2a8a']];
 const sm = q => { q = Math.min(1, Math.max(0, q)); return q * q * (3 - 2 * q); };
 
 export class StadiumScreen {
-  constructor(parent) {
+  // front: lo schermo sta di fronte a te (dal lato opposto a quello del panorama), con cornice e pali, per lo stadio di notte
+  constructor(parent, { front = false } = {}) {
     this.c = document.createElement('canvas'); this.c.width = W; this.c.height = H; this.g = this.c.getContext('2d');
     this.tex = new THREE.CanvasTexture(this.c); this.tex.colorSpace = THREE.SRGBColorSpace; this.tex.minFilter = THREE.LinearFilter; this.tex.generateMipmaps = false;
     this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(SCREEN.w, SCREEN.h), new THREE.MeshBasicMaterial({ map: this.tex, toneMapped: false, fog: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
-    this.mesh.position.set(SCREEN.x, SCREEN.y, SCREEN.z); this.mesh.rotation.y = Math.PI;       // guarda verso il ring
+    const F = front ? 1.35 : 1, zz = front ? -101 : SCREEN.z, yy = front ? 38.5 : SCREEN.y;       // (di fronte: piu' vicino e piu' grande)
+    this.mesh.position.set(SCREEN.x, yy, zz); this.mesh.rotation.y = front ? 0 : Math.PI; this.mesh.scale.set(F, F, 1);       // guarda verso il ring
+    if (front) {                                                                                   // cornice nera e due pali, come lo schermo del panorama
+      const dark = new THREE.MeshStandardMaterial({ color: 0x1a1c22, roughness: 0.5, metalness: 0.6 });
+      const fr = new THREE.Mesh(new THREE.BoxGeometry(SCREEN.w * F + 1.4, SCREEN.h * F + 1.4, 0.6), dark); fr.position.set(SCREEN.x, yy, zz - 0.35); parent.add(fr);
+      for (const dx of [-9, 9]) { const po = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 12, 10), dark); po.position.set(dx, yy - SCREEN.h * F / 2 - 5.5, zz - 0.9); parent.add(po); }
+    }
     this.mesh.renderOrder = -8; this.mesh.name = 'maxischermo'; parent.add(this.mesh);
     this.dots = document.createElement('canvas'); this.dots.width = 160; this.dots.height = 60; this.dg = this.dots.getContext('2d', { willReadFrequently: true });
     this.t = 0; this.acc = 0; this.mode = null; this.next = 4 + Math.random() * 6; this.mt = 0;
@@ -27,7 +37,7 @@ export class StadiumScreen {
     this.t += dt;
     if (!this.mode) {
       this.next -= dt;
-      if (this.next <= 0) { const m = ['neon', 'punch', 'ticker', 'glitch', 'countdown']; this.mode = m[Math.floor(Math.random() * m.length)]; this.mt = 0; this.dur = { neon: 7, punch: 6.5, ticker: 9, glitch: 5.5, countdown: 6.5 }[this.mode]; }
+      if (this.next <= 0) { const m = ['neon', 'punch', 'ticker', 'glitch', 'countdown', 'words', 'words']; this.mode = m[Math.floor(Math.random() * m.length)]; this.mt = 0; this.dur = { neon: 7, punch: 6.5, ticker: 9, glitch: 5.5, countdown: 6.5, words: 5.5 }[this.mode]; if (this.mode === 'words') this.word = WORDS[Math.floor(Math.random() * WORDS.length)]; }
       return;
     }
     this.acc += dt; if (this.acc < 1 / 18) return;               // 18 fotogrammi al secondo bastano
@@ -131,6 +141,24 @@ export class StadiumScreen {
     g.fillText('HOME', W / 2, H / 2 - 34); g.fillText('BOXING', W / 2, H / 2 + 52);
   }
 
+  // una parola a caso: le lettere cadono una a una con un rimbalzo, un lampo a ognuna, poi la riga luminosa e l'uscita a scatti
+  _words(g, t, dur) {
+    const w = this.word || 'KO!', pal = WCOL[(w.length + Math.floor(w.charCodeAt(0))) % WCOL.length];
+    let size = 120; g.font = `900 ${size}px Impact, "Arial Black", sans-serif`; const full = g.measureText(w).width; if (full > W - 80) size = Math.floor(size * (W - 80) / full);
+    g.font = `900 ${size}px Impact, "Arial Black", sans-serif`; g.textBaseline = 'middle'; g.textAlign = 'left';
+    const tw = g.measureText(w).width; let x = (W - tw) / 2; const out = t > dur - 0.8 ? (dur - t) / 0.8 : 1;
+    for (let i = 0; i < w.length; i++) {
+      const ch = w[i], cw = g.measureText(ch).width, t0 = 0.15 + i * 0.1, u = Math.min(1, Math.max(0, (t - t0) / 0.4));
+      if (u > 0) {
+        const bounce = u < 1 ? (1 - u) * (1 - u) * Math.cos(u * 9) : 0, y = H / 2 - 20 - bounce * 150;
+        g.save(); g.globalAlpha = Math.min(1, u * 3) * out; g.translate(x + cw / 2, y); g.rotate((1 - u) * (i % 2 ? 0.5 : -0.5)); g.translate(-cw / 2, 0);
+        g.lineWidth = size * 0.1; g.strokeStyle = pal[1]; g.lineJoin = 'round'; g.strokeText(ch, 0, 0); g.fillStyle = pal[0]; g.fillText(ch, 0, 0); g.restore();
+        if (u > 0.55 && u < 0.8) { g.fillStyle = `rgba(255,255,255,${0.5 * (0.8 - u) / 0.25})`; g.beginPath(); g.arc(x + cw / 2, H / 2 + 36, 30 + (u - 0.55) * 200, 0, Math.PI * 2); g.fill(); }   // piccolo lampo all'arrivo
+      }
+      x += cw;
+    }
+    const bw = (W - 140) * sm((t - 1.2 - w.length * 0.1) / 0.6); g.fillStyle = `rgba(255,255,255,${0.8 * out})`; g.fillRect((W - bw) / 2, H / 2 + 62, bw, 5);
+  }
   // 3 - 2 - 1 con un anello che si chiude, poi "FIGHT!" con un lampo e l'abbaglio dal bordo
   _countdown(g, t, dur) {
     const step = Math.floor(t / 1.2);

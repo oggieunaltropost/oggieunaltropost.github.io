@@ -2,39 +2,39 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261010020251';
-import { Mike, LEVELS, loadMikeGLTF, StyleLearner } from './mike.js?v=20261010020251';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261010020251';
-import { Player, SimInput } from './player.js?v=20261010020251';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261010020251';
-import { Room } from './room.js?v=20261010020251';
-import { Arena } from './arena.js?v=20261010020251';
-import { Beach } from './beach.js?v=20261010020251';
-import { Rooftop } from './rooftop.js?v=20261010020251';
-import { Desert } from './desert.js?v=20261010020251';
-import { Snow } from './snow.js?v=20261010020251';
-import { Volcano } from './volcano.js?v=20261010020251';
-import { Sea, WATER } from './sea.js?v=20261010020251';
-import { Moon } from './moon.js?v=20261010020251';
-import { Stadium } from './stadium.js?v=20261010020251';
-import { FighterCard, ROSTER } from './roster.js?v=20261010020251';
-import { Gym } from './gym.js?v=20261010020251';
-import { BagTraining } from './training.js?v=20261010020251';
-import { RopeTraining } from './rope.js?v=20261010020251';
-import { SpeedBagTraining } from './speedbag.js?v=20261010020251';
-import { SlipLineTraining } from './slipline.js?v=20261010020251';
-import { RingSkirt } from './ring_skirt.js?v=20261010020251';
-import { panoPending } from './pano_depth.js?v=20261010020251';
-import { DoubleEndTraining } from './doubleend.js?v=20261010020251';
-import { Sparring } from './sparring.js?v=20261010020251';
-import { RingGirl } from './ringgirl.js?v=20261010020251';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261010020251';
-import * as sfx from './sfx.js?v=20261010020251';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261010020251';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261010020251';
-import { Tournament, BracketView } from './tournament.js?v=20261010020251';
-import { CpuMatch } from './cpu_match.js?v=20261010020251';
-import { TowerView } from './tower.js?v=20261010020251';
+import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261010121051';
+import { Mike, LEVELS, loadMikeGLTF, StyleLearner } from './mike.js?v=20261010121051';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261010121051';
+import { Player, SimInput } from './player.js?v=20261010121051';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261010121051';
+import { Room } from './room.js?v=20261010121051';
+import { Arena } from './arena.js?v=20261010121051';
+import { Beach } from './beach.js?v=20261010121051';
+import { Rooftop } from './rooftop.js?v=20261010121051';
+import { Desert } from './desert.js?v=20261010121051';
+import { Snow } from './snow.js?v=20261010121051';
+import { Volcano } from './volcano.js?v=20261010121051';
+import { Sea, WATER } from './sea.js?v=20261010121051';
+import { Moon } from './moon.js?v=20261010121051';
+import { Stadium } from './stadium.js?v=20261010121051';
+import { FighterCard, ROSTER } from './roster.js?v=20261010121051';
+import { Gym } from './gym.js?v=20261010121051';
+import { BagTraining } from './training.js?v=20261010121051';
+import { RopeTraining } from './rope.js?v=20261010121051';
+import { SpeedBagTraining } from './speedbag.js?v=20261010121051';
+import { SlipLineTraining } from './slipline.js?v=20261010121051';
+import { RingSkirt } from './ring_skirt.js?v=20261010121051';
+import { panoPending } from './pano_depth.js?v=20261010121051';
+import { DoubleEndTraining } from './doubleend.js?v=20261010121051';
+import { Sparring } from './sparring.js?v=20261010121051';
+import { RingGirl } from './ringgirl.js?v=20261010121051';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261010121051';
+import * as sfx from './sfx.js?v=20261010121051';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261010121051';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261010121051';
+import { Tournament, BracketView } from './tournament.js?v=20261010121051';
+import { CpuMatch } from './cpu_match.js?v=20261010121051';
+import { TowerView } from './tower.js?v=20261010121051';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -454,8 +454,8 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261010020251`); t.colorSpace = THREE.SRGBColorSpace; return t; };
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261010020251`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261010121051`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261010121051`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -711,55 +711,52 @@ const menuVisible = () => MENUS.some(m => m.group.visible) || bracket.group.visi
 const bracket = new BracketView(scene, FIGHTERS);
 const tower = new TowerView(scene, FIGHTERS);
 let surv = null;          // sopravvivenza in corso: { order, idx, state, stages }
-const tourBtns = new MenuPanel({ title: '', titleH: 0.03, width: 1.2, height: 0.16, rows: withText([
-  // (come in tutti i menu: uscire/indietro a sinistra, avanti a destra; "esci" in piu' quando scegli se guardare)
-  { y: -0.01, h: 0.09, buttons: [{ id: 'texit', tk: 'tr_quit', w: 0.3, color: 0x7a2a2a }, { id: 'tquit', tk: 'tr_quit', w: 0.36, color: 0x3a4254 }, { id: 'tgo', tk: 'tr_fight', w: 0.42, color: 0x1f8a4c }] }]) });
+const tourBtns = new MenuPanel({ title: '', titleH: 0.03, width: 1.75, height: 0.16, rows: withText([
+  // (come in tutti i menu: uscire/indietro a sinistra, avanti a destra; "esci" in piu' quando scegli se guardare;
+  // "salta il turno" solo quando salta piu' di un incontro)
+  { y: -0.01, h: 0.09, buttons: [{ id: 'texit', tk: 'tr_quit', w: 0.3, color: 0x7a2a2a }, { id: 'tquit', tk: 'tr_quit', w: 0.36, color: 0x3a4254 }, { id: 'tskiprd', tk: 'tr_skipround', w: 0.4, color: 0x5a3d6e }, { id: 'tgo', tk: 'tr_fight', w: 0.42, color: 0x1f8a4c }] }]) }, 0.75);   // (0,75 s: prima 0,3)
 scene.add(tourBtns.group);
 // incontro CPU: pulsante piccolo per andare al risultato
 const skipBtn = new MenuPanel({ title: '', titleH: 0.02, width: 0.3, height: 0.1, draggable: true, dragSide: 'left', rows: withText([   // (maniglia a sinistra: lo sposti dove non ti da' fastidio)
-  { y: -0.005, h: 0.06, buttons: [{ id: 'skip', tk: 'tr_skip', w: 0.25, color: 0x3a4254 }] }]) });
+  { y: -0.005, h: 0.06, buttons: [{ id: 'skip', tk: 'tr_skip', w: 0.25, color: 0x3a4254 }] }]) }, 0.75);
 scene.add(skipBtn.group);
-// ---- pulsante MENU sul tabellone. Puntare il tabellone (e' grande, facile) a pugno chiuso per 1 s: compare il raggio e sul tabellone
-// un grande pulsante verde MENU; puntando quel pulsante per 1 s si riempie di colore e apre la pausa (da li' si esce, si ricomincia
-// o si cambia allenamento). Una linguetta verde attaccata al bordo alto del tabellone ricorda che c'e'.
-const MT_AIM = 0.5, MT_FILL = 1.0;
+// ---- accesso al menu di pausa dal tabellone (l'unico modo con le mani): una linguetta blu attaccata al bordo alto del tabellone.
+// Si attiva solo col pugno chiuso, il braccio disteso verso il tabellone e abbastanza fermo (non in guardia, non mentre ondeggi):
+// dopo 1 s di puntamento cosi' la linguetta si accende e comincia a riempirsi (1 s), poi si apre il menu vero (pausa; negli incontri
+// che guardi: continua a guardare / esci). Niente raggio: solo l'animazione della linguetta. Vale la mano scelta nelle opzioni.
+const MT_AIM = 1.0, MT_FILL = 1.0, MT_SPEED = 0.55, MT_REACH = 0.5;
 const mtab = (() => {
-  const c = document.createElement('canvas'); c.width = 900; c.height = 72; const g = c.getContext('2d');
-  g.fillStyle = '#5a3d24'; g.beginPath(); g.roundRect(3, 3, 894, 66, 18); g.fill();
-  g.strokeStyle = 'rgba(235,215,185,0.55)'; g.lineWidth = 3; g.stroke();
-  g.fillStyle = '#ecdcc0'; g.font = '700 33px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(t('mt_tab'), 450, 38);
-  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
   const po = { polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4, depthWrite: false, toneMapped: false };
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.93, 0.074), new THREE.MeshBasicMaterial({ map: tex, transparent: true, ...po }));
-  mesh.renderOrder = 5; mesh.visible = false; mesh.name = 'linguetta menu';
-  const sel = new THREE.Mesh(new THREE.PlaneGeometry(0.96, 0.098), new THREE.MeshBasicMaterial({ color: 0xffd34d, transparent: true, ...po }));
-  sel.position.z = -0.002; sel.renderOrder = 4; sel.visible = false; mesh.add(sel);
-  // pannello sul tabellone (appare puntandolo): il tabellone si oscura e al centro c'e' il pulsante MENU
-  const oc = document.createElement('canvas'); oc.width = 512; oc.height = 280;
-  const otex = new THREE.CanvasTexture(oc); otex.colorSpace = THREE.SRGBColorSpace;
-  const ov = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: otex, transparent: true, ...po }));
-  ov.renderOrder = 6; ov.visible = false; ov.name = 'menu sul tabellone';
-  return { mesh, sel, ov, oc, otex, host: null, aimT: 0, fillT: 0, ray: null, armed: false, hw: 0.58, hh: 0.33, lastK: -1 };
+  const mk = (draw, w, h, order, z) => {
+    const c = document.createElement('canvas'); c.width = 900; c.height = 72; draw(c.getContext('2d'));
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true, ...po }));
+    m.renderOrder = order; m.position.z = z; return m;
+  };
+  const group = new THREE.Group(); group.name = 'linguetta menu'; group.visible = false;
+  const bg = mk(g => { g.fillStyle = '#1d4fc4'; g.beginPath(); g.roundRect(3, 3, 894, 66, 18); g.fill(); g.strokeStyle = 'rgba(190,215,255,0.7)'; g.lineWidth = 3; g.stroke(); }, 0.93, 0.074, 5, 0);
+  // riempimento (tra lo sfondo e la scritta): un blu piu' chiaro e acceso che cresce da sinistra
+  const fill = new THREE.Mesh(new THREE.PlaneGeometry(0.93, 0.074), new THREE.MeshBasicMaterial({ color: 0x3fa9ff, transparent: true, opacity: 1, ...po }));
+  fill.renderOrder = 6; fill.position.z = 0.0015; fill.scale.x = 0.001; fill.visible = false;
+  const txt = mk(() => {}, 0.93, 0.074, 7, 0.003);
+  const glow = new THREE.Mesh(new THREE.PlaneGeometry(0.99, 0.12), new THREE.MeshBasicMaterial({ color: 0x7fc4ff, transparent: true, opacity: 0, ...po }));
+  glow.position.z = -0.002; glow.renderOrder = 4;
+  group.add(glow, bg, fill, txt);
+  return { mesh: group, glow, fill, txt, host: null, aimT: 0, fillT: 0, prev: {}, spd: {}, hw: 0.58, hh: 0.33 };
 })();
-function drawMenuOverlay(k) {                          // k = riempimento 0..1 del pulsante
-  const M = mtab, g = M.oc.getContext('2d'), W = 512, H = 280;
-  g.clearRect(0, 0, W, H);
-  g.fillStyle = 'rgba(4,5,8,0.86)'; g.fillRect(0, 0, W, H);                                 // il tabellone si oscura
-  g.fillStyle = '#7f8798'; g.font = '700 22px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(t('mt_hint'), W / 2, 34);
-  const x = 66, y = 78, w = 380, h = 130, r = 30;
-  g.save(); g.beginPath(); g.roundRect(x, y, w, h, r); g.clip();
-  const gr = g.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, '#8a6038'); gr.addColorStop(1, '#5a3d24'); g.fillStyle = gr; g.fillRect(x, y, w, h);
-  if (k > 0) { g.fillStyle = 'rgba(240,190,90,0.92)'; g.fillRect(x, y, w * k, h); }               // si colora da sinistra a destra
-  g.restore();
-  g.strokeStyle = '#f4e8d2'; g.lineWidth = 6; g.beginPath(); g.roundRect(x, y, w, h, r); g.stroke();
-  g.fillStyle = '#f4e8d2'; g.fillRect(x + 36, y + 34, 18, 62); g.fillRect(x + 66, y + 34, 18, 62);   // il simbolo della pausa
-  g.fillStyle = k > 0.5 ? '#2a1a0c' : '#f4e8d2'; g.font = '900 84px Impact, "Arial Black", system-ui, sans-serif'; g.textAlign = 'left'; g.fillText(t('menu_btn'), x + 118, y + h / 2 + 4);
-  M.otex.needsUpdate = true; M.lastK = k;
+// la scritta della linguetta: generica se usi entrambe le mani, altrimenti dice con quale pugno puntare (opzione "mano" del menu)
+function mtabText() {
+  const c = mtab.txt.material.map.image, g = c.getContext('2d');
+  g.clearRect(0, 0, c.width, c.height);
+  g.fillStyle = '#ffffff'; g.font = '700 33px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  const msg = t(pointerHand === 'right' ? 'mt_tab_r' : pointerHand === 'left' ? 'mt_tab_l' : 'mt_tab'), w = g.measureText(msg).width;
+  if (w > 850) g.font = `700 ${Math.floor(33 * 850 / w)}px system-ui, sans-serif`;                // (la scritta piu' lunga si rimpicciolisce per starci)
+  g.fillText(msg, 450, 38);
+  mtab.txt.material.map.needsUpdate = true;
 }
 function mtabHost() {                                  // il tabellone su cui sta la linguetta in questo momento
   if (game.paused || pause.group.visible || menuVisible()) return null;
-  if (game.phase === 'fight' || game.phase === 'rest') return board.mesh.visible ? board.mesh : null;
+  if (game.phase === 'fight' || game.phase === 'rest' || game.phase === 'watch') return board.mesh.visible ? board.mesh : null;
   if (game.phase === 'training') { const tr_ = trainer(); return tr_ && tr_.group.visible && tr_.board ? tr_.board : null; }
   if (game.phase === 'sparring') return spar && spar.board && spar.board.visible ? spar.board : null;
   return null;
@@ -768,7 +765,7 @@ function mtabDims(host) {                              // misura del tabellone (
   if (!host.userData.tabDims) {
     let hw = 0, hh = 0, zf = -1e9;
     host.traverse(o => {
-      if (!o.isMesh || o === mtab.mesh || o === mtab.ov || o.parent === mtab.mesh || !o.geometry) return;
+      if (!o.isMesh || o === mtab.mesh || o.parent === mtab.mesh || !o.geometry) return;
       o.geometry.computeBoundingBox(); const b = o.geometry.boundingBox; if (!b) return;
       const p = o === host ? { x: 0, y: 0, z: 0 } : o.position, sx = o.scale.x || 1, sy = o.scale.y || 1;
       hw = Math.max(hw, b.max.x * sx + p.x); hh = Math.max(hh, b.max.y * sy + p.y); zf = Math.max(zf, b.max.z + p.z);
@@ -780,31 +777,35 @@ function mtabDims(host) {                              // misura del tabellone (
 const _mi = new THREE.Matrix4(), _mo = new THREE.Vector3(), _md = new THREE.Vector3();
 function updateMenuTab(dt, rays) {
   const host = mtabHost(), M = mtab;
-  if (!host) { M.mesh.visible = M.ov.visible = false; M.aimT = M.fillT = 0; M.ray = null; M.armed = false; return; }
-  if (M.host !== host) { if (M.mesh.parent) M.mesh.parent.remove(M.mesh); if (M.ov.parent) M.ov.parent.remove(M.ov); host.add(M.mesh); host.add(M.ov); M.host = host; M.aimT = M.fillT = 0; M.armed = false; }
+  if (!host) { M.mesh.visible = false; M.aimT = M.fillT = 0; M.prev = {}; return; }
+  if (M.host !== host) { if (M.mesh.parent) M.mesh.parent.remove(M.mesh); host.add(M.mesh); M.host = host; M.aimT = M.fillT = 0; }
   const D = mtabDims(host); M.hw = D.hw; M.hh = D.hh;
   M.mesh.position.set(0, D.hh + 0.037, D.zf + 0.002); M.mesh.visible = true;             // la linguetta: attaccata al bordo alto
-  M.ov.scale.set(D.hw * 2, D.hh * 2, 1); M.ov.position.set(0, 0, D.zf + 0.004);
-  host.updateMatrixWorld(true); M.ov.updateMatrixWorld(true);
-  _mi.copy(M.ov.matrixWorld).invert();
-  let aimed = null, lx = 0, ly = 0;
-  for (const r of rays) {                              // il raggio che passa dal tabellone (o dalla linguetta)
-    _mo.copy(r.o).applyMatrix4(_mi); _md.copy(r.d).transformDirection(_mi);
-    if (Math.abs(_md.z) < 1e-4) continue; const tt = -_mo.z / _md.z; if (tt < 0.1) continue;
-    const px = (_mo.x + _md.x * tt) * 2 * D.hw, py = (_mo.y + _md.y * tt) * 2 * D.hh;      // (in unita' del tabellone)
-    if (Math.abs(px) < D.hw + 0.05 && py < D.hh + 0.16 && py > -D.hh - 0.05) { aimed = r; lx = px; ly = py; r.hit = M.ov.localToWorld(new THREE.Vector3(px / (2 * D.hw), py / (2 * D.hh), 0)); break; }
+  host.updateMatrixWorld(true); M.mesh.updateMatrixWorld(true);
+  _mi.copy(host.matrixWorld).invert();
+  const seen = {}; let ok = false;
+  for (const r of rays) {
+    const hand = r.hand || 'x'; seen[hand] = true;
+    const prev = M.prev[hand]; const sp = prev ? prev.distanceTo(r.o) / Math.max(dt, 1e-3) : 0;
+    M.spd[hand] = (M.spd[hand] === undefined ? sp : M.spd[hand] * 0.8 + sp * 0.2); M.prev[hand] = (prev || new THREE.Vector3()).copy(r.o);
+    const steady = M.spd[hand] < MT_SPEED, reach = r.o.distanceTo(player.head) > MT_REACH;          // braccio fermo e disteso (non in guardia)
+    if (!steady || !reach) continue;
+    _mo.copy(r.o).applyMatrix4(_mi); _md.copy(r.d).transformDirection(_mi);                       // il raggio sul piano del tabellone
+    if (Math.abs(_md.z) < 1e-4) continue; const tt = -(_mo.z - D.zf) / _md.z; if (tt < 0.1) continue;
+    const px = _mo.x + _md.x * tt, py = _mo.y + _md.y * tt;
+    if (Math.abs(px) < D.hw + 0.05 && py < D.hh + 0.16 && py > -D.hh - 0.05) { ok = true; break; }
   }
-  if (aimed) M.aimT = Math.min(2.2, M.aimT + dt); else M.aimT = Math.max(0, M.aimT - dt * 1.2);
-  M.armed = M.aimT >= MT_AIM;
-  M.ray = M.armed && aimed ? aimed : null;
-  // il pulsante grande: il rettangolo centrale (74% x 46% del tabellone)
-  const onBtn = M.armed && aimed && Math.abs(lx) < D.hw * 0.74 && Math.abs(ly) < D.hh * 0.46;
-  M.fillT = onBtn ? M.fillT + dt : 0;
-  M.ov.visible = M.armed; M.sel.visible = M.armed;
-  if (M.armed) { const k = Math.min(1, M.fillT / MT_FILL); if (Math.abs(k - M.lastK) > 0.004) drawMenuOverlay(k); }
-  else M.lastK = -1;
-  M.mesh.scale.setScalar(1 + 0.04 * Math.min(1, M.aimT / MT_AIM));
-  if (M.fillT >= MT_FILL) { M.fillT = 0; M.aimT = 0; M.ray = null; M.armed = false; M.ov.visible = false; sfx.menuBlip(); openPause(); }
+  for (const h of Object.keys(M.prev)) if (!seen[h]) { delete M.prev[h]; delete M.spd[h]; }
+  if (ok) M.aimT = Math.min(MT_AIM + 2, M.aimT + dt); else M.aimT = Math.max(0, M.aimT - dt * 3);      // appena smetti si azzera in fretta
+  const armed = M.aimT >= MT_AIM;
+  M.fillT = armed && ok ? M.fillT + dt : 0;
+  // animazione: la linguetta si ingrandisce e pulsa mentre la punti, poi si riempie da sinistra a destra
+  const a = Math.min(1, M.aimT / MT_AIM), k = Math.min(1, M.fillT / MT_FILL), pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.014);
+  M.glow.material.opacity = ok ? (0.08 + 0.3 * a) * (armed ? 0.7 + 0.3 * pulse : 1) : 0;
+  M.glow.scale.set(1 + 0.03 * a + 0.04 * k, 1 + 0.15 * a + 0.25 * k, 1);
+  M.fill.visible = k > 0.01; M.fill.scale.x = Math.max(0.001, k); M.fill.position.x = -0.465 * (1 - k);
+  M.mesh.scale.setScalar(1 + 0.08 * a + 0.2 * k);
+  if (M.fillT >= MT_FILL) { M.fillT = 0; M.aimT = 0; M.fill.visible = false; sfx.menuBlip(); openPause(false, game.phase === 'watch'); }
 }
 let prevButtons = false;
 
@@ -909,7 +910,8 @@ let needRecenter = 0, recenterAlways = false, reopenPending = false, reopenWait 
 const selHeld = new Map(), selPrev = new Map();
 // mano del puntatore nei menu: 'left' (predefinita), 'right' o 'both'
 let pointerHand = 'left';
-try { const v = localStorage.getItem('hb-pointer'); if (['left', 'right', 'both'].includes(v)) pointerHand = v; } catch (e) {}     // grilletto / pizzico tenuto, per sorgente (mano o controller)
+try { const v = localStorage.getItem('hb-pointer'); if (['left', 'right', 'both'].includes(v)) pointerHand = v; } catch (e) {}
+mtabText();     // grilletto / pizzico tenuto, per sorgente (mano o controller)
 // z: dove metterti nel ring (in coordinate del ring; di solito playerZ, il tuo angolo)
 function recenterPlayer(z = playerZ) {
   if (!renderer.xr.isPresenting || intro) return;
@@ -1010,6 +1012,8 @@ function setPeople(v) {                      // nel menu il ring e' vuoto: nient
   if (arenaEnv) arenaEnv.setPeople(v);
 }
 function newMatch() {
+  party.stop();                                              // coriandoli e fuochi del finale precedente: via, prima di ogni incontro
+  if (stadiumEnv && stadiumEnv.player) stadiumEnv.player.cheer(false);   // il calciatore dello stadio riprende a giocare
   game.round = 1; game.result = null; game.kd = null; game.foul = null; game.fill = null;
   game.player = fighter(); game.mike = fighter();
   if (bruises) bruises.reset();
@@ -1111,11 +1115,11 @@ function endMatch(winner, how) {
   if (how === 'PTS' && winner !== 'pari') game.message += ` (${pts})`;
   // finale del torneo o ultimo piano della torre vinti: la ragazza del ring entra con la coppa e te la porge
   const lastFight = (tour && tour.isFinal()) || (surv && surv.idx >= surv.order.length - 1);
-  if (winner === 'player' && lastFight) setTimeout(() => { if (game.phase === 'end') girl.trophy(arena, ringSize, player.head); }, 3000);
   // festa per il vincitore: coriandoli e fuochi d'artificio nei suoi colori (partono quando lo speaker dice il nome; nel pareggio subito)
   const c = new THREE.Vector3().setFromMatrixPosition(arena.matrixWorld);
   const startParty = () => party.start(c, winner === 'player' ? [0xd81e2c, 0xff7a7a, 0xffffff] : winner === 'mike' ? [0x1d4fc4, 0x7aa8ff, 0xffffff] : [0xd81e2c, 0x1d4fc4]);
   game.reactAt = null;
+  if (stadiumEnv && stadiumEnv.group.visible && stadiumEnv.player) stadiumEnv.player.cheer(true, stadiumEnv.group.worldToLocal(player.head.clone()));   // a fine incontro il calciatore si ferma, ti guarda ed esulta (chiunque vinca)
   if (winner === 'pari') startParty();
   sfx.cheer('applauso', 1); sfx.cheer('boato', 0.9);
   // verdetto dell'annunciatore, come nei veri incontri
@@ -1130,7 +1134,8 @@ function endMatch(winner, how) {
     if (game.phase !== 'end') return;
     setTimeout(() => {
       if (game.phase !== 'end') return;
-      startParty(); game.reactAt = game.phaseT;                       // da qui: fuochi, esultanza / abbattimento; poi qualche secondo prima di passare avanti
+      startParty(); game.reactAt = game.phaseT;
+      if (winner === 'player' && lastFight) setTimeout(() => { if (game.phase === 'end') girl.trophy(arena, ringSize, player.head); }, 600);   // la ragazza con la coppa entra dopo l'annuncio, con i fuochi                       // da qui: fuochi, esultanza / abbattimento; poi qualche secondo prima di passare avanti
       if (mike.down) return; if (winner === 'mike') mike.celebrate(); else mike.dejected = true;
     }, sfx.lastVoiceEnds() + 250);
   }, (kind === 'dq' ? 2600 : 1800) + 60);
@@ -1354,7 +1359,7 @@ onLang(l => {
   sfx.setVoiceLang(l);
   for (const m of MENUS) m.relabel();
   skipBtn.relabel();
-  nextMenu.relabel(); introMenu.relabel(); pause.relabel(); tourBtns.relabel(); floorMenu.relabel();
+  nextMenu.relabel(); introMenu.relabel(); pause.relabel(); tourBtns.relabel(); floorMenu.relabel(); mtabText();
   for (const m of MENUS) m.select(menuChoices());
   if (bracket.group.visible && bracket.T) bracket.draw();
   if (rosterHover) fighterCard.show(rosterHover, FIGHTERS[rosterHover].name);   // scheda nella nuova lingua
@@ -1637,7 +1642,7 @@ function tick(dt, frame) {
       if (!pose) continue;
       const m = _rayM.fromArray(pose.transform.matrix);
       const sel = !!selHeld.get(src), click = sel && !selPrev.get(src);
-      rays.push({ o: new THREE.Vector3().setFromMatrixPosition(m), d: new THREE.Vector3(0, 0, -1).transformDirection(m), hit: null, sel, click });
+      rays.push({ o: new THREE.Vector3().setFromMatrixPosition(m), d: new THREE.Vector3(0, 0, -1).transformDirection(m), hit: null, sel, click, hand: src.handedness });
     }
   }
   for (const src of selHeld.keys()) selPrev.set(src, selHeld.get(src));
@@ -1650,14 +1655,14 @@ function tick(dt, frame) {
   }
   if (cpu) {
     for (const g of Object.values(player.gloves)) g.mesh.visible = false;      // guardi soltanto
-    cpu.update(dt);
+    if (!game.paused) cpu.update(dt);                          // (in pausa l'incontro si ferma)
     const st = i => ({ points: cpu.pts[i], dmg: cpu.dmg[i], hits: cpu.hits[i], blocks: 0, dodges: 0, kd: cpu.kdN[i], penalties: cpu.pen[i] });
     board.draw({ flags: cpuIds().map(id => id && ROSTER[id] && ROSTER[id].flag), round: cpu.round, rounds: cpu.rounds, level: t('l_' + level), time: Math.max(0, cpu.rest > 0 ? cpu.rest : cpu.time), running: cpu.delay <= 0 && !cpu.kd, player: st(0), mike: st(1),
       names: cpuNames().map(n => n.toUpperCase()), message: t('cpu_vs', { a: cpuNames()[0], b: cpuNames()[1] }), diag: '' });
     // "vai al risultato": alla tua sinistra, girato verso di te (davanti copriva l'incontro)
     if (skipOpen > 0) {
       skipOpen -= dt;
-      if (skipOpen < 2.3 && (headOutOfRing(0) || mode === 'stanza' || !renderer.xr.isPresenting || skipOpen <= 0)) { skipOpen = 0; skipBtn.open(player.head, menuYaw() + 1.2, 0.5, 0.3); }
+      if (skipOpen < 2.3) skipOpen = 0;                  // (il pulsante separato non c'e' piu': "vai al risultato" sta nel menu di pausa, dal tabellone)
     }
     if (skipBtn.update(dt, []) === 'skip') { sfx.menuBlip(); cpu.skipped = true; cpu.finish(true); }
     if (cpu.rest > 0) {                               // riposo: ragazza quando sono seduti tutti e due; pulsante "prossimo round"
@@ -1672,7 +1677,7 @@ function tick(dt, frame) {
     if (cpu.winner !== null && !cpu.award && !cpu.skipped) startCpuCeremony();
     if (cpu.award) {
       const A = cpu.award; A.t += dt;
-      if (A.final && !A.girl && A.t > 2.5) {
+      if (A.final && !A.girl && A.reactAt != null && A.t - A.reactAt > 0.6) {
         A.girl = true; A.W.root.updateMatrixWorld(true);
         girl.trophy(arena, ringSize, player.head, { pos: A.W.root.getWorldPosition(new THREE.Vector3()), fwd: A.W.forward(), head: A.W.headCenter() });
       }
@@ -1751,24 +1756,24 @@ function tick(dt, frame) {
     if (hp) sfx.heli(hp, renderer.xr.isPresenting ? renderer.xr.getCamera() : camera); else sfx.heliStop();
   }
   if (beachEnv && beachEnv.group.visible) beachEnv.update(dt, h => sfx.wave(0.2 + 0.25 * h), p => sfx.gull(p, renderer.xr.isPresenting ? renderer.xr.getCamera() : camera));
-  rayPointers.update(menuOpen ? rays : mtab.ray ? [mtab.ray] : [], menuOpen || !!mtab.ray);
+  rayPointers.update(rays, menuOpen);               // (il raggio si vede solo coi menu aperti)
   player.endFrame();
   renderer.render(scene, camera);
 }
 
 // Pausa: tutte e due le braccia alzate sopra la testa per 1,2 s (in combattimento non succede),
 // oppure A/B/X/Y sui controller. Nel menu i pulsanti si premono tenendoci sopra un guantone.
-function openPause(end = false) {
+function openPause(end = false, watch = false) {
   game.paused = !end; mike.enabled = false;
   const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
   const e = new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ');
   const r = game.result;
   pause.open(player.head, e.y, end, end && r ? { win: r.winner === 'player' ? true : r.winner === 'mike' ? false : null, how: r.how } : null,
-    game.phase === 'training' || game.phase === 'sparring');            // in allenamento anche "Cambia allenamento"
+    game.phase === 'training' || game.phase === 'sparring', watch);     // in allenamento anche "Cambia allenamento"; guardando un incontro: esci / continua a guardare
   if (!end) sfx.suspend(true);                    // tutto l'audio si ferma (anche lo speaker a meta' frase)
 }
 function closePause() {
-  if (headOutOfRing()) recenterPlayer();          // ripresa da fuori dal ring: torni nel tuo angolo
+  if (headOutOfRing() && game.phase !== 'watch') recenterPlayer();          // ripresa da fuori dal ring: torni nel tuo angolo
   game.paused = false; pause.close(); game.outRing = false;
   sfx.suspend(false);
   mike.enabled = (game.phase === 'fight' && !game.kd) || game.phase === 'sparring';
@@ -1784,8 +1789,8 @@ function menuYaw() {
 function reopenMenus() {
   const yaw = menuYaw();
   for (const m of MENUS) if (m.group.visible) m.open(player.head, yaw);
-  if (tower.group.visible) { tower.open(player.head, yaw); setTourButtons(tourBtns.buttons.find(b => b.id === 'tgo').tk, tourBtns.buttons.find(b => b.id === 'tquit').g.visible, yaw, tourBtns.buttons.find(b => b.id === 'tquit').tk); }
-  else if (bracket.group.visible) { bracket.open(player.head, yaw); setTourButtons(tourBtns.buttons.find(b => b.id === 'tgo').tk, tourBtns.buttons.find(b => b.id === 'tquit').g.visible, yaw, tourBtns.buttons.find(b => b.id === 'tquit').tk); }
+  if (tower.group.visible) { tower.open(player.head, yaw); setTourButtons(tourBtns.buttons.find(b => b.id === 'tgo').tk, tourBtns.buttons.find(b => b.id === 'tquit').g.visible, yaw, tourBtns.buttons.find(b => b.id === 'tquit').tk, tourSkipRd); }
+  else if (bracket.group.visible) { bracket.open(player.head, yaw); setTourButtons(tourBtns.buttons.find(b => b.id === 'tgo').tk, tourBtns.buttons.find(b => b.id === 'tquit').g.visible, yaw, tourBtns.buttons.find(b => b.id === 'tquit').tk, tourSkipRd); }
 }
 // i menu seguono l'altezza della tua testa: aperti mentre eri accovacciato (calibrando il pavimento con la mano) restavano
 // per terra. Se la testa resta a un'altra altezza (piu' di 30 cm) per mezzo secondo, si rimettono davanti agli occhi
@@ -1855,7 +1860,7 @@ function sparSounds(ev) {
   }
 }
 // ---- sparring: il partner (caschetto, alto come te) prende il posto dell'avversario sul ring della palestra
-const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261010020251', evenSkin: false,
+const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261010121051', evenSkin: false,
   band: { bg: '#1a1a1c', line: '#c4122a', text: '#f2ece0', label: 'SPARRING' } };
 let spar = null, partner = null, savedMike = null, sparLoading = false;
 async function startSparring(kind, defKinds = null) {
@@ -1933,7 +1938,7 @@ function setStage(st) {
 }
 let fightStarting = false;
 async function startFight(opponentId) {
-  closeMenus(); fightStarting = true;
+  party.stop(); closeMenus(); fightStarting = true;
   if (mike && opponentId !== fighterId) mike.root.visible = false;   // il pugile di prima non si vede mentre arriva il nuovo
   setStage(pickStage());
   await setFighter(opponentId);
@@ -2009,14 +2014,17 @@ function showBracketNext() {
   bracket.showNext(tour, t('tr_next', { round: bracket.roundName(tour.round), b: FIGHTERS[opp].name.toUpperCase() }));
   setTourButtons('tr_fight', true, yaw);
 }
-function setTourButtons(goKey, showQuit, yaw = menuYaw(), quitKey = 'tr_quit') {
-  const go = tourBtns.buttons.find(b => b.id === 'tgo'), q = tourBtns.buttons.find(b => b.id === 'tquit'), ex = tourBtns.buttons.find(b => b.id === 'texit');
+let tourSkipRd = false;                              // il tasto "salta il turno" e' visibile (solo se restano almeno due incontri da guardare nel turno)
+function setTourButtons(goKey, showQuit, yaw = menuYaw(), quitKey = 'tr_quit', skipRound = false) {
+  tourSkipRd = skipRound;
+  const go = tourBtns.buttons.find(b => b.id === 'tgo'), q = tourBtns.buttons.find(b => b.id === 'tquit'), ex = tourBtns.buttons.find(b => b.id === 'texit'), sr = tourBtns.buttons.find(b => b.id === 'tskiprd');
   go.tk = goKey; q.tk = quitKey; q.g.visible = showQuit;
   ex.g.visible = goKey === 'tr_watch';             // guarda / salta: in piu' si puo' anche uscire dal torneo
   q.color = quitKey === 'tr_quit' || quitKey === 'sv_quit' ? 0x7a2a2a : 0x3a4254;
   q.base.material.color.setHex(q.color); q.color0 = q.color;
   if (goKey !== 'tr_watch') tourStep = goKey === 'tr_fight' ? 'next' : 'end';
-  const vis = [ex, q, go].filter(b => b.g.visible), gap = 0.03;       // centrati, uno accanto all'altro
+  sr.g.visible = !!skipRound && goKey === 'tr_watch';
+  const vis = [ex, q, sr, go].filter(b => b.g.visible), gap = 0.03;       // centrati, uno accanto all'altro
   let x = -(vis.reduce((a, b) => a + b.w, 0) + gap * (vis.length - 1)) / 2;
   for (const b of vis) { b.g.position.x = x + b.w / 2; x += b.w + gap; }
   tourBtns.relabel();
@@ -2068,7 +2076,7 @@ function showCpuChoice() {
 async function startCpuWatch() {
   const { cm } = pending;
   const idA = pending.arcade ? pending.a : tour.p[cm.a].id, idB = pending.arcade ? pending.b : tour.p[cm.b].id;
-  closeMenus(); fightStarting = true; game.phase = 'watch';
+  party.stop(); closeMenus(); fightStarting = true; game.phase = 'watch';
   if (!pending.arcade) setStage(pickStage());        // torneo: anche gli incontri che guardi cambiano stage (con "a caso")
   await setFighter(idA);
   if (mike) mike.root.visible = false;               // (si vede solo quando e' pronto anche l'altro: prima compariva davanti a te)
@@ -2153,6 +2161,16 @@ function startCpuCeremony() {
     setTimeout(() => sfx.firework(), 600);
   }, sfx.lastVoiceEnds() + 250), (kind === 'dq' ? 1200 : 900) + 60);
 }
+// esci mentre guardi un incontro (dal menu di pausa): si ripulisce come a fine incontro e si torna al menu principale
+function exitWatch() {
+  closePause(); sfx.stopVoices(); girl.stop(); party.hideAll();
+  cpu = null; skipBtn.close(); nextMenu.close(); stool.visible = stoolB.visible = false; cpuGirl = false;
+  mike.leaveCorner();
+  if (cpuB) { scene.remove(cpuB.root); cpuB.dispose(); cpuB = null; bruisesB = null; }
+  mike.bounds = keepInRing; mike.footwork = true; mike.fw = null; mike.resetPose(); mike.root.visible = true;
+  pending = null; tour = null; surv = null; fightStarting = false;
+  showMainMenu();
+}
 function endCpuWatch() {
   const P = pending, { cm, youWon } = P, win0 = cpu.winner === 0, w = cm ? (win0 ? cm.a : cm.b) : null;
   sfx.bell(3);
@@ -2184,7 +2202,7 @@ function specResult(cm, w) {
 function specChoice() {
   if (!specQueue.length) { specAdvance(); return; }
   pending = { spec: true, cm: specQueue[0] }; showCpuChoice();
-  setTourButtons('tr_watch', true, menuYaw(), 'tr_skipfight');
+  setTourButtons('tr_watch', true, menuYaw(), 'tr_skipfight', specQueue.length >= 2);
 }
 function specAdvance() {
   const r = tour.result(true, specForced);
@@ -2309,6 +2327,10 @@ function updateMainMenu(dt, gloves) {
     if (!id) return;
     sfx.menuBlip();
     if (id === 'texit') { pending = null; showMainMenu(); return; }
+    if (id === 'tskiprd') {                         // salta tutto il turno: gli incontri rimasti si decidono a caso e si va avanti
+      pending = null; for (const cm of specQueue) specForced[cm.j] = Math.random() < 0.5 ? cm.a : cm.b;
+      specQueue = []; specAdvance(); return;
+    }
     if (lostWatch) {                                // eliminato: guardi il resto del torneo, dal tuo turno
       lostWatch = false;
       if (id === 'tgo') { tour.spectator = true; specQueue = tour.cpuMatches(); specChoice(); } else showMainMenu();
@@ -2381,7 +2403,7 @@ function updateMainMenu(dt, gloves) {
   else if (id.startsWith('r:')) { rounds = parseInt(id.slice(2)); try { localStorage.setItem('hb-rounds', rounds); } catch (e) {} }
   else if (id.startsWith('g:')) setLang(id.slice(2));
   else if (id.startsWith('vb:')) { player.vibrate = id === 'vb:si'; try { localStorage.setItem('hb-vibe', id.slice(3)); } catch (e) {} if (player.vibrate) { player.pulse('left', 0.8, 120); player.pulse('right', 0.8, 120); } }
-  else if (id.startsWith('pt:')) { pointerHand = id.slice(3); try { localStorage.setItem('hb-pointer', pointerHand); } catch (e) {} }
+  else if (id.startsWith('pt:')) { pointerHand = id.slice(3); try { localStorage.setItem('hb-pointer', pointerHand); } catch (e) {} mtabText(); }
   else if (id.startsWith('f:')) {
     oppChoice = id.slice(2); try { localStorage.setItem('hb-opp', oppChoice); } catch (e) {}
     pendingFighter = oppChoice !== 'random' ? { id: oppChoice, t: 0.35 } : null;   // subito la clessidra, poi il caricamento
@@ -2422,14 +2444,15 @@ function updatePause(dt) {
   if (game.phase === 'menu') { updateMainMenu(dt, g); return; }
   // sicurezza: un menu principale aperto mentre giochi/ti alleni non si potrebbe premere (si resterebbe bloccati): si chiude
   if (MENUS.some(m => m.group.visible)) { console.warn('menu aperto fuori dal menu: chiuso', game.phase); for (const m of MENUS) m.close(); }
-  if (game.phase === 'watch') return;                 // incontro CPU: niente pausa, c'e' il pulsante per saltare
+  if (game.phase === 'watch' && !game.paused && !pause.group.visible) return;   // incontro CPU: la pausa si apre solo dal tabellone
   if (!game.paused && !pause.group.visible && game.phase !== 'end' && longPress) { openPause(); return; }
   if (game.paused && click) { closePause(); return; }
   const id = pause.update(dt, g);
   if (id) sfx.menuBlip();
   if (id === 'resume') closePause();
+  else if (id === 'restart' && game.phase === 'watch') { closePause(); sfx.stopVoices(); if (cpu) { cpu.skipped = true; cpu.finish(true); } }   // guardando un incontro: vai al risultato
   else if (id === 'restart') { closePause(); sfx.stopVoices(); if (game.phase === 'training') trainer().reset(); else if (game.phase === 'sparring') spar.reset(); else newMatch(); }
-  else if (id === 'exit') { closePause(); tour = null; surv = null; showMainMenu(); }
+  else if (id === 'exit') { if (game.phase === 'watch') { exitWatch(); return; } closePause(); tour = null; surv = null; showMainMenu(); }
   else if (id === 'change') {                     // torna al menu da cui eri partito (difesa, sparring o allenamento)
     closePause(); const lm = game.phase === 'sparring' ? lastTrainMenu : null; showMainMenu();
     if (lm === 'def') { openMenu(defMenu); defSelect(); } else if (lm === 'spar') openMenu(sparMenu); else openMenu(trainMenu);
