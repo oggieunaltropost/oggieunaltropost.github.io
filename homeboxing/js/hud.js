@@ -1,7 +1,7 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261010190023';
-import { drawFlagAny } from './roster.js?v=20261010190023';
+import { t as tr } from './i18n.js?v=20261010190640';
+import { drawFlagAny } from './roster.js?v=20261010190640';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
 // ogni raggio: { o, d, hit, sel (grilletto / pizzico tenuto), click (appena premuto) }
@@ -142,10 +142,10 @@ export class Scoreboard {
     const g = this.canvas.getContext('2d'), W = 1024, H = 560;
     g.fillStyle = '#0b0d12'; g.fillRect(0, 0, W, H);
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = '#ffd34d'; g.font = '900 54px system-ui, sans-serif';
-    g.fillText(`ROUND ${s.round}${s.rounds ? '/' + s.rounds : ''}`, W * 0.19, 52);
-    g.fillStyle = '#c9ced8'; g.font = '700 34px system-ui, sans-serif';
-    g.fillText((s.level || '').toUpperCase(), W * 0.5, 54);             // (livello di difficolta' al centro)
+    g.fillStyle = '#ffd34d'; g.font = '900 50px system-ui, sans-serif';
+    g.fillText(`ROUND ${s.round}${s.rounds ? '/' + s.rounds : ''}`, W * 0.5, 36);             // (round al centro, livello subito sotto)
+    g.fillStyle = '#c9ced8'; g.font = '700 30px system-ui, sans-serif';
+    g.fillText((s.level || '').toUpperCase(), W * 0.5, 77);
     const mm = Math.floor(s.time / 60), ss = String(Math.floor(s.time % 60)).padStart(2, '0');
     g.fillStyle = s.time < 10 && s.running ? '#ff5a5a' : '#ffffff';
     g.font = '800 64px ui-monospace, monospace';
@@ -153,8 +153,8 @@ export class Scoreboard {
     // colonne giocatore / Mike
     const col = (x, name, color, p, flag, right) => {
       g.fillStyle = color; g.fillRect(x - 230, 100, 460, 64);
-      // bandierina piccola con il bordo bianco dentro la barra colorata: a sinistra del nome per il nome di sinistra, a destra per quello di destra
-      const fw = flag ? 60 : 0, fh = 40, gap = flag ? 16 : 0; let size = 44;
+      // bandierina piccola con il bordo grigio dentro la barra colorata: a sinistra del nome per il nome di sinistra, a destra per quello di destra
+      const fw = flag ? 54 : 0, fh = 36, gap = flag ? 16 : 0; let size = 44;
       g.font = `800 ${size}px system-ui, sans-serif`;
       while (g.measureText(name).width + fw + gap > 430 && size > 20) { size -= 2; g.font = `800 ${size}px system-ui, sans-serif`; }
       const tw = g.measureText(name).width, x0 = x - (tw + fw + gap) / 2;
@@ -164,7 +164,7 @@ export class Scoreboard {
       if (flag) {
         const fx = Math.round(right ? x0 + tw + gap : x0), fy = 132 - fh / 2;
         g.save(); g.translate(fx, fy); g.beginPath(); g.rect(0, 0, fw, fh); g.clip(); drawFlagAny(g, flag, fw, fh); g.restore();
-        g.lineWidth = 4; g.strokeStyle = '#ffffff'; g.strokeRect(fx - 1, fy - 1, fw + 2, fh + 2);
+        g.lineWidth = 4; g.strokeStyle = '#9aa3b6'; g.strokeRect(fx - 1, fy - 1, fw + 2, fh + 2);
       }
       g.font = '900 150px system-ui, sans-serif'; g.fillText(p.points, x, 250);
       // energia: verde -> rosso
