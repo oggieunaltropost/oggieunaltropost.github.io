@@ -2,10 +2,10 @@
 // dune, rocce, cespugli, cactus, mesas e montagne) con la sua mappa di profondita'; davanti, in 3D, ogni tanto uno
 // scorpione che esce dalla sabbia, cammina un po' e si risotterra.
 import * as THREE from 'three';
-import { panoDepth } from './pano_depth.js?v=20261010145517';
-import { panoGround } from './pano_ground.js?v=20261010145517';
-import { contactShadow } from './contact_shadow.js?v=20261010145517';
-import * as sfx from './sfx.js?v=20261010145517';
+import { panoDepth } from './pano_depth.js?v=20261010150310';
+import { panoGround } from './pano_ground.js?v=20261010150310';
+import { contactShadow } from './contact_shadow.js?v=20261010150310';
+import * as sfx from './sfx.js?v=20261010150310';
 
 const PANO_U = 0.0;
 const SUN = new THREE.Vector3(-0.4465, 0.7193, 0.5321).normalize();      // il sole del panorama (blender/create_desert.py)
@@ -21,7 +21,7 @@ export class Desert {
     this.t = 0;
   }
   _sky() {
-    const tex = new THREE.TextureLoader().load('assets/deserto_panorama.jpg?v=20261010145517', () => { this._sampleSand(tex); this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load('assets/deserto_panorama.jpg?v=20261010150310', () => { this._sampleSand(tex); this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -142,7 +142,7 @@ export class Desert {
   // sabbia vicina: foto di sabbia rossa (colore = quello del terreno della foto), il bordo sfuma tra 5 e 9 m
   _sand() {
     const L = new THREE.TextureLoader();
-    const tex = L.load('assets/sabbia_rossa_colore.jpg?v=20261010145517'); tex.colorSpace = THREE.SRGBColorSpace;
+    const tex = L.load('assets/sabbia_rossa_colore.jpg?v=20261010150310'); tex.colorSpace = THREE.SRGBColorSpace;
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(6, 6); tex.anisotropy = 8;
     const a = document.createElement('canvas'); a.width = a.height = 256; const ga = a.getContext('2d');
     const gr = ga.createRadialGradient(128, 128, 128 * 5 / 9, 128, 128, 128); gr.addColorStop(0, '#fff'); gr.addColorStop(1, '#000');
@@ -151,7 +151,7 @@ export class Desert {
     sand.rotation.x = -Math.PI / 2; sand.position.y = -0.005; sand.renderOrder = -5; this.group.add(sand);
     sand.visible = false;                                 // (ora la sabbia vicina e' la foto stessa, stesa piatta: niente cerchio)
     // sotto il ring: opaca e illuminata (riceve le ombre dei pugili)
-    const nor = L.load('assets/sabbia_rossa_rilievo.jpg?v=20261010145517'); nor.wrapS = nor.wrapT = THREE.RepeatWrapping; nor.repeat.set(3, 3);
+    const nor = L.load('assets/sabbia_rossa_rilievo.jpg?v=20261010150310'); nor.wrapS = nor.wrapT = THREE.RepeatWrapping; nor.repeat.set(3, 3);
     const t2 = tex.clone(); t2.repeat.set(3, 3); t2.needsUpdate = true;
     const under = new THREE.Mesh(new THREE.CircleGeometry(4.5, 48), new THREE.MeshStandardMaterial({ map: t2, normalMap: nor, roughness: 0.95 }));
     under.rotation.x = -Math.PI / 2; under.position.y = -0.003; under.receiveShadow = true; this.group.add(under);
@@ -459,7 +459,7 @@ export class Desert {
         const far = Math.random() < 0.35, a = Math.PI * 1.5 + (Math.random() < 0.5 ? -1 : 1) * (0.55 + Math.random() * 0.75), r = far ? 4.6 + Math.random() * 1.8 : 3.3 + Math.random() * 1.2;
         x = Math.cos(a) * r; z = Math.sin(a) * r;
       } while ((Math.max(Math.abs(x), Math.abs(z)) < SC_RING || (other && other.sc && Math.hypot(x - other.sc.x, z - other.sc.z) < 1.3)) && ++tries < 30);   // ai lati davanti a te (a 30-75 gradi dalla direzione dell'avversario, che davanti lo coprirebbe), oltre il bordo del ring
-      this.sc = { phase: 'su', t: 0, x, z, yaw: Math.random() * Math.PI * 2, turn: 0, walk: 4 + Math.random() * 5 };
+      this.sc = { phase: 'su', t: 0, x, z, yaw: Math.random() * Math.PI * 2, turn: 0, walk: 12 + Math.random() * 9 };
       const black = Math.random() < 0.5, M = this.scMats;                    // uno ambra o uno nero, a caso
       M.shell.color.setHex(black ? 0x17130f : 0x6b4318); M.shell.roughness = black ? 0.22 : 0.35; M.shell.metalness = black ? 0.25 : 0.1;
       M.dark.color.setHex(black ? 0x0a0908 : 0x3a220b); M.sting.color.setHex(black ? 0x050403 : 0x1c1006);
@@ -477,7 +477,7 @@ export class Desert {
       if (k >= 1) { C.phase = 'cammina'; C.t = 0; }
     } else if (C.phase === 'cammina') {                    // cammina a scatti, curvando
       const go = Math.sin(C.t * 1.7) > -0.35;              // brevi soste
-      speed = go ? 0.13 : 0;
+      speed = go ? 0.15 : 0;
       if (Math.random() < dt * 0.8) C.turn = (Math.random() - 0.5) * 1.6;
       C.yaw += C.turn * dt * (go ? 1 : 0.3);
       // resta sulla sabbia 3D e fuori dal ring

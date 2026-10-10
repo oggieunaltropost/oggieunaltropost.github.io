@@ -1,7 +1,7 @@
 // Modalita' Sopravvivenza: la torre. Un piano per ogni avversario (dal basso), tu a destra del piano che devi
 // conquistare. Dopo una vittoria il tuo gettone sale al piano sopra con scia, lampo e suono; in cima la corona.
 import * as THREE from 'three';
-import { t } from './i18n.js?v=20261010145517';
+import { t } from './i18n.js?v=20261010150310';
 
 const W = 1024, H = 1600;                    // tela
 const PW = 0.9, PH = PW * H / W;             // pannello in metri
