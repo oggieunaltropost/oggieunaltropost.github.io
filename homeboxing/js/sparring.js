@@ -6,17 +6,19 @@
 // Durata libera: si va avanti finche' non fermi dalla pausa. La velocita' del partner (colpi, andata e ritorno,
 // spostamenti, parate) si regola trascinando su e giu' il cursore della barra al tuo fianco.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261010150310';
-import { t as tr } from './i18n.js?v=20261010150310';
+import * as sfx from './sfx.js?v=20261010150808';
+import { t as tr } from './i18n.js?v=20261010150808';
 
 // combinazioni chiamate: voce, colpi che tira il partner (non qui) e quello che devi tirare tu
 // codici: 1 jab, 2 diretto, 3 gancio sinistro, 4 gancio destro, 5 montante sinistro, 6 montante destro; 'b' = al corpo
-const CALLS = [
-  { v: 'c_k_1', seq: ['1'], lvl: 0 }, { v: 'c_k_2', seq: ['2'], lvl: 0 }, { v: 'c_k_11', seq: ['1', '1'], lvl: 0 },
-  { v: 'c_k_12', seq: ['1', '2'], lvl: 0 }, { v: 'c_k_112', seq: ['1', '1', '2'], lvl: 1 }, { v: 'c_k_123', seq: ['1', '2', '3'], lvl: 1 },
-  { v: 'c_k_32', seq: ['3', '2'], lvl: 1 }, { v: 'c_k_23', seq: ['2', '3'], lvl: 1 }, { v: 'c_k_16', seq: ['1', '6'], lvl: 1 },
-  { v: 'c_k_63', seq: ['6', '3'], lvl: 2 }, { v: 'c_k_34', seq: ['3', '4'], lvl: 2 }, { v: 'c_k_1232', seq: ['1', '2', '3', '2'], lvl: 2 },
-  { v: 'c_k_b', seq: ['b'], lvl: 0 }, { v: 'c_k_12b', seq: ['1', '2b'], lvl: 1 },
+const CALLS = [                                  // (niente piu' voce: la combinazione si legge sopra il partner)
+  { seq: ['1'], lvl: 0 }, { seq: ['2'], lvl: 0 }, { seq: ['1', '1'], lvl: 0 }, { seq: ['1', '2'], lvl: 0 }, { seq: ['b'], lvl: 0 },
+  { seq: ['1', '1', '2'], lvl: 1 }, { seq: ['1', '2', '3'], lvl: 1 }, { seq: ['3', '2'], lvl: 1 }, { seq: ['2', '3'], lvl: 1 }, { seq: ['1', '6'], lvl: 1 },
+  { seq: ['1', '2b'], lvl: 1 }, { seq: ['1', '2', '1'], lvl: 1 }, { seq: ['1', '2', '3', '2'], lvl: 1 }, { seq: ['1', '1', '2', '1'], lvl: 1 },
+  { seq: ['6', '3'], lvl: 2 }, { seq: ['3', '4'], lvl: 2 }, { seq: ['1', '2', '1', '2'], lvl: 2 }, { seq: ['1', '2', '3', '4'], lvl: 2 },
+  { seq: ['1', '2b', '3', '2'], lvl: 2 }, { seq: ['2', '3', '2', '1', '2'], lvl: 2 }, { seq: ['1', '1', '2', '3', '2'], lvl: 2 },
+  { seq: ['1', '2', '3', '2', '1', '2'], lvl: 3 }, { seq: ['1', '1', '2', '3', '4', '2'], lvl: 3 }, { seq: ['1', '2', '5', '4', '2'], lvl: 3 },
+  { seq: ['6', '3', '2', '3', '4'], lvl: 3 }, { seq: ['1', '2b', '3', '4', '2', '1'], lvl: 3 }, { seq: ['3', '4', '3', '4', '2'], lvl: 3 },
 ];
 // difesa: cosa annuncia l'allenatore e cosa tira il partner
 // per colpo (si possono scegliere dal menu della difesa): l'allenatore dice come difendersi, il partner tira quello
@@ -360,10 +362,10 @@ export class Sparring {
         if (this.cueS.visible) { if ((this.cueHold -= dt) <= 0) this.cueS.visible = false; else { this._placeCue(); this._drawCue(null, dt); } }
         return;
       }
-      const maxLvl = this.speed < 0.6 ? 0 : this.speed < 0.9 ? 1 : 2;
-      const c = pick(CALLS.filter(x => x.lvl <= maxLvl)), sp0 = Math.sqrt(this.speed);
-      sfx.announce(c.v);
-      const wait = sfx.voiceDur(c.v) + 0.15;
+      const maxLvl = this.speed < 0.2 ? 0 : this.speed < 0.35 ? 1 : this.speed < 0.6 ? 2 : 3, sp0 = Math.sqrt(this.speed);
+      const pool = CALLS.filter(x => x.lvl <= maxLvl), top = pool.filter(x => x.lvl >= maxLvl - 1);      // (di preferenza le piu' lunghe del livello)
+      const c = Math.random() < 0.65 && top.length ? pick(top) : pick(pool);
+      const wait = 0.2;
       this.task = { kind: 'combo', c, step: 0, wait, t: 0, total: wait + (2.6 + 1.3 * c.seq.length) / sp0, mistakes: 0 };
       this._newCue(c.seq, this.task.total); this._placeCue(); this.cueS.visible = true; this._drawCue(1, 0);       // la scritta compare insieme alla voce
       return;
@@ -372,7 +374,9 @@ export class Sparring {
     // guardia aperta dove devi colpire: giu' per i colpi alla testa, su (corpo scoperto) per quelli al corpo
     const want = seq[Math.min(T.step, seq.length - 1)], toBody = want === 'b' || want.endsWith('b');
     m.lowTarget = toBody ? 0 : 1; m.low += (m.lowTarget - m.low) * Math.min(1, dt * 6);
-    const match = (x, g) => x === 'b' ? g.body : x.endsWith('b') ? (g.body && g.n === x[0]) : (g.n === x && !g.body);
+    // jab e diretto contano per la mano (quello a segno quasi dritto a volte sembrava un gancio): sinistro = jab, destro = diretto; ganci e montanti restano precisi
+    const straight = n => n === '1' || n === '2', hand = n => (n === '1' ? 'left' : 'right');
+    const match = (x, g) => x === 'b' ? g.body : x.endsWith('b') ? (g.body && (g.n === x[0] || (straight(x[0]) && g.side === hand(x[0])))) : (!g.body && (g.n === x || (straight(x) && g.side === hand(x))));
     let res = null;
     for (const p of this._contacts(dt, player)) {
       if (match(seq[T.step], p)) {
