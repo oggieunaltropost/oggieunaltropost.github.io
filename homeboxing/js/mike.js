@@ -88,6 +88,8 @@ function legIcon(g, kind, cx, cy, s) {
     g.beginPath(); g.moveTo(0, -108); g.lineTo(-58, -30); g.lineTo(58, -30); g.closePath(); g.fill();
     g.beginPath(); g.moveTo(0, -74); g.lineTo(-74, 8); g.lineTo(74, 8); g.closePath(); g.fill();
     g.beginPath(); g.moveTo(0, -40); g.lineTo(-90, 52); g.lineTo(90, 52); g.closePath(); g.fill();
+  } else if (kind === 'heart') {                                    // cuore
+    g.beginPath(); g.moveTo(0, 92); g.bezierCurveTo(-130, 8, -104, -96, 0, -42); g.bezierCurveTo(104, -96, 130, 8, 0, 92); g.closePath(); g.fill();
   } else if (kind === 'cobra') {                                    // cobra col cappuccio aperto
     g.lineWidth = 30; g.beginPath(); g.moveTo(-44, 104); g.bezierCurveTo(66, 100, 70, 36, 6, 14); g.bezierCurveTo(-46, -6, -14, -28, 0, -44); g.stroke();
     g.beginPath(); g.ellipse(0, -52, 48, 36, 0, 0, Math.PI * 2); g.fill();                                        // cappuccio
@@ -98,7 +100,7 @@ function legIcon(g, kind, cx, cy, s) {
   g.restore();
 }
 import * as THREE from 'three';
-export { StyleLearner } from './style_learn.js?v=20261010160517';
+export { StyleLearner } from './style_learn.js?v=20261010160710';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const _lq = new THREE.Quaternion(), _lr = new THREE.Quaternion(), _qI = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ld = new THREE.Vector3();
 
@@ -127,6 +129,10 @@ const C = {
   '1-2-1': ['jab', 'cross', 'jab'], '1-2-3-4': ['jab', 'cross', 'hook_l', 'hook_r'], '4-3': ['hook_r', 'hook_l'],
   '3-4-3': ['hook_l', 'hook_r', 'hook_l'], '3b-3b': ['body_l', 'body_l'], '2-3b-3': ['cross', 'body_l', 'hook_l'],
   '1-2-3b': ['jab', 'cross', 'body_l'], '5-6': ['uppercut_l', 'uppercut_r'],
+  // (2026-10-10, Atom: stile misto) raffiche di jab, combinazioni lunghe che chiudono con ganci e montanti
+  '1-1-1-2': ['jab', 'jab', 'jab', 'cross'], '1-2-3-6': ['jab', 'cross', 'hook_l', 'uppercut_r'],
+  '1-2-6-3-2': ['jab', 'cross', 'uppercut_r', 'hook_l', 'cross'], '1-3b-3-2': ['jab', 'body_l', 'hook_l', 'cross'],
+  '5-6-3-2': ['uppercut_l', 'uppercut_r', 'hook_l', 'cross'],
 };
 const combos = (...names) => names.map(n => C[n]);
 // se tieni la guardia alta, Mike lavora al corpo e con montanti e ganci che entrano di lato
@@ -254,6 +260,7 @@ export class Mike {
     if (this.cfg0.noStubble) this.model.traverse(o => { if (o.isMesh && o.material.name === 'Capelli') o.visible = false; });
     if (this.cfg0.glow) this.model.traverse(o => { if (o.isMesh && this.cfg0.glow.includes(o.material.name)) { o.material.emissive.copy(o.material.color); o.material.emissiveIntensity = o.material.name === 'Cresta' ? 1.4 : 0.6; o.material.toneMapped = false; } });
     if (this.cfg0.evenSkin !== false) this.evenSkin();
+    if (this.cfg0.metal) this.model.traverse(o => { if (o.isMesh && this.cfg0.metal.mats.includes(o.material.name)) { o.material.metalness = this.cfg0.metal.metalness; o.material.roughness = this.cfg0.metal.roughness; o.material.sheen = 0; o.material.envMapIntensity = 1.3; } });   // (Atom: tutto d'oro)
     if (this.cfg0.skinGloss) this.model.traverse(o => { if (o.isMesh && o.material.name === 'Pelle') { o.material.roughness = this.cfg0.skinGloss; } });
     if (this.cfg0.skinTint) this.model.traverse(o => { if (o.isMesh && o.material.name === 'Pelle') o.material.color.setHex(this.cfg0.skinTint); });
     const bone = n => this.model.getObjectByName(n);
