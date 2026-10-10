@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { fixHumanMaterial } from './ringgirl.js?v=20261010173730';
+import { fixHumanMaterial } from './ringgirl.js?v=20261010174448';
 
 const SKIN = [0x3b2417, 0x5a3825, 0x7a4e33, 0x9a6a48, 0xc08d6a, 0xe0b594, 0xf1cfb4];
 const SHIRT = [0xd81e2c, 0x1d4fc4, 0xf2f2f2, 0x1b1b1f, 0xffc93a, 0x2e8b57, 0x8a2be2, 0xff7f27, 0x4cc3e6, 0x9e9e9e, 0x6b3e26];
@@ -66,7 +66,7 @@ export class Arena {
         }
         const n = Math.floor(len / 0.62);
         for (let i = 0; i < n; i++) {
-          if (r === 0 || Math.random() < 0.08) continue;          // niente pubblico nella prima fila (restano solo quelli sulle sedie); qualche posto vuoto
+          if (r === 0 || (i + r) % 2 === 1 || Math.random() < 0.1) continue;   // niente pubblico nella prima fila (restano solo quelli sulle sedie); poi la meta' dei posti, a scacchiera (distribuiti bene) e qualche buco in piu'
           const along = -len / 2 + 0.31 + i * 0.62 + (Math.random() - 0.5) * 0.12;
           const px = Math.sin(rot) * (d + 0.35) + Math.cos(rot) * along;
           const pz = Math.cos(rot) * (d + 0.35) - Math.sin(rot) * along;
@@ -145,7 +145,7 @@ export class Arena {
   // Bordo ring: persone vere in 3D (blender/create_crowd.py ... glb), sedute su sedie, animate.
   async loadRingside() {
     const loader = new GLTFLoader();
-    const models = (await Promise.all([0, 1, 2, 3, 4, 5, 6, 7].map(i => loader.loadAsync(`assets/spettatori/s${i}.glb?v=20261010173730`).catch(() => null)))).filter(Boolean);
+    const models = (await Promise.all([0, 1, 2, 3, 4, 5, 6, 7].map(i => loader.loadAsync(`assets/spettatori/s${i}.glb?v=20261010174448`).catch(() => null)))).filter(Boolean);
     if (!models.length) return;
     const chairMat = new THREE.MeshStandardMaterial({ color: 0x1b1d22, roughness: 0.6, metalness: 0.3 });
     // una sedia = una sola geometria (seduta, schienale, gambe), e tutte le sedie in un'unica mesh: poche chiamate di disegno
@@ -219,14 +219,14 @@ export class Arena {
   // (ferma, applaude, esulta). Ogni spettatore e' una "sagoma" con la sua foto: leggero per il visore.
   // Atlante: 6 colonne x 8 righe, celle 256x512; persona p -> riga p/2, colonna (p%2)*3 + posa.
   _buildCrowd(seats) {
-    const n = seats.length, PEOPLE = 16, COLS = 6, ROWS = 8;
-    const tex = new THREE.TextureLoader().load('assets/pubblico.webp?v=20261010173730');
+    const n = seats.length, PEOPLE = 16, COLS = 8, ROWS = 8;
+    const tex = new THREE.TextureLoader().load('assets/pubblico.webp?v=20261010174448');
     tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
     const geo = new THREE.PlaneGeometry(1.15, 2.3); geo.translate(0, 1.15 - 2.3 * 12 / 512, 0);   // piedi a terra (atlante: 12 px di margine)
     const aCell = new Float32Array(n * 2), aPose = new Float32Array(n), aTint = new Float32Array(n);
     this.people = seats.map((st, k) => {
       const who = Math.floor(Math.random() * PEOPLE);
-      aCell[k * 2] = (who % 2) * 3; aCell[k * 2 + 1] = Math.floor(who / 2);
+      aCell[k * 2] = (who % 2) * 4; aCell[k * 2 + 1] = Math.floor(who / 2);
       aTint[k] = 0.5 + Math.random() * 0.25;          // in penombra rispetto al ring
       return { ...st, phase: Math.random() * 10, fan: Math.random(), pose: 0, clapRate: 3 + Math.random() * 2 };
     });
@@ -251,9 +251,11 @@ export class Arena {
 
   // la folla reagisce: colpo forte = esulta
   cheer(amount = 1) { this.excite = Math.min(1, this.excite + 0.5 * amount); }
+  // hai vinto: la fila in piedi alza le braccia (false: torna a braccia basse)
+  winCheer(on = true) { this.win = on ? { t: 0 } : null; if (on) for (const st of this.people || []) st.winDelay = Math.random() * 1.4; }
 
   update(dt, ringCenterWorld) {
-    this.time += dt;
+    this.time += dt; if (this.win) this.win.t += dt;
     this.excite = Math.max(0, this.excite - dt * 0.25);
     this._frame = (this._frame || 0) + 1;
     if (this._frame % 2 === 0) this._updateCrowd(dt * 2);
@@ -278,9 +280,16 @@ export class Arena {
       let pose = 0;
       if (hype > 0.45) pose = Math.sin(t * 2 + st.phase) > -0.6 ? 2 : 1;
       else if (hype > 0.15 || Math.sin(t * 0.37 + st.phase * 3) > 0.85) pose = Math.sin(t * st.clapRate * Math.PI + st.phase) > 0 ? 1 : 0;
-      if (st.row === 1) pose = 2;                                   // la prima fila di pubblico (dopo le sedie) sta in piedi: l'unica posa in piedi e' quella con le braccia alzate
+      let jump = 0;
+      if (st.row === 1) {                                           // la fila dopo le sedie sta in piedi a braccia basse; se vinci alzano le braccia (uno dopo l'altro, saltellando)
+        pose = 3;
+        if (this.win) {
+          const dl = st.winDelay ?? (st.winDelay = Math.random() * 1.4), u = this.win.t - dl;
+          if (u > 0 && u < 14) { pose = 2; jump = Math.max(0, 1 - u / 0.9) * 0.2 * Math.abs(Math.sin(u * 9)); }
+        }
+      }
       this.aPose.array[k] = pose;
-      const bounce = Math.abs(Math.sin(t * (3 + st.fan * 3) + st.phase)) * (0.01 + hype * 0.1);
+      const bounce = st.row === 1 ? jump : Math.abs(Math.sin(t * (3 + st.fan * 3) + st.phase)) * (0.01 + hype * 0.1);
       // ondeggiano un po' (nessuno sta fermo come una statua)
       e.set(0, st.rot + Math.sin(t * 0.6 + st.phase) * 0.12, Math.sin(t * (0.9 + st.fan) + st.phase * 2) * 0.03); q.setFromEuler(e);
       m4.compose(p.set(st.x, st.y + bounce, st.z), q, one);
