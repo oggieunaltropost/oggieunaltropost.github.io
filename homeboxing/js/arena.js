@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { fixHumanMaterial } from './ringgirl.js?v=20261010182023';
+import { fixHumanMaterial } from './ringgirl.js?v=20261010190023';
 
 const SKIN = [0x3b2417, 0x5a3825, 0x7a4e33, 0x9a6a48, 0xc08d6a, 0xe0b594, 0xf1cfb4];
 const SHIRT = [0xd81e2c, 0x1d4fc4, 0xf2f2f2, 0x1b1b1f, 0xffc93a, 0x2e8b57, 0x8a2be2, 0xff7f27, 0x4cc3e6, 0x9e9e9e, 0x6b3e26];
@@ -145,7 +145,7 @@ export class Arena {
   // Bordo ring: persone vere in 3D (blender/create_crowd.py ... glb), sedute su sedie, animate.
   async loadRingside() {
     const loader = new GLTFLoader();
-    const models = (await Promise.all([0, 1, 2, 3, 4, 5, 6, 7].map(i => loader.loadAsync(`assets/spettatori/s${i}.glb?v=20261010182023`).catch(() => null)))).filter(Boolean);
+    const models = (await Promise.all([0, 1, 2, 3, 4, 5, 6, 7].map(i => loader.loadAsync(`assets/spettatori/s${i}.glb?v=20261010190023`).catch(() => null)))).filter(Boolean);
     if (!models.length) return;
     const chairMat = new THREE.MeshStandardMaterial({ color: 0x1b1d22, roughness: 0.6, metalness: 0.3 });
     // una sedia = una sola geometria (seduta, schienale, gambe), e tutte le sedie in un'unica mesh: poche chiamate di disegno
@@ -220,7 +220,7 @@ export class Arena {
   // Atlante: 6 colonne x 8 righe, celle 256x512; persona p -> riga p/2, colonna (p%2)*3 + posa.
   _buildCrowd(seats) {
     const n = seats.length, PEOPLE = 16, COLS = 8, ROWS = 8;
-    const tex = new THREE.TextureLoader().load('assets/pubblico.webp?v=20261010182023');
+    const tex = new THREE.TextureLoader().load('assets/pubblico.webp?v=20261010190023');
     tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
     const geo = new THREE.PlaneGeometry(1.15, 2.3); geo.translate(0, 1.15 - 2.3 * 12 / 512, 0);   // piedi a terra (atlante: 12 px di margine)
     const aCell = new Float32Array(n * 2), aPose = new Float32Array(n), aTint = new Float32Array(n);

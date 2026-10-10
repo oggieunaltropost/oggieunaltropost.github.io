@@ -5,7 +5,7 @@
 // di scintille bianche alla fine). Ogni scoppio da' un lampo di luce che illumina ring e pugili e un botto posizionale
 // (sfx.fireworkLaunch/Burst). Un solo THREE.Points (scintille additive, colore che svanisce) e una sola luce puntiforme.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261010182023';
+import * as sfx from './sfx.js?v=20261010190023';
 
 const N = 14000;                                          // scintille al massimo
 const PALETTE = [[1.0, 0.12, 0.08], [1.0, 0.7, 0.2], [0.2, 0.45, 1.0], [0.25, 1.0, 0.4], [1.0, 0.15, 0.75], [1.0, 1.0, 0.95], [0.25, 0.95, 1.0], [1.0, 0.4, 0.08], [0.7, 0.3, 1.0]];
