@@ -21,7 +21,7 @@ function drawIcon(g, kind, cx, cy, w) {
   g.restore();
 }
 import * as THREE from 'three';
-export { StyleLearner } from './style_learn.js?v=20261010135749';
+export { StyleLearner } from './style_learn.js?v=20261010140002';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const _lq = new THREE.Quaternion(), _lr = new THREE.Quaternion(), _qI = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ld = new THREE.Vector3();
 
@@ -384,18 +384,28 @@ export class Mike {
     const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d');
     const name = (this.cfg0.name || '').toUpperCase(), n = L.stars || 0;
     g.fillStyle = L.color; g.textAlign = 'center'; g.textBaseline = 'middle';
-    let size = 150; g.font = `900 ${size}px system-ui, sans-serif`;
+    let size = L.icon ? 120 : 150; g.font = `900 ${size}px system-ui, sans-serif`;
     while (g.measureText(name).width > 470 && size > 40) { size -= 6; g.font = `900 ${size}px system-ui, sans-serif`; }
-    g.fillText(name, 256, n ? 92 : 128);
+    g.fillText(name, 256, n || L.icon ? 78 : 128);
     for (let i = 0; i < n; i++) {                                       // stelle sotto il nome
       const cx = 256 + (i - (n - 1) / 2) * 78, cy = 208, R = 34; g.beginPath();
       for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, r = k % 2 ? R * 0.42 : R; g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
       g.closePath(); g.fill();
     }
+    if (L.icon === 'glove') {                                           // guantone sotto il nome (sagoma nera: corpo, pollice staccato da una riga, polsino)
+      const cx = 262, cy = 184; g.save(); g.translate(cx, cy); g.rotate(-0.25); g.scale(1.3, 1.3);
+      g.beginPath(); g.ellipse(6, -14, 50, 42, 0, 0, Math.PI * 2); g.fill();                    // corpo
+      g.beginPath(); g.ellipse(-44, 6, 17, 26, 0.35, 0, Math.PI * 2); g.fill();                  // pollice
+      g.beginPath(); g.roundRect(-26, 18, 64, 34, 7); g.fill();                                   // polsino
+      g.globalCompositeOperation = 'destination-out'; g.lineWidth = 5; g.lineCap = 'round';
+      g.beginPath(); g.arc(-22, -4, 26, -1.9, 1.3); g.stroke();                                 // stacco del pollice
+      g.fillRect(-26, 16, 64, 4);                                                              // stacco del polsino
+      g.restore();
+    }
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
     const geo = sh.geometry; geo.computeBoundingBox(); const bb = geo.boundingBox, W = bb.max.x - bb.min.x, Hh = bb.max.y - bb.min.y;
     const side = L.side === 'left' ? 1 : -1;                               // (il pugile guarda +Z: la sua sinistra e' +X)
-    const box = new THREE.Vector4((bb.max.x + bb.min.x) / 2 + side * W * 0.30, bb.min.y + Hh * (L.y ?? 0.4), W * (L.w ?? 0.19), W * (L.w ?? 0.19) * 0.5);
+    const box = new THREE.Vector4((bb.max.x + bb.min.x) / 2 + side * W * (L.x ?? 0.30), bb.min.y + Hh * (L.y ?? 0.4), W * (L.w ?? 0.19), W * (L.w ?? 0.19) * 0.5);
     const m = sh.material = sh.material.clone();
     m.onBeforeCompile = shd => {
       shd.uniforms.uDecal = { value: tex }; shd.uniforms.uBox = { value: box };
@@ -405,7 +415,7 @@ void main() {`).replace('#include <begin_vertex>', `#include <begin_vertex>
       shd.fragmentShader = shd.fragmentShader.replace('void main() {', `uniform sampler2D uDecal; uniform vec4 uBox; varying vec3 vOP; varying vec3 vON;
 void main() {`).replace('#include <map_fragment>', `#include <map_fragment>
         { vec2 q = vec2((vOP.x - uBox.x) / uBox.z, (vOP.y - uBox.y) / uBox.w);
-          if (abs(q.x) < 1.0 && abs(q.y) < 1.0 && vON.z > 0.25) { vec4 d = texture2D(uDecal, vec2(q.x * 0.5 + 0.5, q.y * 0.5 + 0.5)); diffuseColor.rgb = mix(diffuseColor.rgb, d.rgb, d.a); } }`);
+          if (abs(q.x) < 1.0 && abs(q.y) < 1.0 && vON.z > 0.05) { vec4 d = texture2D(uDecal, vec2(q.x * 0.5 + 0.5, q.y * 0.5 + 0.5)); diffuseColor.rgb = mix(diffuseColor.rgb, d.rgb, d.a); } }`);
     };
     m.needsUpdate = true;
   }
