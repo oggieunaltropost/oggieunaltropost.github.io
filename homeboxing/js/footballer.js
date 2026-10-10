@@ -5,8 +5,8 @@
 // (modello e animazioni: blender/create_calciatore.py; cicli "sul posto", la velocita' regola timeScale)
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { contactShadow } from './contact_shadow.js?v=20261010124345';
-import * as sfx from './sfx.js?v=20261010124345';
+import { contactShadow } from './contact_shadow.js?v=20261010131000';
+import * as sfx from './sfx.js?v=20261010131000';
 
 const SCALE = 1.18;                                       // il modello e' 1,5 m: diventa ~1,78 m
 const V_RUN = 4.5, V_SPRINT = 8.0;                        // velocita' di riferimento dei cicli (m/s)
@@ -41,7 +41,7 @@ export class Footballer {
     this.ball.castShadow = true; this.group.add(this.ball);
     this.ballShadow = contactShadow(0.22, 0.22, 0.6); this.ballShadow.position.y = 0.013; this.group.add(this.ballShadow);
     this.ball.position.copy(this.pos); this.bFrom = this.ball.position.clone(); this.bBlend = 1;
-    new GLTFLoader().load('assets/calciatore.glb?v=20261010124345', g => {
+    new GLTFLoader().load('assets/calciatore.glb?v=20261010131000', g => {
       this.model = g.scene; this.model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
       // pelle, occhi, sopracciglia e capelli sono esportati in "blend": ordinati male, girandosi spariva mezza faccia o i
       // capelli. Pelle e occhi opachi; capelli e sopracciglia con taglio netto dell'alpha (niente ordinamento)
@@ -62,7 +62,17 @@ export class Footballer {
   cheer(on, look = null) {
     this.cheering = !!on; if (look) this.look = look.clone();
     if (on) { this.sh = null; if (this.mode === 'shoot' || this.mode === 'fetch') this.mode = 'run'; }
-    else if (this.mixer) this._pickNext();
+    else if (!this.watching) this._resume();
+  }
+  // guarda il ring (ko, o in attesa del verdetto): si ferma in piedi, girato verso di te, col pallone fermo ai piedi, senza esultare
+  watch(on, look = null) {
+    this.watching = !!on; if (look) this.look = look.clone();
+    if (on) { this.sh = null; if (this.mode === 'shoot' || this.mode === 'fetch' || this.mode === 'juggle') this.mode = 'run'; }
+    else if (!this.cheering) this._resume();
+  }
+  _resume() {
+    if (!this.mixer) return;
+    if (this.free) { this.mode = 'fetch'; this.modeT = 0; this.modeDur = 1e9; this.sh = null; } else this._pickNext();   // pallone rimasto lontano: va a riprenderlo
   }
 
   _clip(name) {                                                // dissolvenza tra le animazioni
@@ -168,7 +178,7 @@ export class Footballer {
     if (!this.mixer) return;
     dt = Math.min(dt, 0.1); this.t += dt; this.modeT += dt;
     const juggling = this.mode === 'juggle', shooting = this.mode === 'shoot', fetching = this.mode === 'fetch', S = this.sh;
-    if (this.modeT > this.modeDur && !this.cheering) this._pickNext();
+    if (this.modeT > this.modeDur && !this.cheering && !this.watching) this._pickNext();
     let vWant = this.mode === 'sprint' ? V_SPRINT * (0.85 + 0.1 * Math.sin(this.t * 2)) : juggling ? 0 : 4.2 + 0.5 * Math.sin(this.t * 0.7);
     let want, kicking = false, bx = HALF_X, bz = HALF_Z;
     if (shooting) {
@@ -206,8 +216,8 @@ export class Footballer {
     }
     const mg = fetching ? 0 : 2;                                  // (a caccia della palla puo' arrivare fino ai cartelloni)
     if (Math.abs(this.pos.x) > bx - mg || Math.abs(this.pos.z) > bz - mg) want = Math.atan2(-this.pos.x, -this.pos.z);
-    if (this.cheering) { vWant = 0; if (this.look) want = Math.atan2(this.look.x - this.pos.x, this.look.z - this.pos.z); }       // fermo, guarda verso di te
-    const turn = (this.cheering ? 4.0 : fetching ? (this._fd < 5 ? 6.5 : 2.4) : this.mode === 'sprint' ? 2.0 : 3.2) * dt;
+    if (this.cheering || this.watching) { vWant = 0; if (this.look) want = Math.atan2(this.look.x - this.pos.x, this.look.z - this.pos.z); }       // fermo, guarda verso di te
+    const turn = (this.cheering || this.watching ? 4.0 : fetching ? (this._fd < 5 ? 6.5 : 2.4) : this.mode === 'sprint' ? 2.0 : 3.2) * dt;
     this.heading += Math.max(-turn, Math.min(turn, Math.atan2(Math.sin(want - this.heading), Math.cos(want - this.heading))));
     this.speed += Math.max(-6 * dt, Math.min(3.2 * dt, vWant - this.speed));
     this.pos.x += Math.sin(this.heading) * this.speed * dt; this.pos.z += Math.cos(this.heading) * this.speed * dt;
@@ -225,13 +235,14 @@ export class Footballer {
     const target = new THREE.Vector3(); let kick = false, power = 0.5;
     if (kicking && !this.kicked && prevT < 0.5 * dur && a.time >= 0.5 * dur - 1e-6) { this.kicked = true; this._kick(cam); }
     if (this.free) {
+      if (this.cheering || this.watching) this.bv.multiplyScalar(Math.exp(-2.5 * dt));        // fermo a guardare: il pallone si ferma
       this._physics(dt, cam);
     } else {
       if (clip === 'palleggio') {
         const u = (ph * 2) % 1, hh = BALL_R + 0.4 + 0.78 * 4 * u * (1 - u), side = ph < 0.5 ? -0.08 : 0.08;
         target.set(P.x + fx * 0.34 + fz * side, hh, P.z + fz * 0.34 - fx * side);
         if (crossed(prevPh, ph, 0) || crossed(prevPh, ph, 0.5)) { kick = true; power = 0.4; }
-      } else if (clip === 'fermo' || clip === 'tiro') {
+      } else if (clip === 'fermo' || clip === 'tiro' || clip === 'cheer') {
         const ahead = shooting ? 0.72 : 0.45;
         target.set(P.x + fx * ahead, BALL_R, P.z + fz * ahead);
       } else {

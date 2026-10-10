@@ -21,7 +21,7 @@ function drawIcon(g, kind, cx, cy, w) {
   g.restore();
 }
 import * as THREE from 'three';
-export { StyleLearner } from './style_learn.js?v=20261010124345';
+export { StyleLearner } from './style_learn.js?v=20261010131000';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const _lq = new THREE.Quaternion(), _lr = new THREE.Quaternion(), _qI = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ld = new THREE.Vector3();
 
@@ -490,26 +490,41 @@ transformed += uSwInv * uSwing * aSw;`);
       const k = key(v.x, v.y, v.z); let l = grid.get(k); if (!l) grid.set(k, l = []); l.push(i);
     }
     const FBr = new THREE.Matrix3().setFromMatrix4(FB);
+    const mo = fm[F.morphTargetDictionary && F.morphTargetDictionary.mouth_open] || null;      // (spostamento della bocca aperta, per il pizzetto)
     this.model.traverse(o => {
-      if (!o.isSkinnedMesh || o === F || o.morphTargetDictionary || !/capelli|eyebrow/i.test((o.material && o.material.name || '') + o.name)) return;
+      if (!o.isSkinnedMesh || o === F || o.morphTargetDictionary || !/capelli|eyebrow|pizzett/i.test((o.material && o.material.name || '') + o.name)) return;
       const g = o.geometry, gp = g.attributes.position, inv = new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().copy(o.bindMatrix).invert());
       const near = new Int32Array(gp.count).fill(-1);
       for (let i = 0; i < gp.count; i++) {
         v.fromBufferAttribute(gp, i).applyMatrix4(o.bindMatrix);
         const cx = Math.floor(v.x / C), cy = Math.floor(v.y / C), cz = Math.floor(v.z / C);
-        let best = 0.02 * 0.02, bi = -1;
-        for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
-          const l = grid.get(`${cx + dx},${cy + dy},${cz + dz}`); if (!l) continue;
-          for (const j of l) { const d = (fw[j * 3] - v.x) ** 2 + (fw[j * 3 + 1] - v.y) ** 2 + (fw[j * 3 + 2] - v.z) ** 2; if (d < best) { best = d; bi = j; } }
+        let best = 0.02 * 0.02, bi = -1, bestDy = 1e9;
+        for (const lowerOnly of (this.cfg0.goatee ? [true, false] : [false])) {     // pizzetto: prima solo la pelle del mento e del labbro di sotto (non sopra al punto), cosi' con la bocca aperta scende con la mandibola e non resta nei denti
+          for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+            const l = grid.get(`${cx + dx},${cy + dy},${cz + dz}`); if (!l) continue;
+            for (const j of l) {
+              if (lowerOnly && fw[j * 3 + 1] > v.y + 0.004) continue;
+              const d = (fw[j * 3] - v.x) ** 2 + (fw[j * 3 + 1] - v.y) ** 2 + (fw[j * 3 + 2] - v.z) ** 2;
+              if (d < best) { best = d; bi = j; }
+            }
+          }
+          if (bi >= 0) break;
         }
         near[i] = bi;
       }
       if (!near.some(j => j >= 0)) return;
+      // pizzetto: la parte alta (vicina al labbro) con la bocca aperta scende di piu' (ci sarebbe finita davanti ai denti)
+      const top = new Float32Array(gp.count); let y0 = 1e9, y1 = -1e9;
+      if (this.cfg0.goatee) {
+        for (let i = 0; i < gp.count; i++) { v.fromBufferAttribute(gp, i).applyMatrix4(o.bindMatrix); top[i] = v.y; y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y); }
+        for (let i = 0; i < gp.count; i++) top[i] = THREE.MathUtils.clamp((top[i] - y0) / Math.max(1e-4, y1 - y0) * 1.3, 0, 1);
+      }
       g.morphAttributes.position = fm.map(src => {
-        const arr = new Float32Array(gp.count * 3), d = new THREE.Vector3();
+        const arr = new Float32Array(gp.count * 3), d = new THREE.Vector3(), isMouth = this.cfg0.goatee && src === mo;
         for (let i = 0; i < gp.count; i++) {
           const j = near[i]; if (j < 0) continue;
           d.fromBufferAttribute(src, j).applyMatrix3(FBr).applyMatrix3(inv);   // (dallo spazio della pelle a quello del guscio)
+          if (isMouth) d.multiplyScalar(1 + 0.25 * top[i]);
           arr[i * 3] = d.x; arr[i * 3 + 1] = d.y; arr[i * 3 + 2] = d.z;
         }
         return new THREE.BufferAttribute(arr, 3);

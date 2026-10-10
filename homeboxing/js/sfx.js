@@ -33,7 +33,7 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261010124345';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261010131000';
 // Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
@@ -55,7 +55,7 @@ let vbuf = {}, vLang = 'it';
 let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261010124345`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261010131000`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
@@ -199,7 +199,7 @@ const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261010124345`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261010131000`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
   loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (snowWanted && !snowW) snowAmbient(true); if (lavaWanted && !lavaW) lavaAmbient(true); if (underWanted && !underW) underAmbient(true); if (spaceWanted && !spaceW) spaceAmbient(true); if (windWanted && (!wind || wind.synth)) { if (wind) { wind.s.stop(); wind = null; } windAmbient(true); } });   // vento vero appena caricato
   return loading;
@@ -638,7 +638,7 @@ export function ballKick(pos, cam, power = 0.6) {
   const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 4; p.rolloffFactor = 1.3; p.maxDistance = 400;
   if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);
   const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 400 + 7000 * Math.exp(-dist / 45);   // lontano = ovattato
-  const g = ctx.createGain(); g.gain.value = 0.5 * pw; lp.connect(g); g.connect(p); p.connect(master);
+  const g = ctx.createGain(); g.gain.value = 0.45 * pw; lp.connect(g); g.connect(p); p.connect(master);
   const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(320, t0); o.frequency.exponentialRampToValueAtTime(110, t0 + 0.09);   // il corpo del pallone (i toni bassi non escono dagli altoparlanti: c'e' anche il medio)
   const og = ctx.createGain(); og.gain.setValueAtTime(0, t0); og.gain.linearRampToValueAtTime(0.8, t0 + 0.004); og.gain.exponentialRampToValueAtTime(0.001, t0 + 0.13);
   o.connect(og); og.connect(lp); o.start(t0); o.stop(t0 + 0.16);
@@ -658,7 +658,7 @@ export function ballHit(pos, cam, kind = 'bounce', power = 0.5) {
   const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 4; p.rolloffFactor = 1.3; p.maxDistance = 400;
   if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);
   const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500 + 8000 * Math.exp(-dist / 45);
-  const g = ctx.createGain(); g.gain.value = 0.5; lp.connect(g); g.connect(p); p.connect(master);
+  const g = ctx.createGain(); g.gain.value = 0.45; lp.connect(g); g.connect(p); p.connect(master);
   if (!noiseBuf) { noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
   const noise = (f, q, dur, amp, type = 'bandpass') => {
     const n = ctx.createBufferSource(); n.buffer = noiseBuf; const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q;
@@ -681,6 +681,20 @@ export function ballHit(pos, cam, kind = 'bounce', power = 0.5) {
 }
 // fuochi d'artificio dello stadio di notte, nel mondo: il botto arriva in ritardo (340 m/s), piu' ovattato e piano da lontano.
 // Lancio: fischio che sale. Botto: tonfo + corpo medio (gli altoparlanti del Quest non rendono i bassi) + crepitio di scintille.
+// riverbero dello stadio (risposta all'impulso sintetica: rumore che si spegne piano, con le prime riflessioni delle gradinate): il botto
+// "rotola" come un tuono invece di finire secco
+let fwConv = null;
+function fwReverb() {
+  if (fwConv) return fwConv;
+  const sr = ctx.sampleRate, len = Math.floor(sr * 2.8), buf = ctx.createBuffer(2, len, sr);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch); let lpv = 0;
+    for (let i = 0; i < len; i++) { const t = i / sr; lpv += (Math.random() * 2 - 1 - lpv) * (0.18 + 0.5 * Math.exp(-t / 0.5)); d[i] = lpv * Math.exp(-t / 0.62) * (0.25 + 0.75 * Math.min(1, t / 0.03)); }
+    for (const [tt, a] of [[0.09, 0.8], [0.17, 0.6], [0.29, 0.5], [0.44, 0.35]]) { const k = Math.floor((tt + (ch ? 0.011 : 0)) * sr); for (let j = 0; j < 40; j++) d[k + j] += (Math.random() * 2 - 1) * a * (1 - j / 40); }
+  }
+  fwConv = ctx.createConvolver(); fwConv.buffer = buf; const wg = ctx.createGain(); wg.gain.value = 1.0; fwConv.connect(wg); wg.connect(master);
+  return fwConv;
+}
 function fwChain(pos, cam, ref = 30) {
   setListener(cam);
   const cp = cam.getWorldPosition(new cam.position.constructor()), dist = cp.distanceTo(pos);
@@ -688,6 +702,7 @@ function fwChain(pos, cam, ref = 30) {
   if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);
   const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1500 + 9000 * Math.exp(-dist / 140);
   const g = ctx.createGain(); g.gain.value = 1.0; lp.connect(g); g.connect(p); p.connect(master);
+  const wet = ctx.createGain(); wet.gain.value = 0.4 + 0.5 * (1 - Math.exp(-dist / 120)); lp.connect(wet); wet.connect(fwReverb());      // (da lontano si sente piu' riverbero)
   if (!noiseBuf) { noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
   return { lp, t0: ctx.currentTime + 0.02 + dist / 340, dist };
 }
@@ -716,16 +731,14 @@ export function fireworkLaunch(pos, cam, T = 3.5) {
 export function fireworkBurst(pos, cam, type = 'peony', power = 1) {
   if (!ctx || ctx.state !== 'running') return;
   const C = fwChain(pos, cam, 70), t = C.t0 + Math.random() * 0.03, P = Math.max(0.2, power), big = type === 'double' ? 1.15 : 1;
-  // lo scoppio classico: "crack" secco a banda larga, tonfo profondo, corpo medio (si sente anche dagli altoparlanti piccoli)
-  // e poi il rimbombo che rotola con piu' riflessioni tra le gradinate
-  fwNoise(C, t, 6000, 3000, 0.045, 1.4 * P * big, 0.5, 'highpass');
-  fwNoise(C, t, 2200, 1500, 0.11, 1.0 * P * big, 0.5, 'lowpass');
-  fwTone(C, t, 230, 44, 0.55, 1.0 * P * big);
-  fwTone(C, t, 470, 95, 0.2, 0.55 * P * big);
-  fwNoise(C, t + 0.01, 420, 420, 0.32, 0.7 * P * big, 0.7);                // corpo
-  fwNoise(C, t + 0.03, 800, 220, 1.3, 0.65 * P * big, 0.5, 'lowpass');     // rimbombo
-  const ne = 4 + Math.floor(Math.random() * 4);
-  for (let i = 0; i < ne; i++) fwNoise(C, t + 0.22 + i * (0.16 + Math.random() * 0.22), 500 + Math.random() * 1100, 180 + Math.random() * 150, 0.25 + Math.random() * 0.35, (0.42 - i * 0.05) * P, 0.6, 'lowpass');   // riflessioni
+  // scoppio di un vero fuoco d'artificio aereo: un picco secco (rumore a banda larga, attacco istantaneo), subito un "boom" di rumore che
+  // scende dagli acuti ai bassi come un'esplosione (non toni sintetici), un po' di bassi ruvidi e poi il rimbombo del riverbero
+  fwNoise(C, t, 9000, 2500, 0.03, 1.5 * P * big, 0.4, 'highpass');                // il colpo
+  fwNoise(C, t, 3200, 160, 0.55, 1.3 * P * big, 0.5, 'lowpass');                  // il boom: cutoff che scende
+  fwNoise(C, t + 0.005, 700, 90, 0.9, 1.0 * P * big, 0.6, 'lowpass');             // corpo grave
+  fwNoise(C, t + 0.01, 180, 55, 0.7, 1.1 * P * big, 0.7, 'lowpass');              // il "thump" nel petto (rumore, non sinusoide)
+  const ne = 2 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < ne; i++) fwNoise(C, t + 0.3 + i * (0.25 + Math.random() * 0.35), 700 + Math.random() * 700, 150 + Math.random() * 100, 0.3 + Math.random() * 0.4, (0.22 - i * 0.04) * P, 0.6, 'lowpass');   // riflessioni
   const n = type === 'willow' ? 40 : type === 'ring' ? 14 : type === 'palm' ? 34 : 18, span = type === 'willow' || type === 'palm' ? 3.0 : 1.6;
   for (let i = 0; i < n; i++) fwNoise(C, t + 0.15 + Math.random() * span, 3200 + Math.random() * 3800, 3200 + Math.random() * 3800, 0.02 + Math.random() * 0.03, (0.08 + Math.random() * 0.22) * P, 1.2);   // crepitio
 }
