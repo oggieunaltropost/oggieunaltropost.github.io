@@ -1,7 +1,7 @@
 // Scheda dei lottatori (menu iniziale, "Lottatori"): per ogni pugile paese con la bandiera, soprannome, altezza,
 // peso, stile e quattro caratteristiche da 1 a 10. Le bandiere sono disegnate (semplificate) su una tela.
 import * as THREE from 'three';
-import { lang } from './i18n.js?v=20261010181142';
+import { lang } from './i18n.js?v=20261010182010';
 
 // paese (codice bandiera), nomi, misure, soprannome e stile (it / en), caratteristiche: potenza, velocita', difesa, resistenza
 export const ROSTER = {
@@ -40,6 +40,9 @@ export const ROSTER = {
   desmond:{ flag: 'jm', it: 'Giamaica', en: 'Jamaica', h: 187, kg: 86, nick: ["Il Serpente", "The Snake"], style: ["Braccia lunghe, montanti a sorpresa", "Long arms, surprise uppercuts"], s: [8, 8, 6, 7] },
   ante:   { flag: 'hr', it: 'Croazia', en: 'Croatia', h: 203, kg: 115, nick: ["La Torre", "The Tower"], style: ["Gigante, uno-due da lontano", "Giant, one-two from range"], s: [9, 5, 7, 8] },
   batu:   { flag: 'mn', it: 'Mongolia', en: 'Mongolia', h: 172, kg: 90, nick: ["Il Khan", "The Khan"], style: ["Basso e tozzo, lavora dentro", "Short and stocky, works inside"], s: [8, 6, 6, 10] },
+  carlos: { flag: 'pe', it: 'Peru\'', en: 'Peru', h: 184, kg: 80, nick: ['Il Condor', 'The Condor'], style: ['Imprendibile: schiva, finte e montanti di rimessa', 'Untouchable: slips, feints, counter uppercuts'], s: [6, 9, 10, 6] },
+  amaroq: { flag: 'gl', it: 'Groenlandia', en: 'Greenland', h: 196, kg: 135, nick: ["L'Orso del Nord", 'The Northern Bear'], style: ['Carro armato: avanza e picchia al corpo', 'A tank: walks you down, body shots'], s: [10, 4, 5, 10] },
+  jesse:  { flag: 'us', it: 'Stati Uniti', en: 'United States', h: 188, kg: 102, nick: ['Il Mitra', 'The Machine Gun'], style: ['Sfrontato, gancio sinistro da KO', 'Cocky, knockout left hook'], s: [9, 7, 5, 8] },
   atom:   { flag: 'world', it: 'Sconosciuta', en: 'Unknown', h: 210, kg: 125, nick: ["L'Ultimo", 'The Last One'], style: ["Il piu' forte: jab a raffica, combinazioni, ganci e montanti", 'The strongest: jab flurries, combos, hooks and uppercuts'], s: [10, 10, 10, 10] },
   camilo: { flag: 'co', it: 'Colombia', en: 'Colombia', h: 177, kg: 72, nick: ["Il Colibri", "The Hummingbird"], style: ["Giovane e sfrontato, raffiche", "Young and cocky, flurries"], s: [6, 9, 6, 9] },
 };
@@ -118,6 +121,10 @@ export function drawFlag(g, code, W, H) {
       g.strokeStyle = '#fed100'; g.lineWidth = H * 0.16; g.beginPath(); g.moveTo(0, 0); g.lineTo(W, H); g.moveTo(W, 0); g.lineTo(0, H); g.stroke(); },
     hr: () => { stripesH(g, W, H, ['#ff0000', '#fff', '#171796']); const s = H * 0.07, x0 = W / 2 - 2.5 * s, y0 = H * 0.3;
       for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) { g.fillStyle = (i + j) % 2 ? '#fff' : '#ff0000'; g.fillRect(x0 + i * s, y0 + j * s, s, s); } },
+    pe: () => stripesV(g, W, H, ['#d91023', '#fff', '#d91023']),
+    gl: () => { g.fillStyle = '#fff'; g.fillRect(0, 0, W, H / 2); g.fillStyle = '#d00c33'; g.fillRect(0, H / 2, W, H / 2);
+      const cx = W * 0.37, cy = H / 2, r = H * 0.33;
+      g.fillStyle = '#d00c33'; g.beginPath(); g.arc(cx, cy, r, Math.PI, 0); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI); g.fill(); },
     // bandiera del mondo (Atom, nazionalita' sconosciuta): globo bianco con meridiani e paralleli su blu
     world: () => { g.fillStyle = '#1f4fa8'; g.fillRect(0, 0, W, H); const cx = W / 2, cy = H / 2, r = H * 0.36; g.strokeStyle = '#fff'; g.lineWidth = Math.max(1.5, H * 0.035);
       g.beginPath(); g.arc(cx, cy, r, 0, 7); g.stroke();

@@ -100,7 +100,7 @@ function legIcon(g, kind, cx, cy, s) {
   g.restore();
 }
 import * as THREE from 'three';
-export { StyleLearner } from './style_learn.js?v=20261010181142';
+export { StyleLearner } from './style_learn.js?v=20261010182010';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const _lq = new THREE.Quaternion(), _lr = new THREE.Quaternion(), _qI = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ld = new THREE.Vector3();
 
@@ -133,6 +133,8 @@ const C = {
   '1-1-1-2': ['jab', 'jab', 'jab', 'cross'], '1-2-3-6': ['jab', 'cross', 'hook_l', 'uppercut_r'],
   '1-2-6-3-2': ['jab', 'cross', 'uppercut_r', 'hook_l', 'cross'], '1-3b-3-2': ['jab', 'body_l', 'hook_l', 'cross'],
   '5-6-3-2': ['uppercut_l', 'uppercut_r', 'hook_l', 'cross'],
+  // (Jesse: il gancio sinistro) doppio, dopo il jab, in chiusura
+  '3-3': ['hook_l', 'hook_l'], '1-3': ['jab', 'hook_l'], '1-1-3': ['jab', 'jab', 'hook_l'], '1-3-3': ['jab', 'hook_l', 'hook_l'],
 };
 const combos = (...names) => names.map(n => C[n]);
 // se tieni la guardia alta, Mike lavora al corpo e con montanti e ganci che entrano di lato
@@ -473,7 +475,9 @@ export class Mike {
     for (const L of legs) {
       if (L.pattern) {                                                           // motivo: una tessera 256x256 con due icone, che si ripete
         const cv = Object.assign(document.createElement('canvas'), { width: 256, height: 256 }), g = cv.getContext('2d');
-        g.fillStyle = '#fff'; g.strokeStyle = '#fff'; legIcon(g, L.pattern, 64, 64, 0.5); legIcon(g, L.pattern, 192, 192, 0.5);
+        g.fillStyle = '#fff'; g.strokeStyle = '#fff';
+        if (L.pattern === 'strisce') g.fillRect(0, 0, 128, 256);                  // strisce verticali (stelle e strisce)
+        else { legIcon(g, L.pattern, 64, 64, 0.5); legIcon(g, L.pattern, 192, 192, 0.5); }
         pat = { cv, col: new THREE.Color(L.color), rep: L.rep || 4 }; continue;
       }
       const cv = masks[L.side] || (masks[L.side] = Object.assign(document.createElement('canvas'), { width: PX, height: PY }));
