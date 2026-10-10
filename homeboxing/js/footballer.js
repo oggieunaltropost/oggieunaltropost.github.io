@@ -5,8 +5,8 @@
 // (modello e animazioni: blender/create_calciatore.py; cicli "sul posto", la velocita' regola timeScale)
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { contactShadow } from './contact_shadow.js?v=20261010131000';
-import * as sfx from './sfx.js?v=20261010131000';
+import { contactShadow } from './contact_shadow.js?v=20261010131707';
+import * as sfx from './sfx.js?v=20261010131707';
 
 const SCALE = 1.18;                                       // il modello e' 1,5 m: diventa ~1,78 m
 const V_RUN = 4.5, V_SPRINT = 8.0;                        // velocita' di riferimento dei cicli (m/s)
@@ -41,7 +41,7 @@ export class Footballer {
     this.ball.castShadow = true; this.group.add(this.ball);
     this.ballShadow = contactShadow(0.22, 0.22, 0.6); this.ballShadow.position.y = 0.013; this.group.add(this.ballShadow);
     this.ball.position.copy(this.pos); this.bFrom = this.ball.position.clone(); this.bBlend = 1;
-    new GLTFLoader().load('assets/calciatore.glb?v=20261010131000', g => {
+    new GLTFLoader().load('assets/calciatore.glb?v=20261010131707', g => {
       this.model = g.scene; this.model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
       // pelle, occhi, sopracciglia e capelli sono esportati in "blend": ordinati male, girandosi spariva mezza faccia o i
       // capelli. Pelle e occhi opachi; capelli e sopracciglia con taglio netto dell'alpha (niente ordinamento)

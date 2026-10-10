@@ -5,8 +5,8 @@
 // (modello e animazioni: blender/create_astronaut.py)
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { contactShadow } from './contact_shadow.js?v=20261010131000';
-import * as sfx from './sfx.js?v=20261010131000';
+import { contactShadow } from './contact_shadow.js?v=20261010131707';
+import * as sfx from './sfx.js?v=20261010131707';
 
 const R = 5.6, G = 1.62, HOP = 0.95;                   // raggio del giro (attorno al ring), metri a balzo
 const T_UP = 0.32, T_DOWN = 0.86;                      // frazioni del balzo: stacco e atterraggio (come in Blender)
@@ -32,7 +32,7 @@ export class Astronaut {
       sp.visible = false; sp.renderOrder = 5; this.group.add(sp);
       this.puffs.push({ sp, life: 0, ttl: 1, v: new THREE.Vector3(), r0: 0.1, grow: 0.9, a: 0.75 });
     }
-    new GLTFLoader().load('assets/astronauta.glb?v=20261010131000', g => {
+    new GLTFLoader().load('assets/astronauta.glb?v=20261010131707', g => {
       this.model = g.scene; this.model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
       // visiera dorata a specchio: riflette il paesaggio lunare (l'ambiente della scena e' la foto della luna)
       this.model.traverse(o => { if (o.isMesh && /Visiera/.test(o.material.name)) { const m = o.material; m.metalness = 1; m.roughness = 0.03; m.color.setRGB(1.0, 0.78, 0.4); m.envMapIntensity = 2.2; } });
