@@ -5,12 +5,12 @@
 // Doppler).
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
 import * as THREE from 'three';
-import { panoDepth } from './pano_depth.js?v=20261010140002';
-import { contactShadow } from './contact_shadow.js?v=20261010140002';
-import * as sfx from './sfx.js?v=20261010140002';
-import { Footballer } from './footballer.js?v=20261010140002';
-import { NightFireworks } from './fireworks.js?v=20261010140002';
-import { StadiumScreen } from './stadium_screen.js?v=20261010140002';
+import { panoDepth } from './pano_depth.js?v=20261010140423';
+import { contactShadow } from './contact_shadow.js?v=20261010140423';
+import * as sfx from './sfx.js?v=20261010140423';
+import { Footballer } from './footballer.js?v=20261010140423';
+import { NightFireworks } from './fireworks.js?v=20261010140423';
+import { StadiumScreen } from './stadium_screen.js?v=20261010140423';
 
 const EYE = 1.65;
 // il Sole della foto: Blender (-0.2484, -0.5327, 0.809) -> gioco (y, z, x)
@@ -91,7 +91,7 @@ export class Stadium {
   }
   // ---------------------------------------------------------------- foto a 360 gradi
   _sky() {
-    const tex = new THREE.TextureLoader().load(this.night ? 'assets/stadio_notte_panorama.jpg?v=20261010140002' : 'assets/stadio_panorama.jpg?v=20261010140002', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load(this.night ? 'assets/stadio_notte_panorama.jpg?v=20261010140423' : 'assets/stadio_panorama.jpg?v=20261010140423', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -162,13 +162,18 @@ export class Stadium {
     this.plane = P; this.group.add(P);
 
     // striscione: stoffa 30 x 6,5 m; l'origine e' sull'asta davanti, +x va verso la coda
-    const cv = document.createElement('canvas'); cv.width = 2048; cv.height = 448; const g = cv.getContext('2d');
-    g.fillStyle = '#f6f2e8'; g.fillRect(0, 0, 2048, 448);
-    g.fillStyle = '#c4161f'; g.fillRect(0, 0, 2048, 26); g.fillRect(0, 422, 2048, 26);
-    g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '900 262px system-ui, "Arial Black", sans-serif';
-    g.lineJoin = 'round'; g.lineWidth = 16; g.strokeStyle = '#141416'; g.strokeText('HOME BOXING', 1024, 236);
-    g.fillStyle = '#d81e2c'; g.fillText('HOME BOXING', 1024, 236);
-    const btex = new THREE.CanvasTexture(cv); btex.colorSpace = THREE.SRGBColorSpace; btex.anisotropy = 8;
+    // due versioni dello striscione (bordo e scritta rossi o blu): a ogni passaggio ne esce una a caso, e' lo stesso aereo
+    const mkBanner = (edge, text) => {
+      const cv = document.createElement('canvas'); cv.width = 2048; cv.height = 448; const g = cv.getContext('2d');
+      g.fillStyle = '#f6f2e8'; g.fillRect(0, 0, 2048, 448);
+      g.fillStyle = edge; g.fillRect(0, 0, 2048, 26); g.fillRect(0, 422, 2048, 26);
+      g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '900 262px system-ui, "Arial Black", sans-serif';
+      g.lineJoin = 'round'; g.lineWidth = 16; g.strokeStyle = '#141416'; g.strokeText('HOME BOXING', 1024, 236);
+      g.fillStyle = text; g.fillText('HOME BOXING', 1024, 236);
+      const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+    };
+    this.bannerTex = [mkBanner('#c4161f', '#d81e2c'), mkBanner('#1d4fc4', '#2a63e0')];
+    const btex = this.bannerTex[0];
     this.bannerMat = new THREE.ShaderMaterial({
       side: THREE.DoubleSide, uniforms: { uTex: { value: btex }, uT: { value: 0 }, uL: { value: BANNER_L } },
       vertexShader: `uniform float uT; uniform float uL; varying vec2 vUv; varying float vShade;
@@ -210,6 +215,7 @@ export class Stadium {
     const h = 90 + Math.random() * 40;                                                   // sopra le torri faro (58 m + fari): non attraversa niente
     const L = 520;
     this.fly = { dir, side, off, h, p: new THREE.Vector3().copy(dir).multiplyScalar(-L).addScaledVector(side, off).setY(h), v: 30 + Math.random() * 5, L, t: 0, roll: 0 };
+    this.bannerMat.uniforms.uTex.value = this.bannerTex[Math.random() < 0.5 ? 0 : 1];      // striscione rosso o blu, a caso
     this.plane.visible = this.banner.visible = this.pole.visible = this.line.visible = true;
   }
 

@@ -33,7 +33,7 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261010140002';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261010140423';
 // Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
@@ -55,7 +55,7 @@ let vbuf = {}, vLang = 'it';
 let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261010140002`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261010140423`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
@@ -199,7 +199,7 @@ const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261010140002`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261010140423`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
   loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (snowWanted && !snowW) snowAmbient(true); if (lavaWanted && !lavaW) lavaAmbient(true); if (underWanted && !underW) underAmbient(true); if (spaceWanted && !spaceW) spaceAmbient(true); if (windWanted && (!wind || wind.synth)) { if (wind) { wind.s.stop(); wind = null; } windAmbient(true); } });   // vento vero appena caricato
   return loading;
@@ -681,20 +681,6 @@ export function ballHit(pos, cam, kind = 'bounce', power = 0.5) {
 }
 // fuochi d'artificio dello stadio di notte, nel mondo: il botto arriva in ritardo (340 m/s), piu' ovattato e piano da lontano.
 // Lancio: fischio che sale. Botto: tonfo + corpo medio (gli altoparlanti del Quest non rendono i bassi) + crepitio di scintille.
-// riverbero dello stadio (risposta all'impulso sintetica: rumore che si spegne piano, con le prime riflessioni delle gradinate): il botto
-// "rotola" come un tuono invece di finire secco
-let fwConv = null;
-function fwReverb() {
-  if (fwConv) return fwConv;
-  const sr = ctx.sampleRate, len = Math.floor(sr * 2.8), buf = ctx.createBuffer(2, len, sr);
-  for (let ch = 0; ch < 2; ch++) {
-    const d = buf.getChannelData(ch); let lpv = 0;
-    for (let i = 0; i < len; i++) { const t = i / sr; lpv += (Math.random() * 2 - 1 - lpv) * (0.18 + 0.5 * Math.exp(-t / 0.5)); d[i] = lpv * Math.exp(-t / 0.62) * (0.25 + 0.75 * Math.min(1, t / 0.03)); }
-    for (const [tt, a] of [[0.09, 0.8], [0.17, 0.6], [0.29, 0.5], [0.44, 0.35]]) { const k = Math.floor((tt + (ch ? 0.011 : 0)) * sr); for (let j = 0; j < 40; j++) d[k + j] += (Math.random() * 2 - 1) * a * (1 - j / 40); }
-  }
-  fwConv = ctx.createConvolver(); fwConv.buffer = buf; const wg = ctx.createGain(); wg.gain.value = 1.0; fwConv.connect(wg); wg.connect(master);
-  return fwConv;
-}
 function fwChain(pos, cam, ref = 30) {
   setListener(cam);
   const cp = cam.getWorldPosition(new cam.position.constructor()), dist = cp.distanceTo(pos);
@@ -702,7 +688,11 @@ function fwChain(pos, cam, ref = 30) {
   if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);
   const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1500 + 9000 * Math.exp(-dist / 140);
   const g = ctx.createGain(); g.gain.value = 1.0; lp.connect(g); g.connect(p); p.connect(master);
-  const wet = ctx.createGain(); wet.gain.value = 0.4 + 0.5 * (1 - Math.exp(-dist / 120)); lp.connect(wet); wet.connect(fwReverb());      // (da lontano si sente piu' riverbero)
+  // riflessioni sulle gradinate: tre echi che escono dallo stesso punto del botto (passano dal panner: la direzione resta quella giusta)
+  for (const [dt_, gn] of [[0.19, 0.45], [0.37, 0.3], [0.62, 0.2]]) {
+    const dl = ctx.createDelay(1.0); dl.delayTime.value = dt_; const lf = ctx.createBiquadFilter(); lf.type = 'lowpass'; lf.frequency.value = 900 - dt_ * 500;
+    const eg = ctx.createGain(); eg.gain.value = gn; lp.connect(dl); dl.connect(lf); lf.connect(eg); eg.connect(p);
+  }
   if (!noiseBuf) { noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
   return { lp, t0: ctx.currentTime + 0.02 + dist / 340, dist };
 }
