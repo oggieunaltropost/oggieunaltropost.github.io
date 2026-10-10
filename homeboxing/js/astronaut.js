@@ -5,8 +5,8 @@
 // (modello e animazioni: blender/create_astronaut.py)
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { contactShadow } from './contact_shadow.js?v=20261010150808';
-import * as sfx from './sfx.js?v=20261010150808';
+import { contactShadow } from './contact_shadow.js?v=20261010153641';
+import * as sfx from './sfx.js?v=20261010153641';
 
 const R = 5.6, G = 1.62, HOP = 0.95;                   // raggio del giro (attorno al ring), metri a balzo
 const T_UP = 0.32, T_DOWN = 0.86;                      // frazioni del balzo: stacco e atterraggio (come in Blender)
@@ -26,7 +26,7 @@ export class Astronaut {
     this.group = new THREE.Group(); this.group.name = 'astronauta'; parent.add(this.group);
     this.shadow = contactShadow(0.7, 0.7, 0.55); this.shadow.position.y = 0.012; this.group.add(this.shadow);
     this.a = Math.random() * Math.PI * 2; this.state = 'hop'; this.t = 0; this.next = 20 + Math.random() * 15; this.prevPh = 0;
-    this.nextJet = 14 + Math.random() * 16; this.J = null; this.puffs = [];
+    this.nextJet = 7 + Math.random() * 8; this.J = null; this.puffs = [];
     for (let i = 0; i < 110; i++) {                                   // nuvolette di gas: si allargano e svaniscono (e il fumo del razzo, che resta piu' a lungo)
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), transparent: true, depthWrite: false, opacity: 0, color: 0xf4f7ff }));
       sp.visible = false; sp.renderOrder = 5; this.group.add(sp);
@@ -38,7 +38,7 @@ export class Astronaut {
       sp.visible = false; sp.renderOrder = 4; this.group.add(sp);
       this.dust.push({ sp, life: 0, ttl: 1, v: new THREE.Vector3(), r0: 0.1, grow: 0.5, a: 0.5 });
     }
-    new GLTFLoader().load('assets/astronauta.glb?v=20261010150808', g => {
+    new GLTFLoader().load('assets/astronauta.glb?v=20261010153641', g => {
       this.model = g.scene; this.model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
       // visiera dorata a specchio: riflette il paesaggio lunare (l'ambiente della scena e' la foto della luna)
       this.model.traverse(o => { if (o.isMesh && /Visiera/.test(o.material.name)) { const m = o.material; m.metalness = 1; m.roughness = 0.03; m.color.setRGB(1.0, 0.78, 0.4); m.envMapIntensity = 2.2; } });
@@ -129,7 +129,7 @@ export class Astronaut {
       const ph = (this.hop.time % this.dur) / this.dur;
       if (ph < T_DOWN - 0.05 || this.hop.time >= this.dur - 1e-3) {
         this.state = 'hop'; this.J = null; this.hop.time = 0; this.hop.paused = false; this.prevPh = 0;
-        this.next = this.t + 8 + Math.random() * 12; this.nextJet = this.t + 22 + Math.random() * 25;
+        this.next = this.t + 8 + Math.random() * 12; this.nextJet = this.t + 9 + Math.random() * 10;
       }
     }
     return J;
@@ -152,7 +152,7 @@ export class Astronaut {
       }
       if (this.prevPh > T_DOWN && ph < this.prevPh) {            // dopo un atterraggio: volo col gas o sosta a guardarsi intorno
         if (this.t > this.nextJet) this._startJet();
-        else if (this.t > this.next) {
+        else if (false) {                                          // (non si ferma piu' a guardarsi intorno: salta e basta)
           this.state = 'look'; this.st = 5 + Math.random() * 4; this.hop.setEffectiveWeight(0); this.look.setEffectiveWeight(1); this.look.time = 0;
         }
       }
