@@ -10,5 +10,17 @@
         "F7:C5:77:33:79:85:3B:96:70:80:D6:AC:09:70:58:5B:3E:C3:CF:CD:47:BB:81:27:B3:3E:42:F6:2D:22:80:39"
       ]
     }
+  },
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.oggieunaltropost.homeboxing",
+      "sha256_cert_fingerprints": [
+        "E7:D2:90:0A:F5:AC:8C:5A:58:74:8E:CA:69:2B:E7:CF:55:D0:D5:36:46:9F:79:5A:3F:A1:B5:51:D3:93:4C:A6"
+      ]
+    }
   }
 ]
