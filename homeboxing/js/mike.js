@@ -20,8 +20,51 @@ function drawIcon(g, kind, cx, cy, w) {
   }
   g.restore();
 }
+// simboli per i calzoncini (disegnati in bianco su trasparente, centrati in (cx, cy), altezza ~ 120 * s)
+function legIcon(g, kind, cx, cy, s) {
+  g.save(); g.translate(cx, cy); g.scale(s, s); g.lineCap = 'round'; g.lineJoin = 'round';
+  if (kind === 'glove') {                                           // guantone: corpo, pollice staccato da una riga, polsino
+    g.rotate(-0.25);
+    g.beginPath(); g.ellipse(6, -14, 50, 42, 0, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.ellipse(-44, 6, 17, 26, 0.35, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.roundRect(-26, 18, 64, 34, 7); g.fill();
+    g.globalCompositeOperation = 'destination-out'; g.lineWidth = 5;
+    g.beginPath(); g.arc(-22, -4, 26, -1.9, 1.3); g.stroke(); g.fillRect(-26, 16, 64, 4);
+  } else if (kind === 'hammer') {                                   // martello (Mjolnir): testa quadrata con le facce, manico con l'occhiello
+    g.rotate(-0.5);
+    g.beginPath(); g.roundRect(-14, -30, 28, 126, 8); g.fill();                                  // manico
+    g.beginPath(); g.roundRect(-78, -92, 156, 74, 12); g.fill();                                  // testa
+    g.beginPath(); g.roundRect(-92, -86, 22, 62, 6); g.fill(); g.beginPath(); g.roundRect(70, -86, 22, 62, 6); g.fill();   // facce battenti
+    g.globalCompositeOperation = 'destination-out'; g.lineWidth = 6;
+    g.strokeRect(-56, -80, 112, 50);                                                             // riquadro inciso sulla testa
+    g.fillRect(-14, -22, 28, 5);                                                                 // stacco testa / manico
+    g.globalCompositeOperation = 'source-over'; g.lineWidth = 9;
+    g.beginPath(); g.arc(0, 104, 14, 0, Math.PI * 2); g.stroke();                                // occhiello in fondo al manico
+  } else if (kind === 'lion') {                                     // testa di leone: criniera a punte, muso chiaro con occhi, naso e bocca
+    const sp = 18, R1 = 104, R2 = 84;
+    g.beginPath(); for (let k = 0; k < sp * 2; k++) { const a = k * Math.PI / sp, r = k % 2 ? R2 : R1; g.lineTo(Math.cos(a) * r, Math.sin(a) * r); } g.closePath(); g.fill();   // criniera
+    g.beginPath(); g.arc(-52, -78, 20, 0, Math.PI * 2); g.arc(52, -78, 20, 0, Math.PI * 2); g.fill();                 // orecchie
+    g.globalCompositeOperation = 'destination-out';
+    g.beginPath(); g.ellipse(0, 6, 56, 68, 0, 0, Math.PI * 2); g.fill();                                              // muso
+    g.globalCompositeOperation = 'source-over';
+    g.beginPath(); g.ellipse(-24, -14, 11, 8, 0.25, 0, Math.PI * 2); g.ellipse(24, -14, 11, 8, -0.25, 0, Math.PI * 2); g.fill();   // occhi
+    g.beginPath(); g.moveTo(-17, 8); g.lineTo(17, 8); g.lineTo(0, 28); g.closePath(); g.fill();                         // naso
+    g.lineWidth = 7; g.beginPath(); g.moveTo(0, 28); g.lineTo(0, 44); g.moveTo(-24, 40); g.quadraticCurveTo(-10, 56, 0, 44); g.quadraticCurveTo(10, 56, 24, 40); g.stroke();   // bocca
+  } else if (kind === 'kungfu') {                                   // sagoma che da' un calcio volante (di lato, verso destra)
+    g.lineWidth = 20;
+    g.beginPath(); g.arc(-10, -78, 21, 0, Math.PI * 2); g.fill();                                // testa
+    g.lineWidth = 34; g.beginPath(); g.moveTo(-14, -48); g.lineTo(-36, 14); g.stroke();          // busto (piegato all'indietro)
+    g.lineWidth = 20;
+    g.beginPath(); g.moveTo(-36, 14); g.lineTo(26, 6); g.lineTo(92, -22); g.stroke();            // gamba del calcio, tesa in avanti e in alto
+    g.beginPath(); g.moveTo(-36, 14); g.lineTo(-62, 44); g.lineTo(-30, 74); g.stroke();          // gamba piegata sotto
+    g.lineWidth = 15;
+    g.beginPath(); g.moveTo(-18, -40); g.lineTo(18, -52); g.lineTo(44, -34); g.stroke();         // braccio avanti
+    g.beginPath(); g.moveTo(-22, -38); g.lineTo(-62, -52); g.lineTo(-84, -76); g.stroke();       // braccio indietro
+  }
+  g.restore();
+}
 import * as THREE from 'three';
-export { StyleLearner } from './style_learn.js?v=20261010140423';
+export { StyleLearner } from './style_learn.js?v=20261010141843';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const _lq = new THREE.Quaternion(), _lr = new THREE.Quaternion(), _qI = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ld = new THREE.Vector3();
 
@@ -171,7 +214,7 @@ export class Mike {
       else if (n.includes('high-poly')) { m.transparent = false; m.alphaTest = 0.9; m.depthWrite = true; m.roughness = 0.15; o.castShadow = false; }
       if (m.envMapIntensity !== undefined) m.envMapIntensity = 0.8;
     });
-    this.brandShorts(); this.legName();
+    this.brandShorts(); this.legName(); this.gloveLetter();
     if (this.cfg0.hairTint) this.model.traverse(o => { if (o.isMesh && o.material.name === 'Capelli folti') this.tintHair(o.material, this.cfg0.hairTint); });
     if (this.cfg0.fur) this.model.traverse(o => { if (o.isMesh && o.material.name === 'Capelli') this.furMaterial(o.material, this.cfg0.fur); });
     if (this.cfg0.noStubble) this.model.traverse(o => { if (o.isMesh && o.material.name === 'Capelli') o.visible = false; });
@@ -375,49 +418,105 @@ export class Mike {
     m.map = t; m.color.set(0xffffff); m.needsUpdate = true;
   }
 
-  // il nome sulla coscia dei calzoncini (cfg.legName = { side: 'left' | 'right', color, stars }): scritta stampata sul davanti della gamba,
-  // disegnata nello shader del raso blu (in coordinate della mesh a riposo, quindi resta attaccata alla stoffa mentre si muove)
+  // scritte e simboli sui calzoncini (cfg.legs = [{ side: 'left' | 'right', text, icon, stars, color, ... }], o il vecchio cfg.legName):
+  // stampati sul davanti delle cosce. Due maschere (una per gamba, bianco su trasparente) mappate sul davanti dei calzoncini e
+  // colorate nello shader: conta solo la copertura (alfa), cosi' non resta nessun bordo attorno al disegno. Coordinate della mesh
+  // a riposo: restano attaccati alla stoffa mentre si muove.
   legName() {
-    const L = this.cfg0.legName; if (!L) return;
+    const legs = this.cfg0.legs || (this.cfg0.legName ? [this.cfg0.legName] : null); if (!legs) return;
     let sh = null; this.model.traverse(o => { if (o.isMesh && o.material.name === 'Raso blu') sh = o; });
     if (!sh) return;
-    const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d');
-    const name = (this.cfg0.name || '').toUpperCase(), n = L.stars || 0;
-    g.fillStyle = L.color; g.textAlign = 'center'; g.textBaseline = 'middle';
-    let size = L.icon ? 120 : 150; g.font = `900 ${size}px system-ui, sans-serif`;
-    while (g.measureText(name).width > 470 && size > 40) { size -= 6; g.font = `900 ${size}px system-ui, sans-serif`; }
-    g.fillText(name, 256, n || L.icon ? 78 : 128);
-    for (let i = 0; i < n; i++) {                                       // stelle sotto il nome
-      const cx = 256 + (i - (n - 1) / 2) * 78, cy = 208, R = 34; g.beginPath();
-      for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, r = k % 2 ? R * 0.42 : R; g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
-      g.closePath(); g.fill();
-    }
-    if (L.icon === 'glove') {                                           // guantone sotto il nome (sagoma nera: corpo, pollice staccato da una riga, polsino)
-      const cx = 262, cy = 184; g.save(); g.translate(cx, cy); g.rotate(-0.25); g.scale(1.3, 1.3);
-      g.beginPath(); g.ellipse(6, -14, 50, 42, 0, 0, Math.PI * 2); g.fill();                    // corpo
-      g.beginPath(); g.ellipse(-44, 6, 17, 26, 0.35, 0, Math.PI * 2); g.fill();                  // pollice
-      g.beginPath(); g.roundRect(-26, 18, 64, 34, 7); g.fill();                                   // polsino
-      g.globalCompositeOperation = 'destination-out'; g.lineWidth = 5; g.lineCap = 'round';
-      g.beginPath(); g.arc(-22, -4, 26, -1.9, 1.3); g.stroke();                                 // stacco del pollice
-      g.fillRect(-26, 16, 64, 4);                                                              // stacco del polsino
+    const geo = sh.geometry; geo.computeBoundingBox(); const bb = geo.boundingBox, W = bb.max.x - bb.min.x, Hh = bb.max.y - bb.min.y;
+    const PX = 1024, PY = Math.round(PX * Hh / W), K = PX * 0.38 / 512;           // (una vecchia tela 512x256 copriva 0,38 W)
+    const masks = {}, cols = { left: new THREE.Color(0, 0, 0), right: new THREE.Color(0, 0, 0) };
+    for (const L of legs) {
+      const cv = masks[L.side] || (masks[L.side] = Object.assign(document.createElement('canvas'), { width: PX, height: PY }));
+      const g = cv.getContext('2d'), sd = L.side === 'left' ? 1 : -1;
+      cols[L.side].set(L.color);
+      g.save(); g.translate(PX * (0.5 + sd * (L.x ?? 0.30)), PY * (1 - (L.y ?? 0.4))); g.scale(K, K); g.translate(-256, -128);
+      g.fillStyle = '#fff'; g.strokeStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      const name = L.text === undefined ? (this.cfg0.name || '').toUpperCase() : L.text, n = L.stars || 0;
+      if (name) {
+        let size = L.icon ? 120 : 150; g.font = `900 ${size}px system-ui, sans-serif`;
+        while (g.measureText(name).width > 470 && size > 40) { size -= 6; g.font = `900 ${size}px system-ui, sans-serif`; }
+        g.fillText(name, 256, n || L.icon ? 78 : 128);
+      }
+      for (let i = 0; i < n; i++) {                                       // stelle sotto il nome
+        const cx = 256 + (i - (n - 1) / 2) * 78, cy = 208, R = 34; g.beginPath();
+        for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, r = k % 2 ? R * 0.42 : R; g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
+        g.closePath(); g.fill();
+      }
+      if (L.icon) legIcon(g, L.icon, 256, name ? 184 : 128, name ? 1.3 : (L.scale || 1));
       g.restore();
     }
-    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
-    const geo = sh.geometry; geo.computeBoundingBox(); const bb = geo.boundingBox, W = bb.max.x - bb.min.x, Hh = bb.max.y - bb.min.y;
-    const side = L.side === 'left' ? 1 : -1;                               // (il pugile guarda +Z: la sua sinistra e' +X)
-    const box = new THREE.Vector4((bb.max.x + bb.min.x) / 2 + side * W * (L.x ?? 0.30), bb.min.y + Hh * (L.y ?? 0.4), W * (L.w ?? 0.19), W * (L.w ?? 0.19) * 0.5);
+    const tex = {};
+    for (const s of ['left', 'right']) {
+      const cv = masks[s] || Object.assign(document.createElement('canvas'), { width: 4, height: 4 });
+      tex[s] = new THREE.CanvasTexture(cv); tex[s].colorSpace = THREE.NoColorSpace; tex[s].anisotropy = 4; tex[s].premultiplyAlpha = false;
+    }
+    const box = new THREE.Vector4(bb.min.x, bb.min.y, W, Hh);
     const m = sh.material = sh.material.clone();
     m.onBeforeCompile = shd => {
-      shd.uniforms.uDecal = { value: tex }; shd.uniforms.uBox = { value: box };
+      shd.uniforms.uMkL = { value: tex.left }; shd.uniforms.uMkR = { value: tex.right }; shd.uniforms.uBox = { value: box };
+      shd.uniforms.uColL = { value: cols.left }; shd.uniforms.uColR = { value: cols.right };
       shd.vertexShader = shd.vertexShader.replace('void main() {', `varying vec3 vOP; varying vec3 vON;
 void main() {`).replace('#include <begin_vertex>', `#include <begin_vertex>
  vOP = position; vON = normal;`);
-      shd.fragmentShader = shd.fragmentShader.replace('void main() {', `uniform sampler2D uDecal; uniform vec4 uBox; varying vec3 vOP; varying vec3 vON;
+      shd.fragmentShader = shd.fragmentShader.replace('void main() {', `uniform sampler2D uMkL; uniform sampler2D uMkR; uniform vec4 uBox; uniform vec3 uColL; uniform vec3 uColR; varying vec3 vOP; varying vec3 vON;
 void main() {`).replace('#include <map_fragment>', `#include <map_fragment>
         { vec2 q = vec2((vOP.x - uBox.x) / uBox.z, (vOP.y - uBox.y) / uBox.w);
-          if (abs(q.x) < 1.0 && abs(q.y) < 1.0 && vON.z > 0.05) { vec4 d = texture2D(uDecal, vec2(q.x * 0.5 + 0.5, q.y * 0.5 + 0.5)); diffuseColor.rgb = mix(diffuseColor.rgb, d.rgb, d.a); } }`);
+          if (q.x > 0.0 && q.x < 1.0 && q.y > 0.0 && q.y < 1.0 && vON.z > 0.05) {
+            vec2 uv = q;
+            float aL = smoothstep(0.1, 0.6, texture2D(uMkL, uv).a), aR = smoothstep(0.1, 0.6, texture2D(uMkR, uv).a);
+            diffuseColor.rgb = mix(mix(diffuseColor.rgb, uColL, aL), uColR, aR); } }`);
     };
     m.needsUpdate = true;
+  }
+
+  // l'iniziale del nome sul davanti dei guantoni (cfg.gloveLetter = { text, color }): maschera bianca su trasparente, colorata nello shader
+  // (solo copertura, nessun bordo). Il guantone e' una mesh con ossa: la lettera si mette dove il guantone, nella posa di guardia,
+  // guarda verso di te. Si calcola dopo i primi fotogrammi (a posa raggiunta) cercando, tra i vertici, a quali direzioni della mesh a
+  // riposo corrispondono "destra", "su" e "verso di te" nella posa; la lettera sta li' e segue il guantone.
+  gloveLetter() { if (this.cfg0.gloveLetter) this._gloveWait = 4; }
+  _gloveSetup() {
+    const G = this.cfg0.gloveLetter; if (!G) return;
+    const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.font = '900 220px system-ui, "Arial Black", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(G.text, 128, 138);
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.NoColorSpace; tex.anisotropy = 4;
+    const col = new THREE.Color(G.color);
+    this.model.updateMatrixWorld(true);
+    this.model.traverse(o => {
+      if (!o.isSkinnedMesh || !/^Guantone_[lr]$/.test(o.name) || o.material.name !== 'Pelle guantoni') return;
+      o.skeleton.update();
+      const pa = o.geometry.attributes.position, n = pa.count, B = new Array(n), P = new Array(n), tmp = new THREE.Vector3();
+      let zmax = -Infinity;
+      for (let i = 0; i < n; i++) { B[i] = new THREE.Vector3().fromBufferAttribute(pa, i); P[i] = o.getVertexPosition(i, new THREE.Vector3()); zmax = Math.max(zmax, P[i].z); }
+      // i vertici piu' avanti nella posa (verso di te): la faccia da segnare
+      const ext = P.reduce((m, v) => Math.max(m, v.z), -1e9) - P.reduce((m, v) => Math.min(m, v.z), 1e9), idx = [];
+      for (let i = 0; i < n; i++) if (P[i].z > zmax - ext * 0.3) idx.push(i);
+      const mean = (arr, f) => { const r = new THREE.Vector3(); for (const i of idx) r.add(f(i)); return r.multiplyScalar(1 / idx.length); };
+      const mB = mean(idx, i => B[i]), mP = mean(idx, i => P[i]);
+      const axis = a => {                                               // la direzione, nella mesh a riposo, che corrisponde all'asse a della posa
+        const r = new THREE.Vector3(); let v = 0;
+        for (const i of idx) { const d = tmp.copy(P[i]).sub(mP).dot(a); r.addScaledVector(tmp.copy(B[i]).sub(mB), d); v += d * d; }
+        return r.multiplyScalar(1 / Math.max(v, 1e-9)).normalize();
+      };
+      const T = axis(new THREE.Vector3(1, 0, 0)), U = axis(new THREE.Vector3(0, 1, 0)), N = axis(new THREE.Vector3(0, 0, 1));
+      const sz = ext * 0 + (G.size ?? 0.085), box = new THREE.Vector4(mB.x, mB.y, mB.z, sz);
+      const m = o.material = o.material.clone();
+      m.onBeforeCompile = shd => {
+        shd.uniforms.uMk = { value: tex }; shd.uniforms.uC = { value: box }; shd.uniforms.uCol = { value: col };
+        shd.uniforms.uT = { value: T }; shd.uniforms.uU = { value: U }; shd.uniforms.uN = { value: N };
+        shd.vertexShader = shd.vertexShader.replace('void main() {', `varying vec3 vOP; varying vec3 vON;
+void main() {`).replace('#include <begin_vertex>', `#include <begin_vertex>
+ vOP = position; vON = normal;`);
+        shd.fragmentShader = shd.fragmentShader.replace('void main() {', `uniform sampler2D uMk; uniform vec4 uC; uniform vec3 uCol; uniform vec3 uT; uniform vec3 uU; uniform vec3 uN; varying vec3 vOP; varying vec3 vON;
+void main() {`).replace('#include <map_fragment>', `#include <map_fragment>
+        { vec3 d = vOP - uC.xyz; vec2 q = vec2(dot(d, uT) / uC.w + 0.5, dot(d, uU) / uC.w + 0.5);
+          if (q.x > 0.0 && q.x < 1.0 && q.y > 0.0 && q.y < 1.0 && dot(normalize(vON), uN) > 0.3) diffuseColor.rgb = mix(diffuseColor.rgb, uCol, smoothstep(0.1, 0.6, texture2D(uMk, q).a)); }`);
+      };
+      m.needsUpdate = true;
+    });
   }
 
   brandShorts() {
@@ -727,6 +826,7 @@ transformed += uSwInv * uSwing * aSw;`);
     // Si riparte sempre dalla posa dell'animazione
     if (this._animQ) for (const [b, q] of this._animQ) b.quaternion.copy(q);
     this.mixer.update(dt);
+    if (this._gloveWait && --this._gloveWait === 0) this._gloveSetup();
     this._updBraid(dt);
     this._animQ = ['spine_01', 'spine_02', 'spine_03', 'upperarm_l', 'upperarm_r', 'lowerarm_l', 'lowerarm_r', 'neck_01'].filter(n => this.bones[n]).map(n => [this.bones[n], this.bones[n].quaternion.clone()]);
     this.updateFace(dt);
