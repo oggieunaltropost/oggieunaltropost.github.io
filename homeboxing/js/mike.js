@@ -100,7 +100,7 @@ function legIcon(g, kind, cx, cy, s) {
   g.restore();
 }
 import * as THREE from 'three';
-export { StyleLearner } from './style_learn.js?v=20261010160710';
+export { StyleLearner } from './style_learn.js?v=20261010164635';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const _lq = new THREE.Quaternion(), _lr = new THREE.Quaternion(), _qI = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ld = new THREE.Vector3();
 
@@ -544,7 +544,7 @@ void main() {`).replace('#include <map_fragment>', `#include <map_fragment>
       if (!o.isSkinnedMesh || !/^Guantone_[lr]$/.test(o.name) || o.material.name !== 'Pelle guantoni') return;
       const G = G0.left || G0.right ? G0[o.name.endsWith('_l') ? 'left' : 'right'] : G0; if (!G) return;
       const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
-      g.fillStyle = '#fff'; g.font = '900 220px system-ui, "Arial Black", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(G.text, 128, 138);
+      g.fillStyle = '#fff'; g.font = '900 220px system-ui, "Arial Black", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; if (G.text) g.fillText(G.text, 128, 138);
       const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.NoColorSpace; tex.generateMipmaps = false; tex.minFilter = THREE.LinearFilter; tex.anisotropy = 1;
       const col = new THREE.Color(G.color || '#ffffff'), strC = new THREE.Color(G.stripes ? G.stripes.color : '#ffffff'), strF = G.stripes ? G.stripes.freq : 0;
       o.skeleton.update();
