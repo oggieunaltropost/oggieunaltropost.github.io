@@ -33,11 +33,11 @@ export function fixHumanMaterial(o) {
 // cinque ragazze (blender/create_ringgirl.py var=0..4): stessa struttura e animazioni, cambiano pelle, capelli,
 // completo e colore del numero sul cartello. Una a caso per incontro, la stessa per tutto l'incontro.
 export const GIRLS = [
-  { glb: 'assets/ringgirl.glb?v=20261010123914', ink: '#c4161f', band: '#c4161f' },                          // mora, rosso e oro
-  { glb: 'assets/ringgirl_1.glb?v=20261010123914', ink: '#b8860b', band: '#111111' },                        // di colore, oro e nero
-  { glb: 'assets/ringgirl_2.glb?v=20261010123914', ink: '#c4161f', band: '#c4161f' },                        // cinese, bianco e rosso
-  { glb: 'assets/ringgirl_3.glb?v=20261010123914', ink: '#1d4fc4', band: '#1d4fc4', hair: '#e8c47c' },       // bionda, blu e argento
-  { glb: 'assets/ringgirl_4.glb?v=20261010123914', ink: '#8a2be2', band: '#d6407a' },                        // latina, viola e rosa
+  { glb: 'assets/ringgirl.glb?v=20261010124345', ink: '#c4161f', band: '#c4161f' },                          // mora, rosso e oro
+  { glb: 'assets/ringgirl_1.glb?v=20261010124345', ink: '#b8860b', band: '#111111' },                        // di colore, oro e nero
+  { glb: 'assets/ringgirl_2.glb?v=20261010124345', ink: '#c4161f', band: '#c4161f' },                        // cinese, bianco e rosso
+  { glb: 'assets/ringgirl_3.glb?v=20261010124345', ink: '#1d4fc4', band: '#1d4fc4', hair: '#e8c47c' },       // bionda, blu e argento
+  { glb: 'assets/ringgirl_4.glb?v=20261010124345', ink: '#8a2be2', band: '#d6407a' },                        // latina, viola e rosa
 ];
 // la coppa della premiazione: oro, due manici, base nera con la fascia dorata
 function makeCup() {
@@ -155,7 +155,7 @@ export class RingGirl {
     this.root.rotation.y = Math.atan2(pts[1].x - pts[0].x, pts[1].z - pts[0].z);   // (gia' girata dove va)
     this.root.visible = true;
   }
-  stop() { this.root.visible = false; this.trophyMode = false; this.lookAt = null; if (this.cup) this.cup.visible = false; if (this.card) this.card.visible = true; }
+  stop() { this.root.visible = false; this.trophyMode = false; this.cupState = 'girl'; this.lookAt = null; if (this.cup) this.cup.visible = false; if (this.card) this.card.visible = true; }
   // braccia in avanti all'altezza del petto, mani ai lati della coppa (porta la coppa e te la porge): si punta ogni
   // osso del braccio verso il suo bersaglio (gomito un po' basso e in fuori), sopra la posa dell'animazione
   _offerCup() {
@@ -181,6 +181,71 @@ export class RingGirl {
     const hm = this.arms.length === 2 ? this.arms[0].hand.getWorldPosition(new THREE.Vector3()).add(this.arms[1].hand.getWorldPosition(new THREE.Vector3())).multiplyScalar(0.5) : chest;
     this.cup.position.copy(hm).addScaledVector(fwd, 0.04).add(new THREE.Vector3(0, -0.01, 0)); this.cup.rotation.y = this.root.rotation.y;
   }
+
+  // la coppa si puo' prendere solo quando lei e' arrivata e ha finito il movimento (1,8 s fermi davanti a te)
+  get cupReady() { return !!(this.trophyMode && this.cup && this.cup.visible && this.arrivedT > 1.8); }
+  // coppa in mano: con tutte e due le mani chiuse vicino alla coppa la prendi e la sollevi; se ne apri una la lasci e cade
+  // per terra come un oggetto (gravita', rimbalzi, si ribalta e resta sdraiata). Riprendibile con due mani.
+  // gl = { left, right } (guantoni: center, mesh.visible), fists = { left, right }, floorY = altezza del pavimento, hit(pos, forza) = suono
+  updateCup(dt, gl, fists, floorY, hit) {
+    if (!this.trophyMode || !this.cup || !this.cup.visible) return;
+    const c = this.cup, HL = 0.205, up = new THREE.Vector3(0, 1, 0);
+    if (!this.cupAxis) { this.cupAxis = new THREE.Vector3(1, 0, 0); this.cupV = new THREE.Vector3(); this.cupW = 0; this.cupTilt = 0; this.cupMid = null; }
+    const apply = () => {                                                        // orientamento: girata come lei, inclinata di cupTilt attorno a un asse orizzontale
+      const q = new THREE.Quaternion().setFromAxisAngle(this.cupAxis, this.cupTilt);
+      c.quaternion.copy(q.multiply(new THREE.Quaternion().setFromAxisAngle(up, this.cupYaw ?? this.root.rotation.y)));
+    };
+    const L = gl.left.center, R = gl.right.center;
+    const centerOf = () => c.position.clone().add(up.clone().applyQuaternion(c.quaternion).multiplyScalar(HL));
+    const both = fists.left && fists.right && gl.left.mesh.visible && gl.right.mesh.visible;
+    if (this.cupState !== 'held') {
+      if (this.cupState === 'girl' && !this.cupReady) return;
+      const cc = centerOf();
+      if (both && L.distanceTo(cc) < 0.2 && R.distanceTo(cc) < 0.2 && L.distanceTo(R) < 0.5) {      // presa con tutte e due le mani
+        this.cupState = 'held'; this.cupMid = L.clone().add(R).multiplyScalar(0.5); this.cupV.set(0, 0, 0); this.cupGrabbed = true;
+        this.cupYaw = c.rotation.y; hit(cc, 0.12);
+        return;
+      }
+      if (this.cupState === 'girl') return;
+    }
+    if (this.cupState === 'held') {
+      if (!both) {                                                              // lasciata: parte con la velocita' delle mani e cade
+        this.cupState = 'free';
+        this.cupV.copy(this.cupVel || new THREE.Vector3()).clampLength(0, 4);
+        this.cupAxis.set(Math.cos(Math.random() * 6.28), 0, Math.sin(Math.random() * 6.28));
+        this.cupTilt = (Math.random() < 0.5 ? -1 : 1) * (0.12 + Math.random() * 0.25); this.cupW = 0;
+        return;
+      }
+      const mid = L.clone().add(R).multiplyScalar(0.5);
+      this.cupVel = (this.cupVel || new THREE.Vector3()).lerp(mid.clone().sub(this.cupMid).divideScalar(Math.max(dt, 1e-3)), 0.35);
+      this.cupMid.copy(mid);
+      this.cupTilt += (0 - this.cupTilt) * Math.min(1, dt * 12);                // in mano e' dritta
+      apply();
+      c.position.copy(mid).addScaledVector(up, -0.15);
+      return;
+    }
+    // libera: gravita', rimbalzi sul pavimento, si ribalta e si ferma sdraiata
+    const g = 9.8, r = 0.09;
+    this.cupV.y -= g * dt; c.position.addScaledVector(this.cupV, dt);
+    this.cupTilt += this.cupW * dt; this.cupTilt = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.cupTilt));
+    apply();
+    const lowest = () => c.position.y + Math.min(0, 2 * HL * Math.cos(this.cupTilt)) - (r * Math.abs(Math.sin(this.cupTilt)));
+    const ly = lowest();
+    if (ly < floorY) {
+      c.position.y += floorY - ly;
+      if (this.cupV.y < -0.6) {
+        hit(c.position.clone(), Math.min(1, -this.cupV.y / 3.5));
+        this.cupV.y = -this.cupV.y * 0.32; this.cupV.x *= 0.7; this.cupV.z *= 0.7;
+        if (Math.abs(this.cupTilt) < 0.2) this.cupTilt = (this.cupTilt < 0 ? -1 : 1) * 0.2;
+        this.cupW = (this.cupTilt < 0 ? -1 : 1) * (1.5 + Math.random() * 2.5);        // dopo l'urto si ribalta
+      } else {
+        this.cupV.y = 0; const k = Math.exp(-4 * dt); this.cupV.x *= k; this.cupV.z *= k;
+        if (Math.abs(this.cupTilt) > 0.12) { const tgt = (this.cupTilt < 0 ? -1 : 1) * Math.PI / 2; this.cupW = Math.abs(this.cupTilt) < Math.PI / 2 - 0.02 ? (tgt - this.cupTilt) * 5 : 0; }
+        else this.cupW = 0;
+      }
+    }
+    // (ruotando sdraiata il centro scende: la base poggia sul pavimento)
+  }
   // premiazione (finale del torneo o cima della torre): entra con la coppa in mano e te la porge, ferma davanti a te
   // winner: { pos, fwd } (mondo) se il campione e' un pugile della CPU: la porta a lui, 75 cm davanti a lui
   trophy(arena, ringSize, viewer, winner = null) {
@@ -194,7 +259,7 @@ export class RingGirl {
     this.lookAt = winner ? winner.head : null;          // guarda (e porge la coppa a) chi ha vinto
     this.path = [new THREE.Vector3(-a, 0, -a), end].map(p => p.applyMatrix4(arena.matrixWorld));
     this.seg = 0; this.u = 0; this.pause = 0; this.paused = true; this.gestured = false; this.gesture = null;
-    this.trophyMode = true;
+    this.trophyMode = true; this.cupState = 'girl'; this.arrivedT = 0; this.cupTilt = 0; this.cupGrabbed = false;
     this.root.position.copy(this.path[0]); this.root.visible = true;
     this.root.rotation.y = Math.atan2(this.path[1].x - this.path[0].x, this.path[1].z - this.path[0].z);
     if (this.card) this.card.visible = false; this.cup.visible = true;
@@ -203,7 +268,7 @@ export class RingGirl {
   update(dt, look) {
     if (!this.root.visible || !this.ready) return;
     if (this.lookAt) look = this.lookAt;
-    if (this.trophyMode && this.u >= 1) { this.u = 1; this.pause = 1; }        // arrivata davanti a te: resta li' a porgerti la coppa
+    if (this.trophyMode && this.u >= 1) { this.u = 1; this.pause = 1; this.arrivedT = (this.arrivedT || 0) + dt; }        // arrivata davanti a te: resta li' a porgerti la coppa
     let a = this.path[this.seg], b = this.path[this.seg + 1];
     const len = a.distanceTo(b);
     // a meta' del lato davanti a te si ferma un attimo e mostra il cartello
@@ -229,7 +294,7 @@ export class RingGirl {
     this.stand.setEffectiveWeight(w); this.walk.setEffectiveWeight(1 - w);
     this.mixer.update(dt);
     this.root.updateMatrixWorld(true);
-    if (this.trophyMode && this.cup) this._offerCup();
+    if (this.trophyMode && this.cup && this.cupState === 'girl') this._offerCup();
     // ferma davanti a te: gira e inclina la testa verso i tuoi occhi (alla tua altezza vera)
     this.lookW = Math.max(0, Math.min(1, (this.lookW || 0) + (stopNow ? dt : -dt) * 1.1));   // la testa si gira piano verso di te (~0.9 s)
     if (this.head && !this.headAnimated) this.head.quaternion.copy(this.headBase);   // l'animazione non la muove: si riparte da qui
