@@ -6,8 +6,8 @@
 // Durata libera: si va avanti finche' non fermi dalla pausa. La velocita' del partner (colpi, andata e ritorno,
 // spostamenti, parate) si regola trascinando su e giu' il cursore della barra al tuo fianco.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261010144641';
-import { t as tr } from './i18n.js?v=20261010144641';
+import * as sfx from './sfx.js?v=20261010145517';
+import { t as tr } from './i18n.js?v=20261010145517';
 
 // combinazioni chiamate: voce, colpi che tira il partner (non qui) e quello che devi tirare tu
 // codici: 1 jab, 2 diretto, 3 gancio sinistro, 4 gancio destro, 5 montante sinistro, 6 montante destro; 'b' = al corpo
@@ -47,27 +47,64 @@ export class Sparring {
   }
   get speed() { return 0.05 + 1.15 * this.p; }                   // 5% .. 120% della velocita' normale
 
-  // ---- il colpo da tirare: numero colorato sopra la testa del partner, con il cerchio del tempo che si svuota
+  // ---- la combinazione da tirare: scritta sopra la testa del partner, in blu; ogni parola diventa verde (con una corsa di colore e un
+  // piccolo "pop") quando il colpo giusto arriva a segno nell'ordine giusto, lampeggia rossa se il colpo e' sbagliato. Sotto, la barra del tempo.
   _cue() {
-    const c = document.createElement('canvas'); c.width = c.height = 256; this.cc = c;
+    const c = document.createElement('canvas'); c.width = 1024; c.height = 256; this.cc = c;
     this.ctex = new THREE.CanvasTexture(c); this.ctex.colorSpace = THREE.SRGBColorSpace;
     this.cueS = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.ctex, depthTest: false, transparent: true, toneMapped: false }));
-    this.cueS.scale.setScalar(0.26); this.cueS.renderOrder = 1200; this.cueS.visible = false;
+    this.cueS.scale.set(1.0, 0.25, 1); this.cueS.renderOrder = 1200; this.cueS.visible = false;
+    this.cue = null;
   }
-  _drawCue(code, left, state) {                       // left: 1 -> 0 (tempo rimasto); state: 'go' | 'ok' | 'ko'
-    const g = this.cc.getContext('2d'), n = code === 'b' ? '' : code[0], body = code.endsWith('b');
-    const col = state === 'ko' ? '#ff3b3b' : state === 'ok' ? '#ffffff' : CUE_COL[n || 'b'];
-    g.clearRect(0, 0, 256, 256);
-    g.fillStyle = 'rgba(8,10,14,0.78)'; g.beginPath(); g.arc(128, 128, 100, 0, Math.PI * 2); g.fill();
-    g.lineWidth = 16; g.strokeStyle = 'rgba(255,255,255,0.15)'; g.beginPath(); g.arc(128, 128, 112, 0, Math.PI * 2); g.stroke();
-    g.strokeStyle = col; g.lineCap = 'round'; g.beginPath(); g.arc(128, 128, 112, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, left)); g.stroke();
-    g.fillStyle = col; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.font = `900 ${n ? 140 : 70}px system-ui, sans-serif`; g.fillText(n || tr('cue_body'), 128, body && n ? 112 : 132);
-    if (body && n) { g.font = '800 38px system-ui, sans-serif'; g.fillText(tr('cue_body'), 128, 190); }
+  _word(code) {
+    const names = { '1': 'dk_jab', '2': 'dk_cross', '3': 'dk_hook_l', '4': 'dk_hook_r', '5': 'dk_upper_l', '6': 'dk_upper_r' };
+    if (code === 'b') return tr('cue_body').toUpperCase();
+    const body = code.endsWith('b'), n = body ? code.slice(0, -1) : code;
+    return tr(names[n]).toUpperCase() + (body ? ' ▼' : '');
+  }
+  _newCue(seq, total) {
+    this.cue = { words: seq.map(c => this._word(c)), st: seq.map(() => ({ s: 'wait', t: 9 })), total, left: 1, t: 0 };
+  }
+  _cueMark(i, state) { if (this.cue && this.cue.st[i]) this.cue.st[i] = { s: state, t: 0 }; }
+  _drawCue(left, dt = 0) {
+    const C = this.cue; if (!C) return;
+    C.t += dt; for (const w of C.st) w.t += dt; C.left = left === null ? C.left : left;
+    const g = this.cc.getContext('2d'), W = 1024, H = 256;
+    g.clearRect(0, 0, W, H);
+    const COL = { wait: '#4aa8ff', ok: '#4cff7a', ko: '#ff4d4d' };
+    g.fillStyle = 'rgba(8,10,16,0.82)'; g.beginPath(); g.roundRect(6, 34, W - 12, 132, 34); g.fill();
+    g.lineWidth = 4; g.strokeStyle = 'rgba(120,160,255,0.35)'; g.stroke();
+    let size = 86; const sep = '  ›  ';
+    const measure = () => { g.font = `900 ${size}px system-ui, sans-serif`; return C.words.reduce((a, w) => a + g.measureText(w).width, 0) + g.measureText(sep).width * (C.words.length - 1); };
+    while (measure() > W - 70 && size > 26) size -= 3;
+    g.font = `900 ${size}px system-ui, sans-serif`; g.textBaseline = 'middle'; g.textAlign = 'left';
+    let x = (W - measure()) / 2; const y = 102, sw = g.measureText(sep).width;
+    const cur = C.st.findIndex(w => w.s === 'wait');
+    C.words.forEach((w, i) => {
+      const st = C.st[i], ww = g.measureText(w).width, cx = x + ww / 2;
+      g.save();
+      let pop = 1, dx = 0;
+      if (st.s === 'ok') pop = 1 + 0.32 * Math.max(0, 1 - st.t * 4.5);                       // piccolo "pop" quando diventa verde
+      if (st.s === 'ko') dx = Math.sin(st.t * 70) * 9 * Math.max(0, 1 - st.t * 2.2);          // tremolio quando e' sbagliato
+      g.translate(cx + dx, y); g.scale(pop, pop); g.translate(-ww / 2, 0);
+      g.fillStyle = COL.wait; g.fillText(w, 0, 0);                                              // base blu
+      if (st.s !== 'wait') {                                                                    // il colore nuovo corre da sinistra a destra
+        const k = Math.min(1, st.t / 0.18); g.save(); g.beginPath(); g.rect(-6, -size, (ww + 12) * k, size * 2); g.clip();
+        g.shadowColor = COL[st.s]; g.shadowBlur = 26 * Math.max(0, 1 - st.t * 1.6); g.fillStyle = COL[st.s]; g.fillText(w, 0, 0); g.restore();
+      } else if (i === cur && C.left !== null) {                                                // il prossimo da tirare: sottolineato che pulsa
+        g.fillStyle = `rgba(74,168,255,${0.55 + 0.35 * Math.sin(C.t * 8)})`; g.fillRect(0, size * 0.52, ww, 6);
+      }
+      g.restore();
+      x += ww;
+      if (i < C.words.length - 1) { g.fillStyle = 'rgba(160,175,200,0.55)'; g.fillText(sep, x, y); x += sw; }
+    });
+    // barra del tempo
+    const lf = Math.max(0, Math.min(1, C.left)); g.fillStyle = 'rgba(255,255,255,0.12)'; g.beginPath(); g.roundRect(60, 184, W - 120, 14, 7); g.fill();
+    if (lf > 0) { g.fillStyle = lf > 0.3 ? '#4aa8ff' : '#ff6a4d'; g.beginPath(); g.roundRect(60, 184, (W - 120) * lf, 14, 7); g.fill(); }
     this.ctex.needsUpdate = true;
   }
   _placeCue() {
-    const h = this.mike.headCenter(); this.cueS.position.copy(h); this.cueS.position.y += 0.3;   // (un po' sopra la testa, si legge meglio)
+    const h = this.mike.headCenter(); this.cueS.position.copy(h); this.cueS.position.y += 0.42;   // sopra la testa, si legge meglio
     if (this.cueS.parent !== this.mike.root.parent && this.mike.root.parent) this.mike.root.parent.add(this.cueS);
     if (this.cueS.parent) this.cueS.parent.worldToLocal(this.cueS.position);
   }
@@ -212,6 +249,36 @@ export class Sparring {
     sfx.announce(v); this.coachT = 2.2; return true;
   }
 
+  // ---- il tipo di pugno dal percorso del guantone: parte dal punto piu' arretrato negli ultimi 0,6 s (la guardia o il fianco)
+  _kindOf(player, side, end = null) {
+    const head = player.head, ph = this.mike.headCenter();
+    const fwd = ph.clone().sub(head).setY(0).normalize(), up = new THREE.Vector3(0, 1, 0), right = new THREE.Vector3().crossVectors(fwd, up);
+    const g = player.gloves[side]; let p0 = g.center, bf = Infinity;
+    for (const h of g.hist2 || []) { const f = h.p.dot(fwd); if (f < bf) { bf = f; p0 = h.p; } }
+    const d = (end || g.center).clone().sub(p0), F = d.dot(fwd), U = d.dot(up), I = d.dot(right) * (side === 'left' ? 1 : -1);
+    if (U > 0.11 && U > F * 0.75) return side === 'left' ? '5' : '6';
+    if (I > 0.18 && I > F * 0.4) return side === 'left' ? '3' : '4';
+    return side === 'left' ? '1' : '2';
+  }
+  // contatto con il partner (testa o busto): e' il momento in cui il colpo conta, senza le soglie di velocita' dell'incontro vero.
+  // Un guantone conta una volta quando ENTRA nel partner (poi deve uscire per contare di nuovo)
+  _contacts(dt, player) {
+    const m = this.mike, hc = m.headCenter(), [t0, t1] = m.torso(), out = [];
+    this.touch = this.touch || { left: false, right: false, left_t: 0, right_t: 0 };
+    const segD = (p, a, b) => { const ab = b.clone().sub(a), t = Math.max(0, Math.min(1, p.clone().sub(a).dot(ab) / Math.max(1e-6, ab.lengthSq()))); return p.distanceTo(a.clone().addScaledVector(ab, t)); };
+    for (const side of ['left', 'right']) {
+      const g = player.gloves[side]; this.touch[side + '_t'] = Math.max(0, this.touch[side + '_t'] - dt);
+      if (!g.mesh.visible) { this.touch[side] = false; continue; }
+      const c = g.center, head = c.distanceTo(hc) < 0.1 + 0.14, body = !head && c.y < hc.y - 0.18 && segD(c, t0, t1) < 0.1 + 0.2, inside = head || body;
+      if (inside && !this.touch[side] && this.touch[side + '_t'] <= 0 && g.speed > 0.5) {
+        out.push({ n: this._kindOf(player, side), body: !head, side, landed: true });
+        this.touch[side + '_t'] = 0.25; this.st.thrown++;
+      }
+      this.touch[side] = inside;
+    }
+    return out;
+  }
+
   // ---- i tuoi colpi: si riconosce che pugno hai tirato (nel sistema "tu -> partner")
   // landed: { left|right: zona } dei colpi andati a segno in questo fotogramma (contano sempre, anche se il guantone,
   // fermato dal partner, ha fatto poca strada: prima il colpo a segno da vicino a volte non veniva contato)
@@ -277,49 +344,59 @@ export class Sparring {
     }
     if (this.kind === 'libero') {
       if (S.landed && S.landed % 6 === 0 && this._lastPraise !== S.landed && this._coach(pick(GOOD))) this._lastPraise = S.landed;
-    } else if (this.kind === 'combo') this._combo(dt, punches);
+    } else if (this.kind === 'combo') this._combo(dt, player);
     else this._defense(dt, player);
     this._drawBoard();
   }
 
-  // combinazioni: chiama, apre la guardia e poi un colpo alla volta: sopra il partner compare il numero da tirare con
-  // il cerchio del tempo (il primo con piu' margine, i successivi subito dopo il colpo prima, con poco tempo)
-  _combo(dt, punches) {
+  // combinazioni: l'allenatore chiama e sopra il partner compare la sequenza scritta; hai un tempo totale per tirarla. Contano solo i colpi
+  // che toccano il partner, nell'ordine giusto: quelli giusti colorano di verde la parola, uno sbagliato la fa lampeggiare rossa
+  // (e costa mezzo secondo) ma non interrompe l'esercizio. A fine tempo le parole che mancano diventano rosse.
+  _combo(dt, player) {
     const m = this.mike, S = this.st;
     if (!this.task) {
-      if (this.next > 0 || sfx.voiceBusy()) { m.low = Math.max(0, m.low - dt); if (this.cueS.visible && (this.cueHold -= dt) <= 0) this.cueS.visible = false; else if (this.cueS.visible) this._placeCue(); return; }
+      if (this.next > 0 || sfx.voiceBusy()) {
+        m.low = Math.max(0, m.low - dt);
+        if (this.cueS.visible) { if ((this.cueHold -= dt) <= 0) this.cueS.visible = false; else { this._placeCue(); this._drawCue(null, dt); } }
+        return;
+      }
       const maxLvl = this.speed < 0.6 ? 0 : this.speed < 0.9 ? 1 : 2;
-      const c = pick(CALLS.filter(x => x.lvl <= maxLvl));
+      const c = pick(CALLS.filter(x => x.lvl <= maxLvl)), sp0 = Math.sqrt(this.speed);
       sfx.announce(c.v);
-      this.task = { kind: 'combo', c, got: [], wait: sfx.voiceDur(c.v) + 0.15, t: 0, step: 0, stepT: 0 };
-      // il numero compare insieme alla voce (non dopo: se no partivi prima di vederlo)
-      this._placeCue(); this.cueS.visible = true; this._drawCue(c.seq[0], 1, 'go');
+      const wait = sfx.voiceDur(c.v) + 0.15;
+      this.task = { kind: 'combo', c, step: 0, wait, t: 0, total: wait + (2.6 + 1.3 * c.seq.length) / sp0, mistakes: 0 };
+      this._newCue(c.seq, this.task.total); this._placeCue(); this.cueS.visible = true; this._drawCue(1, 0);       // la scritta compare insieme alla voce
       return;
     }
-    const T = this.task; T.t += dt;
+    const T = this.task, seq = T.c.seq; T.t += dt;
     // guardia aperta dove devi colpire: giu' per i colpi alla testa, su (corpo scoperto) per quelli al corpo
-    const want = T.c.seq[Math.min(T.step || 0, T.c.seq.length - 1)], toBody = want === 'b' || want.endsWith('b');
+    const want = seq[Math.min(T.step, seq.length - 1)], toBody = want === 'b' || want.endsWith('b');
     m.lowTarget = toBody ? 0 : 1; m.low += (m.lowTarget - m.low) * Math.min(1, dt * 6);
-    const seq = T.c.seq, sp = Math.sqrt(this.speed);
-    // tempo per questo colpo (il primo ha in piu' il tempo della chiamata: il numero e' gia' li' dall'inizio)
-    const win = (T.step === 0 ? 1.6 / sp + T.wait * 0.6 : 1.05 / sp);
     const match = (x, g) => x === 'b' ? g.body : x.endsWith('b') ? (g.body && g.n === x[0]) : (g.n === x && !g.body);
     let res = null;
-    for (const p of punches) {
-      if (!p.landed) continue;                                // conta solo il colpo andato a segno (non a vuoto)
-      T.got.push(p);
-      if (!match(seq[T.step], p)) { res = 'wrong'; break; }
-      T.step++; T.stepT = 0;
-      if (T.step >= seq.length) { res = 'ok'; break; }
+    for (const p of this._contacts(dt, player)) {
+      if (match(seq[T.step], p)) {
+        this._cueMark(T.step, 'ok'); sfx.comboOk(T.step); T.step++;
+        if (T.step >= seq.length) { res = 'ok'; break; }
+      } else {                                                       // colpo sbagliato: la parola attesa lampeggia rossa e si perde mezzo secondo
+        T.mistakes++; T.t += 0.5; sfx.comboWrong();
+        this.cue.st[T.step] = { s: 'ko', t: 0 }; this.cue.flashBack = T.step;
+      }
     }
-    if (!res) { T.stepT += dt; if (T.stepT > win) res = 'late'; }
+    if (!res && T.t > T.total) res = 'late';
     this._placeCue(); this.cueS.visible = true;
-    if (!res) { this._drawCue(seq[T.step], 1 - T.stepT / win, 'go'); return; }
-    // fine dell'esercizio: il numero resta un attimo bianco (giusto) o rosso (sbagliato / in ritardo)
-    if (res === 'ok') { S.ok++; this._coach(pick(GOOD), true); this._drawCue(seq[seq.length - 1], 1, 'ok'); }
-    else { S.bad++; this._coach(res === 'late' ? pick(['c_bad2', 'c_bad3']) : 'c_bad5', true); this._drawCue(seq[Math.min(T.step, seq.length - 1)], 0, 'ko'); }
-    this.cueHold = 0.6;
-    this.task = null; this.next = 1.2 / sp;
+    if (this.cue && this.cue.flashBack !== undefined) {              // dopo il lampo rosso la parola torna blu (si puo' ritentare)
+      const w = this.cue.st[this.cue.flashBack]; if (w && w.s === 'ko' && w.t > 0.45 && !res) { this.cue.st[this.cue.flashBack] = { s: 'wait', t: 9 }; this.cue.flashBack = undefined; }
+    }
+    if (!res) { this._drawCue(Math.max(0, 1 - T.t / T.total), dt); return; }
+    if (res === 'ok') { S.ok++; sfx.comboDone(); this._coach(pick(GOOD), true); }
+    else {
+      S.bad++; sfx.comboFail(); this._coach(pick(['c_bad2', 'c_bad3']), true);
+      this.cue.st.forEach((w, i) => { if (w.s !== 'ok') this.cue.st[i] = { s: 'ko', t: -i * 0.08 }; });      // le parole che mancano diventano rosse a cascata
+    }
+    this._drawCue(0, 0); this.cue.left = null;
+    this.cueHold = 1.1;
+    this.task = null; this.next = 1.2 / Math.sqrt(this.speed);
   }
 
   // difesa: annuncia, tira, guarda come ti difendi e se torni in guardia

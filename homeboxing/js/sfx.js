@@ -33,7 +33,7 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261010144641';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261010145517';
 // Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
@@ -55,7 +55,7 @@ let vbuf = {}, vLang = 'it';
 let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261010144641`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261010145517`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
@@ -137,6 +137,27 @@ export function punchHit(strength = 1, mine = true) {
 
 // parata: colpo su guantone, piu' secco e meno profondo
 // menu: il classico "blink blink" da videogioco (due note brevi che salgono)
+// ---- sparring, combinazioni: colpo giusto (campanello che sale a ogni colpo della sequenza), sbagliato (ronzio basso), fine riuscita
+// (arpeggio con scintillio), tempo scaduto (discesa)
+export function comboOk(i = 0) {
+  if (!ctx) return; const t = ctx.currentTime, f = [523.25, 587.33, 659.25, 783.99, 880, 987.77][Math.min(5, i)];
+  tone(t, 0.16, f, 0.2, 'triangle'); tone(t, 0.22, f * 2, 0.07, 'sine'); tone(t + 0.02, 0.1, f * 3, 0.03, 'sine');
+  noise(t, 0.04, 5000, 0.8, 0.07, 'highpass');
+}
+export function comboWrong() {
+  if (!ctx) return; const t = ctx.currentTime;
+  tone(t, 0.16, 190, 0.22, 'sawtooth', 120); tone(t + 0.05, 0.16, 150, 0.2, 'square', 95); noise(t, 0.08, 400, 0.9, 0.12, 'lowpass');
+}
+export function comboDone() {
+  if (!ctx) return; const t = ctx.currentTime;
+  [523.25, 659.25, 783.99, 1046.5].forEach((f, k) => { tone(t + k * 0.075, 0.28, f, 0.17, 'triangle'); tone(t + k * 0.075, 0.3, f * 2, 0.05, 'sine'); });
+  tone(t + 0.32, 0.6, 1568, 0.08, 'sine'); noise(t + 0.3, 0.4, 7000, 0.7, 0.05, 'highpass');
+}
+export function comboFail() {
+  if (!ctx) return; const t = ctx.currentTime;
+  tone(t, 0.22, 392, 0.17, 'triangle', 330); tone(t + 0.18, 0.3, 294, 0.17, 'triangle', 220); tone(t + 0.18, 0.34, 147, 0.1, 'sawtooth', 110);
+}
+
 export function menuBlip() {
   if (!ctx) return; const t = ctx.currentTime;
   tone(t, 0.07, 1046, 0.16, 'square'); tone(t + 0.075, 0.1, 1568, 0.14, 'square');
@@ -199,7 +220,7 @@ const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261010144641`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261010145517`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
   loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (snowWanted && !snowW) snowAmbient(true); if (lavaWanted && !lavaW) lavaAmbient(true); if (underWanted && !underW) underAmbient(true); if (spaceWanted && !spaceW) spaceAmbient(true); if (windWanted && (!wind || wind.synth)) { if (wind) { wind.s.stop(); wind = null; } windAmbient(true); } });   // vento vero appena caricato
   return loading;
