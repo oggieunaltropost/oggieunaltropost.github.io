@@ -1,7 +1,7 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261009220132';
-import { drawFlag } from './roster.js?v=20261009220132';
+import { t as tr } from './i18n.js?v=20261010020251';
+import { drawFlag } from './roster.js?v=20261010020251';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
 // ogni raggio: { o, d, hit, sel (grilletto / pizzico tenuto), click (appena premuto) }
@@ -341,6 +341,7 @@ export class PauseMenu {
 
 // Menu fluttuante del gioco (dentro il visore): pulsanti che si premono tenendoci sopra un guantone.
 // spec: { title, rows: [{ y, buttons: [{ id, text, w, color, group? }] }] }
+const CAROUSEL_WAIT = 0.7;                           // s: attesa sulla voce al centro prima che la scelta parta (barra)
 export class MenuPanel {
   constructor(spec, holdTime = 0.3) {   // (piu' rapidi: prima 0,45 s)
     this.hold = holdTime;
@@ -398,7 +399,12 @@ export class MenuPanel {
       let x = row.x ?? -total / 2;                  // (row.x: riga allineata da quel punto, es. in basso a sinistra)
       const car = row.carousel ? { row, items: [], idx: 0, off: 0, goal: null, drag: null, hoverT: 0, hoverI: -1, y: row.y, h: row.h || 0.09,
         spacing: (row.buttons[0] ? row.buttons[0].w : 0.18) + 0.03 } : null;
-      if (car) this.carousels.push(car);
+      if (car) {
+        this.carousels.push(car);
+        // attesa sulla voce al centro: un riempimento giallo che la attraversa da sinistra a destra (la scelta parte a riempimento
+        // finito: scorrendo non si carica ogni voce che si attraversa). Usa il riempimento della voce stessa (it.fill)
+        car.pend = 0;
+      }
       for (const b of [...row.buttons, ...(row._arrows || [])]) {
         const g = new THREE.Group(); g.position.set(x + b.w / 2, row.y, 0.02); x += b.w + gap;
         const h = row.h || 0.09;
@@ -547,9 +553,17 @@ export class MenuPanel {
       c.vel += (w * w * (target - c.off) - 2 * w * c.vel) * h; c.off += c.vel * h;
       if (Math.abs(target - c.off) < 0.008 && Math.abs(c.vel) < 0.08) {
         c.off = target; c.goal = null; c.target = null; c.vel = 0;
-        if (target !== c.idx) { c.idx = target; this._layout(c); return c.items[target].id; }
+        if (target !== c.idx) {                       // ferma su una voce nuova: aspetta un attimo (barra) prima di sceglierla
+          c.pend = (c.pend || 0) + dt; const k = Math.min(1, c.pend / CAROUSEL_WAIT), it = c.items[target];
+          it.fill.material.color.setHex(0xffc928); it.fill.material.opacity = 0.7; it.fill.visible = true;
+          it.fill.scale.x = Math.max(0.001, k); it.fill.position.x = -it.w / 2 * (1 - k); it.fill.position.z = 0.03; it.fill.renderOrder = 1108;
+          c.pendItem = it;
+          if (c.pend >= CAROUSEL_WAIT) { c.pend = 0; it.fill.visible = false; c.pendItem = null; c.idx = target; this._layout(c); return it.id; }
+          this._layout(c); return null;
+        }
       }
     }
+    c.pend = 0; if (c.pendItem) { c.pendItem.fill.visible = false; c.pendItem = null; }
     this._layout(c);
     return null;
   }

@@ -5,8 +5,8 @@
 // (modello e animazioni: blender/create_astronaut.py)
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { contactShadow } from './contact_shadow.js?v=20261009220132';
-import * as sfx from './sfx.js?v=20261009220132';
+import { contactShadow } from './contact_shadow.js?v=20261010020251';
+import * as sfx from './sfx.js?v=20261010020251';
 
 const R = 5.6, G = 1.62, HOP = 0.95;                   // raggio del giro (attorno al ring), metri a balzo
 const T_UP = 0.32, T_DOWN = 0.86;                      // frazioni del balzo: stacco e atterraggio (come in Blender)
@@ -27,12 +27,12 @@ export class Astronaut {
     this.shadow = contactShadow(0.7, 0.7, 0.55); this.shadow.position.y = 0.012; this.group.add(this.shadow);
     this.a = Math.random() * Math.PI * 2; this.state = 'hop'; this.t = 0; this.next = 20 + Math.random() * 15; this.prevPh = 0;
     this.nextJet = 14 + Math.random() * 16; this.J = null; this.puffs = [];
-    for (let i = 0; i < 40; i++) {                                    // nuvolette di gas: si allargano e svaniscono
+    for (let i = 0; i < 110; i++) {                                   // nuvolette di gas: si allargano e svaniscono (e il fumo del razzo, che resta piu' a lungo)
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), transparent: true, depthWrite: false, opacity: 0, color: 0xf4f7ff }));
       sp.visible = false; sp.renderOrder = 5; this.group.add(sp);
-      this.puffs.push({ sp, life: 0, ttl: 1, v: new THREE.Vector3(), r0: 0.1 });
+      this.puffs.push({ sp, life: 0, ttl: 1, v: new THREE.Vector3(), r0: 0.1, grow: 0.9, a: 0.75 });
     }
-    new GLTFLoader().load('assets/astronauta.glb?v=20261009220132', g => {
+    new GLTFLoader().load('assets/astronauta.glb?v=20261010020251', g => {
       this.model = g.scene; this.model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
       // visiera dorata a specchio: riflette il paesaggio lunare (l'ambiente della scena e' la foto della luna)
       this.model.traverse(o => { if (o.isMesh && /Visiera/.test(o.material.name)) { const m = o.material; m.metalness = 1; m.roughness = 0.03; m.color.setRGB(1.0, 0.78, 0.4); m.envMapIntensity = 2.2; } });
@@ -46,21 +46,23 @@ export class Astronaut {
   }
 
   // ---------------------------------------------------------------- nuvolette di gas dagli ugelli
-  _puff(pos, dir, big = 1) {
+  _puff(pos, dir, big = 1, smoke = false) {
     const P = this.puffs.find(q => q.life <= 0); if (!P) return;
+    P.grow = smoke ? 0.55 * big : 0.9; P.a = smoke ? 0.4 : 0.75;
     P.sp.position.copy(this.group.worldToLocal(pos.clone()));
     P.v.copy(dir).multiplyScalar(2.6 + Math.random() * 1.6).add(new THREE.Vector3((Math.random() - 0.5) * 0.9, (Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.9));
-    P.ttl = 0.55 + Math.random() * 0.4; P.life = P.ttl; P.r0 = (0.07 + Math.random() * 0.05) * big; P.sp.visible = true;
+    if (smoke) P.v.multiplyScalar(0.25);
+    P.ttl = smoke ? 2.0 + Math.random() * 1.4 : 0.55 + Math.random() * 0.4; P.life = P.ttl; P.r0 = (0.07 + Math.random() * 0.05) * big; P.sp.visible = true;
   }
   _nozzles(big = 1) {
-    for (const n of NOZZLES) this._puff(this.model.localToWorld(n.clone()), new THREE.Vector3(0, -1, 0), big);
+    for (const n of NOZZLES) { const w = this.model.localToWorld(n.clone()); this._puff(w, new THREE.Vector3(0, -1, 0), big); if (Math.random() < 0.7) this._puff(w, new THREE.Vector3(0, -1, 0), big, true); }       // gas + fumo del razzo (resta in aria e svanisce piano)
   }
   _updPuffs(dt) {
     for (const P of this.puffs) {
       if (P.life <= 0) continue;
       P.life -= dt; const k = 1 - Math.max(0, P.life) / P.ttl;
       P.sp.position.addScaledVector(P.v, dt); P.v.multiplyScalar(Math.pow(0.35, dt));      // il gas si allarga e rallenta
-      P.sp.scale.setScalar(P.r0 + k * 0.9); P.sp.material.opacity = 0.75 * (1 - k) * (1 - k);
+      P.sp.scale.setScalar(P.r0 + k * P.grow); P.sp.material.opacity = P.a * (1 - k) * (1 - k);
       if (P.life <= 0) P.sp.visible = false;
     }
   }

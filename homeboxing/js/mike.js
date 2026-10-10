@@ -21,7 +21,7 @@ function drawIcon(g, kind, cx, cy, w) {
   g.restore();
 }
 import * as THREE from 'three';
-export { StyleLearner } from './style_learn.js?v=20261009220132';
+export { StyleLearner } from './style_learn.js?v=20261010020251';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const _lq = new THREE.Quaternion(), _lr = new THREE.Quaternion(), _qI = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ld = new THREE.Vector3();
 
@@ -561,6 +561,7 @@ transformed += uSwInv * uSwing * aSw;`);
   }
   isUp() { return !this.getupLayer || this.getupLayer.t >= this.getupLayer.dur - 0.15; }
   resetPose() {
+    this.dejected = false;
     for (const l of this.layers) l.out = true;
     this.down = false; this.downLoop = false; this.getupLayer = null; this.punch = null; this.combo = []; this.defending = null; this.reaction = null;
   }
@@ -659,16 +660,19 @@ transformed += uSwInv * uSwing * aSw;`);
     const idleW = free * Math.max(0, 1 - locoSum);
     this.idle.setEffectiveWeight(idleW * (1 - this.low));
     this.idleLow.setEffectiveWeight(idleW * this.low);
+    // sconfitto: smette di saltellare, resta quasi fermo (l'animazione di guardia a velocita' ridottissima: solo una lenta oscillazione)
+    const calm = 1 - 0.95 * (this.dej || 0); this.idle.timeScale = calm; this.idleLow.timeScale = calm;
     // il mixer riscrive un osso solo se il valore dell'animazione cambia: nei tratti fermi le piegature aggiunte qui
     // sotto (busto verso la tua testa, braccio, fiatone) si sommavano a ogni fotogramma (capriola all'indietro).
     // Si riparte sempre dalla posa dell'animazione
     if (this._animQ) for (const [b, q] of this._animQ) b.quaternion.copy(q);
     this.mixer.update(dt);
     this._updBraid(dt);
-    this._animQ = ['spine_01', 'spine_02', 'spine_03', 'upperarm_l', 'upperarm_r'].filter(n => this.bones[n]).map(n => [this.bones[n], this.bones[n].quaternion.clone()]);
+    this._animQ = ['spine_01', 'spine_02', 'spine_03', 'upperarm_l', 'upperarm_r', 'lowerarm_l', 'lowerarm_r', 'neck_01'].filter(n => this.bones[n]).map(n => [this.bones[n], this.bones[n].quaternion.clone()]);
     this.updateFace(dt);
     this.root.updateMatrixWorld(true);
     this._reachBend(dt);
+    this._dejectFx(dt);
     this.lookAtEyes(dt);
   }
 
@@ -699,6 +703,37 @@ transformed += uSwInv * uSwing * aSw;`);
   // passerebbe sopra, si piega in avanti col busto quanto serve (al massimo ~25 gradi); se sei piu' alto si raddrizza
   // all'indietro (poco) e alza il braccio che colpisce dalla spalla (fino a ~34 gradi).
   // A pugno partito resta l'inclinazione della partenza (se ti abbassi all'ultimo, il colpo puo' andare a vuoto)
+  // sconfitto (verdetto a suo sfavore): abbassa le braccia e si incurva un po' in avanti, a testa bassa. `dejected` = 0/1,
+  // la posa arriva piano (dej)
+  _dejectFx(dt) {
+    this.dej = (this.dej || 0) + ((this.dejected ? 1 : 0) - (this.dej || 0)) * Math.min(1, dt * 2.2);
+    const w = this.dej; if (w < 0.004) return;
+    const fwd = _c.set(0, 0, 1).applyQuaternion(this.root.getWorldQuaternion(_q)).setY(0).normalize();
+    const axis = new THREE.Vector3(0, 1, 0).cross(fwd).normalize();    // + = avanti e giu' (busto), + = braccio che scende
+    const rotW = (n, ang) => {
+      const b = this.bones[n]; if (!b || !b.parent) return;
+      const nw = new THREE.Quaternion().setFromAxisAngle(axis, ang).multiply(b.getWorldQuaternion(new THREE.Quaternion()));
+      b.quaternion.copy(b.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(nw)); b.updateMatrixWorld(true);
+    };
+    const A = this.dejA || { sp1: 0.16, sp2: 0.16, neck: 0.3 };
+    rotW('spine_01', A.sp1 * w); rotW('spine_02', A.sp2 * w); rotW('neck_01', A.neck * w);
+    // braccia stese in basso, penzolanti: ogni segmento si orienta verso il basso (prima si ruotava solo attorno all'asse
+    // laterale e le mani finivano appoggiate sulla cintura, dentro il corpo)
+    const rootP = this.root.getWorldPosition(new THREE.Vector3());
+    const aimDown = (n, child, tgtFor, k) => {
+      const bn = this.bones[n], ch = this.bones[child]; if (!bn || !ch || !bn.parent) return;
+      bn.updateMatrixWorld(true);
+      const p0 = bn.getWorldPosition(new THREE.Vector3()), dir = ch.getWorldPosition(new THREE.Vector3()).sub(p0).normalize();
+      const s = Math.sign(p0.clone().sub(rootP).dot(axis)) || 1;
+      const tgt = tgtFor(s), qr = new THREE.Quaternion().setFromUnitVectors(dir, tgt), qi = new THREE.Quaternion().slerp(qr, w * k);
+      const nw = qi.multiply(bn.getWorldQuaternion(new THREE.Quaternion()));
+      bn.quaternion.copy(bn.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(nw)); bn.updateMatrixWorld(true);
+    };
+    for (const sd of ['l', 'r']) {
+      aimDown('upperarm_' + sd, 'lowerarm_' + sd, s => new THREE.Vector3(0, -1, 0).addScaledVector(axis, s * 0.14).addScaledVector(fwd, 0.04).normalize(), 1);
+      aimDown('lowerarm_' + sd, 'hand_' + sd, s => new THREE.Vector3(0, -1, 0).addScaledVector(axis, s * 0.10).addScaledVector(fwd, 0.14).normalize(), 1);
+    }
+  }
   _reachBend(dt) {
     const P = this.lastPlayer, ap = this.enabled && !this.down ? this.aimPunch() : null;
     const name = this.punch ? this.punch.name : (this.combo.length ? this.combo[0] : null), sp = name && PUNCH[name];

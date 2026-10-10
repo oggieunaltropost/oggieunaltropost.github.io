@@ -5,9 +5,9 @@
 // la retta delle sue due mani fino a terra, cosi' resta sempre in mano.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { buildRing, RING_SIZE } from './ring.js?v=20261009220132';
-import { makeGloveMesh } from './player.js?v=20261009220132';
-import { contactShadow } from './contact_shadow.js?v=20261009220132';
+import { buildRing, RING_SIZE } from './ring.js?v=20261010020251';
+import { makeGloveMesh } from './player.js?v=20261010020251';
+import { contactShadow } from './contact_shadow.js?v=20261010020251';
 
 const FLOOR = -1.0;
 const WALK_SPEED = 0.42;                       // m/s (come la clip "cammina" di Blender)
@@ -24,7 +24,7 @@ export class Gym {
     this.group = new THREE.Group(); this.group.name = 'palestra';
     this.t = 0; this.bags = [];
     const L = new GLTFLoader();
-    L.load('assets/palestra.glb?v=20261009220132', g => {
+    L.load('assets/palestra.glb?v=20261010020251', g => {
       g.scene.traverse(o => {
         if (!o.isMesh) return;
         const m = o.material;
@@ -36,7 +36,7 @@ export class Gym {
       this.group.add(g.scene);
       this.loaded = true; if (this.onLoad) this.onLoad();
     });
-    L.load('assets/inserviente.glb?v=20261009220132', g => this._janitor(g));
+    L.load('assets/inserviente.glb?v=20261010020251', g => this._janitor(g));
     // in allenamento il ring del gioco sparisce: sulla pedana restano corde, pali e angoli (girano con la palestra)
     this.ring = buildRing(RING_SIZE); this.ring.visible = false; this.group.add(this.ring);
   }
@@ -60,11 +60,13 @@ export class Gym {
     this.handR = J.getObjectByName('hand_r'); this.handL = J.getObjectByName('hand_l');
     this.midR = J.getObjectByName('middle_01_r'); this.midL = J.getObjectByName('middle_01_l');
     // il buco del pugno: in mezzo tra palmo, nocche e falangi piegate (il manico ci passa dentro, non attraverso le dita)
-    this.fistR = ['middle_01_r', 'middle_02_r', 'middle_03_r', 'index_02_r', 'ring_02_r'].map(n => J.getObjectByName(n)).filter(Boolean);
-    this.fistL = ['middle_01_l', 'middle_02_l', 'middle_03_l', 'index_02_l', 'ring_02_l'].map(n => J.getObjectByName(n)).filter(Boolean);
+    // il pugno: il centro e' la media dei 12 giunti delle quattro dita (la stessa misura usata in Blender per mettere il
+    // manico dentro l'impugnatura: blender/create_janitor.py, cavity)
+    const fingers = side => ['index', 'middle', 'ring', 'pinky'].flatMap(f => ['01', '02', '03'].map(j => J.getObjectByName(`${f}_${j}_${side}`))).filter(Boolean);
+    this.fistR = fingers('r'); this.fistL = fingers('l');
     // mocio: manico di legno e frange grigie
     const mop = new THREE.Group();
-    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.4, 10), new THREE.MeshStandardMaterial({ color: 0x8a6a42, roughness: 0.6 }));
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.0185, 0.0185, 1.4, 12), new THREE.MeshStandardMaterial({ color: 0x8a6a42, roughness: 0.6 }));
     stick.position.y = 0.72; mop.add(stick);
     const head = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.06, 8), new THREE.MeshStandardMaterial({ color: 0x3a3d42, roughness: 0.6 }));
     head.position.y = 0.07; mop.add(head);
@@ -141,7 +143,7 @@ export class Gym {
     if (this.talkT > 0) this.talkT -= dt;
     const mo = this.talkT > 0 ? 0.25 + 0.75 * Math.abs(Math.sin(this.t * 11)) * (0.6 + 0.4 * Math.sin(this.t * 3.7)) : 0;
     this.mouth += (mo - this.mouth) * Math.min(1, dt * 18);
-    if (this.mouthM) this.mouthM.morphTargetInfluences[this.mouthI] = this.mouth;
+    if (this.mouthM) this.mouthM.morphTargetInfluences[this.mouthI] = this.mouth * 0.6;
     if (this.state === 'guarda') {
       if (wl) {                                                   // si gira verso di te
         const want = Math.atan2(wl.x - J.position.x, wl.z - J.position.z);
@@ -194,10 +196,10 @@ export class Gym {
     }
     // mocio lungo la retta delle mani (dal pugno destro, in basso, verso il sinistro), fino a terra
     const grip = (h, m, F) => {
-      const c = h.getWorldPosition(new THREE.Vector3()).lerp(m.getWorldPosition(new THREE.Vector3()), 0.75), w = new THREE.Vector3();
-      if (F.length < 3) return c;
+      const c = new THREE.Vector3(), w = new THREE.Vector3();
+      if (F.length < 6) return h.getWorldPosition(c).lerp(m.getWorldPosition(w), 0.6);
       for (const b of F) c.add(b.getWorldPosition(w));
-      return c.divideScalar(F.length + 1);
+      return c.divideScalar(F.length);
     };
     const R = this.group.worldToLocal(grip(this.handR, this.midR, this.fistR)), Lh = this.group.worldToLocal(grip(this.handL, this.midL, this.fistL));
     const d = Lh.clone().sub(R).normalize();

@@ -1,15 +1,14 @@
-// Stage "Nel deserto": il ring sulla sabbia rossa del Namaqualand. Sfondo = foto vera a 360 gradi "Goegap"
-// (Poly Haven, CC0) a piena risoluzione; davanti, in 3D, solo la sabbia sotto e attorno al ring (texture
-// fotografica red_sand portata al colore della foto, sfuma nella foto entro pochi metri) e ogni tanto uno
-// scorpione che esce dalla sabbia, cammina un po' e si risotterra. Le rocce e i cespugli sono quelli veri della foto.
+// Stage "Nel deserto": il ring sulla sabbia rossa. Sfondo = panorama a 360 gradi fatto in Blender (blender/create_desert.py:
+// dune, rocce, cespugli, cactus, mesas e montagne) con la sua mappa di profondita'; davanti, in 3D, ogni tanto uno
+// scorpione che esce dalla sabbia, cammina un po' e si risotterra.
 import * as THREE from 'three';
-import { panoDepth } from './pano_depth.js?v=20261009220132';
-import { panoGround } from './pano_ground.js?v=20261009220132';
-import { contactShadow } from './contact_shadow.js?v=20261009220132';
-import * as sfx from './sfx.js?v=20261009220132';
+import { panoDepth } from './pano_depth.js?v=20261010020251';
+import { panoGround } from './pano_ground.js?v=20261010020251';
+import { contactShadow } from './contact_shadow.js?v=20261010020251';
+import * as sfx from './sfx.js?v=20261010020251';
 
 const PANO_U = 0.0;
-const SUN = new THREE.Vector3(0.522, 0.744, 0.417).normalize();      // il sole della foto
+const SUN = new THREE.Vector3(-0.4465, 0.7193, 0.5321).normalize();      // il sole del panorama (blender/create_desert.py)
 
 const _gw = new THREE.Vector3();
 const SC_RMIN = 3.2, SC_RMAX = 5.5, SC_RING = 2.7;      // (piu' in la': col ring rialzato il bordo nascondeva la sabbia vicina)      // scorpione: tra il ring (lato 3,2 m + grembiule) e il bordo della sabbia piena
@@ -18,11 +17,11 @@ export class Desert {
   constructor() {
     this.group = new THREE.Group(); this.group.name = 'deserto';
     this.sunDir = SUN.clone();
-    this._sky(); this._sand(); this._scorpion(); this._eagles();
+    this._sky(); this._sand(); this._scorpion(); this._mound(); this._cacti(); this._rocks(); this._eagles();
     this.t = 0;
   }
   _sky() {
-    const tex = new THREE.TextureLoader().load('assets/deserto_panorama.jpg?v=20261009220132', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load('assets/deserto_panorama.jpg?v=20261010020251', () => { this._sampleSand(tex); this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -38,13 +37,104 @@ export class Desert {
     });
     const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 64, 32), m);
     sky.renderOrder = -10; sky.frustumCulled = false; this.group.add(sky);
-    // sfondo 3D: profondita' stimata dalla foto (tools/make_desert_depth.py): terreno alla sua distanza, rocce e colline in piedi a 30 m
-    this.group.add(panoDepth('assets/deserto_profondita.png', tex, { eye: 1.62, uU: PANO_U, flat: 6 }));
+    // sfondo 3D: profondita' esatta dal render (blender/create_desert.py): terreno, mesas e montagne alla loro distanza
+    this.panoRoot = panoDepth('assets/deserto_profondita.png', tex, { eye: 1.62, uU: PANO_U, flat: 20, hi: true, onReady: () => this._placeCacti() });
+    this.group.add(this.panoRoot);
+  }
+  // il colore medio della sabbia sotto il ring (dal panorama): il rilievo che alza lo scorpione e' dello stesso colore
+  _sampleSand(tex) {
+    try {
+      const im = tex.image, W = 96, H = 24, c = document.createElement('canvas'); c.width = W; c.height = H;
+      const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(im, 0, im.height * 0.86, im.width, im.height * 0.12, 0, 0, W, H);   // le righe in fondo: la sabbia sotto i piedi
+      const d = g.getImageData(0, 0, W, H).data; let r = 0, gg = 0, b = 0; const n = W * H;
+      for (let i = 0; i < n; i++) { r += d[i * 4]; gg += d[i * 4 + 1]; b += d[i * 4 + 2]; }
+      this.sandRGB = [r / n / 255, gg / n / 255, b / n / 255];
+      if (this.spray) { this.spray.material.color.setRGB(this.sandRGB[0], this.sandRGB[1], this.sandRGB[2], THREE.SRGBColorSpace).multiplyScalar(0.92); this.spray.material.needsUpdate = true; }
+    } catch (e) { this.sandRGB = [0.62, 0.36, 0.22]; }
+  }
+  // ---- cactus veri (saguaro) in 3D: prima erano dipinti nel panorama e alcuni sembravano tagliati a meta'. Tronco a coste, braccia
+  // curve che salgono, colore che schiarisce sulle coste. Poggiano sul terreno dello sfondo (si misura con un raggio, appena e' pronto).
+  _cacti() {
+    this.cactusGroup = new THREE.Group(); this.cactusGroup.name = 'cactus'; this.group.add(this.cactusGroup);
+    let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+    const ribbed = (geo, amp, n, hy0, hy1) => {                    // coste verticali + colore piu' chiaro sulle coste
+      const p = geo.attributes.position, c = new Float32Array(p.count * 3);
+      for (let i = 0; i < p.count; i++) {
+        const x = p.getX(i), z = p.getZ(i), a = Math.atan2(z, x), k = 0.5 + 0.5 * Math.cos(n * a);
+        const f = 1 + amp * (k - 0.5);
+        p.setX(i, x * f); p.setZ(i, z * f);
+        const g = 0.62 + 0.38 * k; c[i * 3] = 0.075 * g; c[i * 3 + 1] = 0.115 * g; c[i * 3 + 2] = 0.06 * g;
+      }
+      geo.setAttribute('color', new THREE.BufferAttribute(c, 3)); geo.computeVertexNormals(); return geo;
+    };
+    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0, envMapIntensity: 0.35 });
+    this.cactusList = [];
+    for (let i = 0; i < 18; i++) {
+      const r = i < 5 ? 14 + rnd() * 14 : 24 + Math.pow(rnd(), 1.4) * 110, a = rnd() * Math.PI * 2;
+      const H = 1.9 + rnd() * 2.3, R = 0.17 + rnd() * 0.06, G = new THREE.Group();
+      // tronco: profilo di rotazione, un po' piu' stretto in basso e tondo in cima
+      const prof = []; for (let k = 0; k <= 14; k++) { const y = k / 14 * H; const t = k / 14; prof.push(new THREE.Vector2(R * (0.8 + 0.2 * Math.min(1, t * 6)) * (t > 0.9 ? Math.sqrt(Math.max(0.02, 1 - (t - 0.9) / 0.1 * ((t - 0.9) / 0.1))) : 1), y)); }
+      prof.push(new THREE.Vector2(0.001, H));
+      G.add(new THREE.Mesh(ribbed(new THREE.LatheGeometry(prof, 18), 0.22, 12), mat));
+      // braccia: curve che escono di lato e salgono
+      const na = rnd() < 0.15 ? 0 : 1 + Math.floor(rnd() * 3);
+      for (let k = 0; k < na; k++) {
+        const y0 = H * (0.3 + rnd() * 0.3), ang = rnd() * Math.PI * 2, out = 0.55 + rnd() * 0.45, up = 0.7 + rnd() * 1.3, ar = R * (0.62 + rnd() * 0.1);
+        const dx = Math.cos(ang), dz = Math.sin(ang);
+        const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(dx * R * 0.5, y0, dz * R * 0.5), new THREE.Vector3(dx * out * 0.7, y0 + 0.05, dz * out * 0.7), new THREE.Vector3(dx * out, y0 + 0.3, dz * out), new THREE.Vector3(dx * out * 1.02, y0 + 0.3 + up * 0.6, dz * out * 1.02), new THREE.Vector3(dx * out * 1.02, y0 + 0.3 + up, dz * out * 1.02)]);
+        const tube = new THREE.TubeGeometry(curve, 14, ar, 14, false);
+        // la tubazione ha gli anelli attorno alla curva: le coste si fanno nello spazio locale della sezione (colore e leggero rilievo)
+        const pos = tube.attributes.position, col = new Float32Array(pos.count * 3);
+        for (let q = 0; q < pos.count; q++) { const seg = q % 15, kk = 0.5 + 0.5 * Math.cos(10 * seg / 14 * Math.PI * 2), g = 0.62 + 0.38 * kk; col[q * 3] = 0.075 * g; col[q * 3 + 1] = 0.115 * g; col[q * 3 + 2] = 0.06 * g; }
+        tube.setAttribute('color', new THREE.BufferAttribute(col, 3));
+        G.add(new THREE.Mesh(tube, mat));
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(ar, 14, 8), mat); cap.position.set(dx * out * 1.02, y0 + 0.3 + up, dz * out * 1.02); cap.scale.set(1, 1.0, 1); G.add(cap);
+      }
+      const sh = contactShadow(R * 5, R * 5, 0.45); sh.position.y = 0.02; G.add(sh);
+      G.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); G.rotation.y = rnd() * 6.28; G.visible = false;
+      this.cactusGroup.add(G); this.cactusList.push(G);
+    }
+  }
+  // ---- le quattro rocce grandi piu' vicine: dipinte nel panorama una (a destra) si vedeva tagliata a meta'; ora sono sassi 3D veri
+  _rocks() {
+    this.rockGroup = new THREE.Group(); this.rockGroup.name = 'rocce'; this.group.add(this.rockGroup);
+    let seed = 21; const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0, flatShading: false, envMapIntensity: 0.4 });
+    this.rockList = [];
+    for (const [x, z, sx, sz, sy] of [[-37, -9, 1.9, 1.1, 0.8], [37, -12, 1.5, 1.6, 0.7], [-38, -22, 1.4, 1.5, 0.7], [29, -27, 1.3, 1.1, 1.1]]) {
+      const geo = new THREE.IcosahedronGeometry(1, 3), p = geo.attributes.position, c = new Float32Array(p.count * 3), ph = rnd() * 10;
+      for (let i = 0; i < p.count; i++) {
+        const v = new THREE.Vector3().fromBufferAttribute(p, i).normalize(), n = 1 + 0.22 * Math.sin(v.x * 3.1 + ph) * Math.cos(v.y * 2.7 + ph * 1.3) + 0.12 * Math.sin(v.z * 7 + ph * 2) + 0.06 * Math.sin((v.x + v.y) * 11 + ph);
+        p.setXYZ(i, v.x * n * sx, Math.max(-0.25, v.y) * n * sy, v.z * n * sz);
+        const g = 0.8 + 0.3 * Math.sin(v.x * 5 + v.y * 3 + ph) + 0.15 * v.y;                 // un po' di variazione e piu' chiaro in alto
+        c[i * 3] = 0.27 * g; c[i * 3 + 1] = 0.145 * g; c[i * 3 + 2] = 0.085 * g;
+      }
+      geo.setAttribute('color', new THREE.BufferAttribute(c, 3)); geo.computeVertexNormals();
+      const m = new THREE.Mesh(geo, mat); m.position.set(x, 0, z); m.rotation.y = rnd() * 6.28; m.visible = false;
+      const sh = contactShadow(sx * 2.4, sz * 2.4, 0.4); sh.position.y = 0.02; sh.visible = false; m.userData.sh = sh; this.rockGroup.add(m); this.rockGroup.add(sh);
+      this.rockList.push(m);
+    }
+  }
+  _placeCacti() {                                             // appena lo sfondo e' pronto: ogni cactus sul suo terreno
+    if (!this.cactusList || !this.panoRoot) return;
+    const rc = new THREE.Raycaster(), down = new THREE.Vector3(0, -1, 0), o = new THREE.Vector3();
+    this.group.updateMatrixWorld(true);
+    for (const G of this.cactusList) {
+      o.set(G.position.x, 400, G.position.z); rc.set(this.group.localToWorld(o.clone()), down);
+      const hit = rc.intersectObject(this.panoRoot, true).find(h => h.object.name === 'sfondo 3D');
+      G.position.y = hit ? this.group.worldToLocal(hit.point.clone()).y : 0; G.visible = true;
+    }
+    for (const R of this.rockList) {
+      o.set(R.position.x, 400, R.position.z); rc.set(this.group.localToWorld(o.clone()), down);
+      const hit = rc.intersectObject(this.panoRoot, true).find(h => h.object.name === 'sfondo 3D');
+      R.position.y = (hit ? this.group.worldToLocal(hit.point.clone()).y : 0) + 0.05; R.visible = true;
+      R.userData.sh.position.set(R.position.x, R.position.y - 0.02, R.position.z); R.userData.sh.visible = true;
+    }
   }
   // sabbia vicina: foto di sabbia rossa (colore = quello del terreno della foto), il bordo sfuma tra 5 e 9 m
   _sand() {
     const L = new THREE.TextureLoader();
-    const tex = L.load('assets/sabbia_rossa_colore.jpg?v=20261009220132'); tex.colorSpace = THREE.SRGBColorSpace;
+    const tex = L.load('assets/sabbia_rossa_colore.jpg?v=20261010020251'); tex.colorSpace = THREE.SRGBColorSpace;
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(6, 6); tex.anisotropy = 8;
     const a = document.createElement('canvas'); a.width = a.height = 256; const ga = a.getContext('2d');
     const gr = ga.createRadialGradient(128, 128, 128 * 5 / 9, 128, 128, 128); gr.addColorStop(0, '#fff'); gr.addColorStop(1, '#000');
@@ -53,11 +143,64 @@ export class Desert {
     sand.rotation.x = -Math.PI / 2; sand.position.y = -0.005; sand.renderOrder = -5; this.group.add(sand);
     sand.visible = false;                                 // (ora la sabbia vicina e' la foto stessa, stesa piatta: niente cerchio)
     // sotto il ring: opaca e illuminata (riceve le ombre dei pugili)
-    const nor = L.load('assets/sabbia_rossa_rilievo.jpg?v=20261009220132'); nor.wrapS = nor.wrapT = THREE.RepeatWrapping; nor.repeat.set(3, 3);
+    const nor = L.load('assets/sabbia_rossa_rilievo.jpg?v=20261010020251'); nor.wrapS = nor.wrapT = THREE.RepeatWrapping; nor.repeat.set(3, 3);
     const t2 = tex.clone(); t2.repeat.set(3, 3); t2.needsUpdate = true;
     const under = new THREE.Mesh(new THREE.CircleGeometry(4.5, 48), new THREE.MeshStandardMaterial({ map: t2, normalMap: nor, roughness: 0.95 }));
     under.rotation.x = -Math.PI / 2; under.position.y = -0.003; under.receiveShadow = true; this.group.add(under);
     under.visible = false;
+  }
+  // il rilievo di sabbia attorno allo scorpione: si gonfia quando esce (o si risotterra), si apre in un cratere con l'orlo
+  // e poi si spiana piano. Una griglia 28x28 che si deforma, ombreggiata a mano (la sabbia della foto non ha luci)
+  _mound() {
+    const geo = new THREE.PlaneGeometry(2.0, 2.0, 40, 40); geo.rotateX(-Math.PI / 2);
+    this.mGeo = geo; this.mBase = geo.attributes.position.array.slice();
+    geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 3), 3));
+    const ac = document.createElement('canvas'); ac.width = ac.height = 64; const ag = ac.getContext('2d');
+    const gr = ag.createRadialGradient(32, 32, 14, 32, 32, 31); gr.addColorStop(0, '#fff'); gr.addColorStop(1, '#000'); ag.fillStyle = gr; ag.fillRect(0, 0, 64, 64);
+    this.mound = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, alphaMap: new THREE.CanvasTexture(ac), transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
+    this.mound.visible = false; this.mound.renderOrder = -4; this.mound.frustumCulled = false; this.group.add(this.mound);
+    this.m = { x: 0, z: 0, A: 0, cd: 0, cr: 0, on: false, fade: 0 };
+  }
+  _setMound() {
+    const m = this.m, P = this.mGeo.attributes.position, C = this.mGeo.attributes.color, B = this.mBase, n = P.count, sand = this.sandRGB || [0.62, 0.36, 0.22];
+    const L = new THREE.Vector3(0.45, 0.8, 0.3).normalize(), nrm = new THREE.Vector3(), base = new THREE.Color().setRGB(sand[0], sand[1], sand[2], THREE.SRGBColorSpace);
+    const col = new THREE.Color();
+    for (let i = 0; i < n; i++) {
+      const x = B[i * 3], z = B[i * 3 + 2], d = Math.hypot(x, z), a = Math.atan2(z, x);
+      const wob = 1 + 0.18 * Math.sin(a * 5 + this.t * 3) * Math.sin(a * 3 - this.t);                // il rilievo non e' liscio
+      let h = m.A * Math.exp(-(d / 0.27) * (d / 0.27)) * wob;
+      h += m.cr * Math.exp(-((d - 0.24) / 0.09) * ((d - 0.24) / 0.09)) * (0.85 + 0.3 * Math.sin(a * 7 + 1.3));
+      h -= m.cd * Math.exp(-(d / 0.13) * (d / 0.13));
+      P.setXYZ(i, x + m.x, h + 0.004, z + m.z);
+    }
+    // normali approssimate dalle differenze finite sulla griglia (29 x 29)
+    const W = 41;
+    for (let j = 0; j < W; j++) for (let k = 0; k < W; k++) {
+      const i = j * W + k, il = j * W + Math.max(0, k - 1), ir = j * W + Math.min(W - 1, k + 1), iu = Math.max(0, j - 1) * W + k, id = Math.min(W - 1, j + 1) * W + k;
+      const dx = P.getY(ir) - P.getY(il), dz = P.getY(id) - P.getY(iu), st = 2.0 / 40 * 2;
+      nrm.set(-dx / st, 1, -dz / st).normalize();
+      const sh = (0.1 + 0.9 * Math.max(0, nrm.dot(L))) / (0.1 + 0.9 * L.y);      // 1 sul piano (colore della sabbia); pendii all'ombra piu' scuri, al sole piu' chiari
+      col.copy(base).multiplyScalar(Math.max(0.28, sh)); C.setXYZ(i, col.r, col.g, col.b);
+    }
+    P.needsUpdate = true; C.needsUpdate = true;
+  }
+  _updMound(dt) {
+    const m = this.m, C = this.sc;
+    if (C && C.phase === 'su') {
+      const k = Math.min(1, C.t / 1.3), sm = q => { q = Math.min(1, Math.max(0, q)); return q * q * (3 - 2 * q); };
+      m.x = C.x; m.z = C.z; m.on = true; m.fade = 1;
+      m.A = 0.12 * Math.sin(Math.min(1, k / 0.4) * Math.PI / 2) * (1 - sm((k - 0.4) / 0.3)); m.cd = 0.08 * sm((k - 0.3) / 0.5); m.cr = 0.065 * sm((k - 0.35) / 0.5);
+    } else if (C && C.phase === 'giu') {
+      const sm = q => { q = Math.min(1, Math.max(0, q)); return q * q * (3 - 2 * q); };
+      m.x = C.x; m.z = C.z; m.on = true; m.fade = 1;
+      m.A = 0.15 * sm((C.t - 0.25) / 1.1); m.cd = 0.08 * (1 - sm((C.t - 0.2) / 0.9)); m.cr = 0.055 * (1 - sm((C.t - 0.5) / 0.7));
+    } else if (m.on) {                                       // finito: il rilievo si spiana piano
+      m.fade = Math.max(0, m.fade - dt / 9); const f = m.fade * m.fade;
+      m.A *= Math.pow(0.5, dt / 3); m.cd *= Math.pow(0.5, dt / 3); m.cr *= Math.pow(0.5, dt / 3); m.k = f;
+      if (m.fade <= 0) m.on = false;
+    }
+    this.mound.visible = m.on;
+    if (m.on) { this.mound.material.opacity = C ? 1 : Math.min(1, m.fade * 3); this._setMound(); }
   }
   // scorpione: ogni tanto esce dalla sabbia (con uno spruzzo), cammina un po' attorno al ring e si risotterra.
   // Solo sulla sabbia 3D vicina (non nella foto). Lungo ~20 cm, corazza bruno-ambra lucida. Muso verso +Z.
@@ -66,6 +209,7 @@ export class Desert {
     const shell = new THREE.MeshStandardMaterial({ color: 0x6b4318, roughness: 0.35, metalness: 0.1 });
     const dark = new THREE.MeshStandardMaterial({ color: 0x3a220b, roughness: 0.4 });
     const sting = new THREE.MeshStandardMaterial({ color: 0x1c1006, roughness: 0.3 });
+    this.scMats = { shell, dark, sting };
     const seg = (r, l, m = shell) => { const o = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), m); o.scale.set(r, r * 0.4, l); o.castShadow = true; return o; };
     const body = new THREE.Group(); body.position.y = 0.018; S.add(body);
     const head = seg(0.022, 0.026); head.position.z = 0.035; body.add(head);
@@ -105,7 +249,7 @@ export class Desert {
       const low = new THREE.Mesh(new THREE.CylinderGeometry(0.0011, 0.0018, 0.046, 5), dark); low.rotation.x = Math.PI / 2; low.position.z = 0.023; knee.add(low);
       this.legs.push({ hip, thigh, ph: (k % 2) * Math.PI + (s > 0 ? Math.PI : 0), base: hip.rotation.y, s });
     }
-    S.scale.setScalar(1.3);
+    S.scale.setScalar(2.3);
     // sotto la sabbia non si vede (la sabbia 3D verso il bordo e' semitrasparente): taglio a filo del terreno
     this.clip = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     // dove il taglio a filo della sabbia apre il guscio si vedrebbe l'interno vuoto: le facce interne si colorano di sabbia
@@ -115,38 +259,44 @@ export class Desert {
     S.traverse(o => { if (o.isMesh) { o.material.clippingPlanes = [this.clip]; sandCap(o.material); } });
     this.scorp = S; this.scBody = body; this.group.add(S);
     // spruzzi di sabbia
-    const N = 140, geo = new THREE.BufferGeometry();
+    const N = 520, geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
     this.sprayV = new Float32Array(N * 3);
-    this.spray = new THREE.Points(geo, new THREE.PointsMaterial({ map: this._grain(), alphaTest: 0.3, color: 0xc29a6e, size: 0.009, transparent: true, opacity: 0.9, depthWrite: false }));
+    this.spray = new THREE.Points(geo, new THREE.PointsMaterial({ map: this._grain(), alphaTest: 0.3, color: 0xa57a58, size: 0.016, transparent: true, opacity: 0.9, depthWrite: false }));
     this.spray.visible = false; this.spray.frustumCulled = false; this.group.add(this.spray);
-    this.nextSc = 8 + Math.random() * 10; this.sc = null;
+    this.nextSc = 3 + Math.random() * 4; this.sc = null;
     // nuvola di polvere (quando esce e quando si risotterra: copre lo scorpione che entra nella sabbia)
-    const dc = document.createElement('canvas'); dc.width = dc.height = 64; const dg = dc.getContext('2d');
-    const dgr = dg.createRadialGradient(32, 32, 2, 32, 32, 31); dgr.addColorStop(0, 'rgba(255,255,255,0.9)'); dgr.addColorStop(0.5, 'rgba(255,255,255,0.45)'); dgr.addColorStop(1, 'rgba(255,255,255,0)');
-    dg.fillStyle = dgr; dg.fillRect(0, 0, 64, 64);
+    const dc = document.createElement('canvas'); dc.width = dc.height = 128; const dg = dc.getContext('2d');
+    let sd = 3; const rr = () => { sd = (sd * 16807) % 2147483647; return (sd - 1) / 2147483646; };
+    for (let i = 0; i < 22; i++) {                           // una nuvola irregolare: tanti sbuffi sovrapposti, piu' densi al centro
+      const ang = rr() * 6.28, rad = rr() * 34 * (0.4 + 0.6 * rr()), cx = 64 + Math.cos(ang) * rad, cy = 64 + Math.sin(ang) * rad, R = 16 + rr() * 22;
+      const gr = dg.createRadialGradient(cx, cy, 0, cx, cy, R); gr.addColorStop(0, 'rgba(255,255,255,0.32)'); gr.addColorStop(0.6, 'rgba(255,255,255,0.14)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      dg.fillStyle = gr; dg.fillRect(0, 0, 128, 128);
+    }
     const dtex = new THREE.CanvasTexture(dc);
-    this.dust = Array.from({ length: 40 }, () => {
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: dtex, color: 0xb88f64, transparent: true, depthWrite: false, opacity: 0 }));
-      sp.visible = false; this.group.add(sp); return { sp, life: 0, max: 1, v: new THREE.Vector3(), s0: 0.1, s1: 0.5 };
+    this.dust = Array.from({ length: 110 }, () => {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: dtex, color: 0xa07a56, transparent: true, depthWrite: false, opacity: 0 }));
+      sp.visible = false; this.group.add(sp); return { sp, life: 0, max: 1, v: new THREE.Vector3(), s0: 0.1, s1: 0.5, rot: 0 };
     });
   }
-  _puff(p, n) {
+  _puff(p, n, sz = 1) {
     for (let k = 0; k < n; k++) {
       const D = this.dust.find(d => d.life <= 0) || this.dust.reduce((a, b) => (a.life < b.life ? a : b));
-      const a = Math.random() * Math.PI * 2, r = Math.random() * 0.05;
-      D.sp.position.set(p.x + Math.cos(a) * r, 0.03 + Math.random() * 0.03, p.z + Math.sin(a) * r);
-      D.v.set(Math.cos(a) * (0.08 + Math.random() * 0.12), 0.06 + Math.random() * 0.1, Math.sin(a) * (0.08 + Math.random() * 0.12));
-      D.max = D.life = 1.6 + Math.random() * 1.0; D.s0 = 0.14 + Math.random() * 0.08; D.s1 = 0.5 + Math.random() * 0.35; D.sp.visible = true;
+      const a = Math.random() * Math.PI * 2, r = Math.random() * 0.12 * sz;
+      D.sp.position.set(p.x + Math.cos(a) * r, 0.04 + Math.random() * 0.08, p.z + Math.sin(a) * r);
+      const out = (0.25 + Math.random() * 0.45) * sz;
+      D.v.set(Math.cos(a) * out, 0.2 + Math.random() * 0.35, Math.sin(a) * out);
+      D.max = D.life = 2.2 + Math.random() * 1.6; D.s0 = (0.28 + Math.random() * 0.2) * sz; D.s1 = (1.0 + Math.random() * 0.8) * sz;
+      D.rot = (Math.random() - 0.5) * 1.2; D.sp.material.rotation = Math.random() * 6.28; D.sp.material.color.setHex(Math.random() < 0.5 ? 0xb89468 : 0xa5815a); D.sp.visible = true;
     }
   }
   _updDust(dt) {
     for (const D of this.dust) {
       if (D.life <= 0) continue;
       D.life -= dt; const k = 1 - D.life / D.max;
-      D.sp.position.addScaledVector(D.v, dt); D.v.multiplyScalar(1 - dt * 1.2); D.v.y -= dt * 0.02;
-      D.sp.scale.setScalar(D.s0 + (D.s1 - D.s0) * Math.sqrt(k));
-      D.sp.material.opacity = 0.95 * Math.min(1, k * 8) * (1 - k * k);
+      D.sp.position.addScaledVector(D.v, dt); D.v.multiplyScalar(1 - dt * 0.9); D.v.y -= dt * 0.04;
+      D.sp.scale.setScalar(D.s0 + (D.s1 - D.s0) * Math.sqrt(k)); D.sp.material.rotation += D.rot * dt;
+      D.sp.material.opacity = 0.75 * Math.min(1, k * 6) * (1 - k) * (1 - k * 0.5);
       if (D.life <= 0) D.sp.visible = false;
     }
   }
@@ -159,12 +309,12 @@ export class Desert {
   _burst(p, n = 1) {
     const pos = this.spray.geometry.attributes.position.array, v = this.sprayV;
     for (let i = 0; i < pos.length / 3; i++) {
-      const a = Math.random() * Math.PI * 2, r = Math.random() * 0.06, up = 0.6 + Math.random() * 1.1, h = 0.2 + Math.random() * 0.6;
+      const a = Math.random() * Math.PI * 2, r = Math.random() * 0.14, up = 0.5 + Math.random() * 1.0, h = 0.25 + Math.random() * 0.55;
       pos[i * 3] = p.x + Math.cos(a) * r; pos[i * 3 + 1] = 0.005; pos[i * 3 + 2] = p.z + Math.sin(a) * r;
       v[i * 3] = Math.cos(a) * h * n; v[i * 3 + 1] = up * n; v[i * 3 + 2] = Math.sin(a) * h * n;
     }
     this.spray.geometry.attributes.position.needsUpdate = true;
-    this.spray.visible = true; this.sprayT = 0; this.spray.material.opacity = 0.9;
+    this.spray.visible = true; this.sprayT = 0; this.spray.material.opacity = 0.7;
   }
   _updSpray(dt) {
     if (!this.spray.visible) return;
@@ -176,7 +326,7 @@ export class Desert {
       pos[i * 3] += v[i * 3] * dt; pos[i * 3 + 1] = Math.max(0.003, pos[i * 3 + 1] + v[i * 3 + 1] * dt); pos[i * 3 + 2] += v[i * 3 + 2] * dt;
     }
     this.spray.geometry.attributes.position.needsUpdate = true;
-    this.spray.material.opacity = Math.max(0, 0.9 - Math.max(0, this.sprayT - 0.5) * 1.2);
+    this.spray.material.opacity = Math.max(0, 0.7 - Math.max(0, this.sprayT - 0.4) * 1.1);
     if (this.sprayT > 1.3) this.spray.visible = false;
   }
   // ---- aquile reali che planano sulle termiche (apertura alare ~2 m): ali con le "dita" delle remiganti,
@@ -282,23 +432,28 @@ export class Desert {
     this.t += dt;
     this._updEagles(dt, cam);
     this._updSpray(dt); this._updDust(dt);
-    const S = this.scorp;
+    const S = this.scorp; this._updMound(dt);
     this.clip.constant = -this.group.getWorldPosition(_gw).y - 0.001;
     if (!this.sc) {
       if ((this.nextSc -= dt) > 0) return;
       // dove: solo sulla sabbia 3D piena attorno al ring (oltre i 4,5 m la sabbia sfuma nella foto: li' no)
       let x, z;
-      do { const a = Math.random() * Math.PI * 2, r = SC_RMIN + Math.random() * (SC_RMAX - SC_RMIN - 0.3); x = Math.cos(a) * r; z = Math.sin(a) * r; } while (Math.max(Math.abs(x), Math.abs(z)) < SC_RING);
+      do { const a = Math.PI * 1.5 + (Math.random() < 0.5 ? -1 : 1) * (0.55 + Math.random() * 0.75), r = 3.3 + Math.random() * 1.2; x = Math.cos(a) * r; z = Math.sin(a) * r; } while (Math.max(Math.abs(x), Math.abs(z)) < SC_RING);   // ai lati davanti a te (a 30-75 gradi dalla direzione dell'avversario, che davanti lo coprirebbe), oltre il bordo del ring
       this.sc = { phase: 'su', t: 0, x, z, yaw: Math.random() * Math.PI * 2, turn: 0, walk: 4 + Math.random() * 5 };
-      S.position.set(x, -0.06, z); S.rotation.set(-0.5, this.sc.yaw, 0); S.visible = true;
-      this._burst(S.position, 1); this._puff(S.position, 8);
+      const black = Math.random() < 0.5, M = this.scMats;                    // uno ambra o uno nero, a caso
+      M.shell.color.setHex(black ? 0x17130f : 0x6b4318); M.shell.roughness = black ? 0.22 : 0.35; M.shell.metalness = black ? 0.25 : 0.1;
+      M.dark.color.setHex(black ? 0x0a0908 : 0x3a220b); M.sting.color.setHex(black ? 0x050403 : 0x1c1006);
+      S.position.set(x, -0.08, z); S.rotation.set(-0.5, this.sc.yaw, 0); S.visible = true;
+      this._puff(S.position, 4);
+      if (cam) sfx.sandRustle(this.group.localToWorld(S.position.clone()), cam, 1.6, 0.05);
       return;
     }
     const C = this.sc; C.t += dt;
     let speed = 0;
     if (C.phase === 'su') {                                  // esce dalla sabbia, muso in su
-      const k = Math.min(1, C.t / 0.9), e = k * k * (3 - 2 * k);
-      S.position.y = -0.06 + 0.06 * e; S.rotation.set(-0.5 * (1 - e), C.yaw, 0);
+      const k = Math.min(1, C.t / 1.3), e = Math.min(1, Math.max(0, (k - 0.3) / 0.4)), ee = e * e * (3 - 2 * e);   // prima la sabbia si gonfia, poi lui sale
+      S.position.y = -0.08 + 0.08 * ee; S.rotation.set(-0.5 * (1 - ee), C.yaw, 0);
+      if ((C.pf = (C.pf || 0) - dt) <= 0 && k > 0.1 && k < 0.8) { C.pf = 0.09; this._puff(S.position, 2, 1.1); this._burst(S.position, 0.35); }
       if (k >= 1) { C.phase = 'cammina'; C.t = 0; }
     } else if (C.phase === 'cammina') {                    // cammina a scatti, curvando
       const go = Math.sin(C.t * 1.7) > -0.35;              // brevi soste
@@ -311,13 +466,14 @@ export class Desert {
       else if (Math.max(Math.abs(C.x), Math.abs(C.z)) < SC_RING) C.yaw = Math.atan2(C.x, C.z);   // non sale sul ring
       C.x += Math.sin(C.yaw) * speed * dt; C.z += Math.cos(C.yaw) * speed * dt;
       S.position.set(C.x, 0, C.z); S.rotation.set(0, C.yaw, 0);
-      if (C.t > C.walk && go) { C.phase = 'giu'; C.t = 0; C.pf = 0; this._puff(S.position, 6); }
+      if (C.t > C.walk && go) { C.phase = 'giu'; C.t = 0; C.pf = 0; this._puff(S.position, 6); if (cam) sfx.sandRustle(this.group.localToWorld(S.position.clone()), cam, 2.7, 0.06); }
+      else if (go && cam && (C.sk = (C.sk || 0) - dt) <= 0) { C.sk = 0.9 + Math.random() * 1.2; sfx.sandRustle(this.group.localToWorld(S.position.clone()), cam, 0.35, 0.025); }   // ogni tanto un lieve raspare mentre cammina
     } else {                                               // si risotterra: gratta sul posto alzando tanta polvere, poi ci sparisce dentro
       speed = 0.12;                                         // (le zampe grattano veloci)
-      if ((C.pf -= dt) <= 0) { C.pf = 0.07; this._puff(S.position, 3); if (C.t < 1.2) this._burst(S.position, 0.3); }
-      const k = Math.min(1, Math.max(0, (C.t - 0.6) / 0.9));             // scende solo quando la nuvola lo copre
-      S.position.y = -0.08 * k; S.rotation.set(0, C.yaw + Math.sin(C.t * 25) * 0.05, 0);
-      if (C.t > 1.8) { S.visible = false; this.sc = null; this.nextSc = 18 + Math.random() * 25; }
+      if ((C.pf -= dt) <= 0) { C.pf = 0.045; this._puff(S.position, 3, 1.5); if (C.t < 1.9) this._burst(S.position, 0.4); }
+      const k = Math.min(1, Math.max(0, (C.t - 0.8) / 0.8));             // scende solo quando il polverone lo copre
+      S.position.y = -0.11 * k; S.rotation.set(0, C.yaw + Math.sin(C.t * 30) * 0.08, 0);
+      if (C.t > 2.6) { S.visible = false; this.sc = null; this.nextSc = 7 + Math.random() * 9; }
     }
     // zampe a passo alternato, chele che si aprono, coda che ondeggia
     const w = this.t * (speed > 0.06 ? 14 : 4);

@@ -10,8 +10,8 @@ export let panoPending = 0;
 
 // il worker: legge la mappa di profondita' e costruisce i due strati (davanti e riempimento dietro)
 const WORKER_URL = URL.createObjectURL(new Blob([`
-const GW = 512, GH = 256, SKY = 880;
-onmessage = async ({ data: { url, eye, uU, flat } }) => {
+const SKY = 880;
+onmessage = async ({ data: { url, eye, uU, flat, hi } }) => {
   try {
     const bmp = await createImageBitmap(await (await fetch(url)).blob(), { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
     const c = new OffscreenCanvas(bmp.width, bmp.height), g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(bmp, 0, 0);
@@ -28,15 +28,16 @@ onmessage = async ({ data: { url, eye, uU, flat } }) => {
         const xx = (x + dx + W) % W, yy = Math.min(H - 1, Math.max(0, y + dy)), i = (yy * W + xx) * 4;
         const v = px[i] * 256 + px[i + 1]; m = Math.max(m, v === 65535 ? Infinity : v * 0.5); }
       return m; };
-    const build = dist => {
+    // hi: sfondo piu' fine (1024 colonne, righe fittissime vicino all'orizzonte): montagne e rocce lontane meno scalettate
+    const build = (dist, GW, GH, pw) => {
       const pos = new Float32Array((GW + 1) * (GH + 1) * 3);
       for (let j = 0; j <= GH; j++) {
-        const lat = (0.5 - j / GH) * Math.PI;                    // j = 0 in alto
+        const sj = 1 - 2 * j / GH, lat = Math.sign(sj) * Math.PI / 2 * Math.pow(Math.abs(sj), pw);   // j = 0 in alto (pw = 1: righe uniformi)
         for (let i = 0; i <= GW; i++) {
           const lon = (i / GW - 0.5 - uU) * 2 * Math.PI;
           const dx = Math.cos(lat) * Math.cos(lon), dy = Math.sin(lat), dz = Math.cos(lat) * Math.sin(lon);
           let uu = (Math.atan2(dz, dx) / (2 * Math.PI) + 0.5 + uU) % 1; if (uu < 0) uu += 1;
-          let R = Math.min(SKY, dist(Math.min(W - 1, (uu * W) | 0), Math.min(H - 1, (j / GH * H) | 0)));
+          let R = Math.min(SKY, dist(Math.min(W - 1, (uu * W) | 0), Math.min(H - 1, Math.max(0, ((0.5 - lat / Math.PI) * H) | 0))));
           if (flat > 0 && dy < -0.01) {                       // a terra: sul piano, con un raccordo morbido verso la foto
             const tp = eye / -dy, rh = tp * Math.sqrt(1 - dy * dy);
             const k = Math.min(1, Math.max(0, (rh - flat) / 6)), kk = k * k * (3 - 2 * k);
@@ -49,7 +50,7 @@ onmessage = async ({ data: { url, eye, uU, flat } }) => {
       return pos; };
     // i triangoli a cavallo di un salto di distanza (bordo di una roccia davanti allo sfondo) si tolgono: tirati tra
     // vicino e lontano facevano strisce stirate; nel buco si vede lo strato dietro o la sfera del cielo
-    const tris = (pos, ratio, far) => {
+    const tris = (pos, ratio, far, GW, GH) => {
       const d = v => Math.hypot(pos[v * 3], pos[v * 3 + 1] - eye, pos[v * 3 + 2]);
       const keep = (p, q, r) => { const a = d(p), b = d(q), c = d(r), lo = Math.min(a, b, c), hi = Math.max(a, b, c); return hi < lo * ratio || lo > far; };
       const idx = new Uint32Array(GW * GH * 6); let n = 0;
@@ -59,8 +60,9 @@ onmessage = async ({ data: { url, eye, uU, flat } }) => {
         if (keep(b, cc, dd)) { idx[n++] = b; idx[n++] = cc; idx[n++] = dd; }
       }
       return idx.slice(0, n); };
-    const pos = build(distMin), posB = build(distMax);
-    const idx = tris(pos, 1.45, 120), idxB = tris(posB, 3, 200);   // dietro: si tolgono solo i salti enormi
+    const GW = hi ? 1024 : 512, GH = hi ? 192 : 256, pw = hi ? 1.8 : 1, GWB = hi ? 512 : GW, GHB = hi ? 96 : GH;
+    const pos = build(distMin, GW, GH, pw), posB = build(distMax, GWB, GHB, pw);
+    const idx = tris(pos, 1.45, 120, GW, GH), idxB = tris(posB, 3, 200, GWB, GHB);   // dietro: si tolgono solo i salti enormi
     postMessage({ pos, idx, posB, idxB }, [pos.buffer, idx.buffer, posB.buffer, idxB.buffer]);
   } catch (e) { postMessage({ err: String(e) }); }
 };
@@ -72,7 +74,7 @@ onmessage = async ({ data: { url, eye, uU, flat } }) => {
 // separato, che faceva un cerchio di colore diverso): ci camminano sopra lupo, scorpione, impronte
 // grain: texture di dettaglio (grana) stesa sul pavimento piatto vicino, dove la foto ha pochi pixel ed e' sfocata;
 // grainMean = sua luminosita' media (lineare), cosi' il colore della foto non cambia
-export function panoDepth(url, tex, { eye = 1.65, uU = 0, onReady = null, clip = 0, flat = 0, grain = null, grainMean = 0.5, grainScale = 1.6 } = {}) {
+export function panoDepth(url, tex, { eye = 1.65, uU = 0, onReady = null, clip = 0, flat = 0, hi = false, grain = null, grainMean = 0.5, grainScale = 1.6 } = {}) {
   const mesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.ShaderMaterial({
     fog: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 4, polygonOffsetUnits: 4,   // (dietro al terreno 3D vicino)
     uniforms: { uPano: { value: tex }, uEye: { value: eye }, uU: { value: uU }, uClip: { value: clip }, uGrain: { value: grain }, uGM: { value: grainMean }, uGS: { value: grainScale }, uFlat: { value: grain ? flat : 0 } },
@@ -111,6 +113,6 @@ export function panoDepth(url, tex, { eye = 1.65, uU = 0, onReady = null, clip =
   // se il worker non risponde (errore o niente) il caricamento non deve restare al buio per sempre
   let done = false; const fail = e => { if (done) return; done = true; panoPending--; try { w.terminate(); } catch (_) {} console.warn('profondita', url, e); };
   w.onerror = e => fail(e.message || 'worker'); setTimeout(() => fail('tempo scaduto'), 25000);
-  w.postMessage({ url: new URL(url, location.href).href, eye, uU, flat });
+  w.postMessage({ url: new URL(url, location.href).href, eye, uU, flat, hi });
   return root;
 }

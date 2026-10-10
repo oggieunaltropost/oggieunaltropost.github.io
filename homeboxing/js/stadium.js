@@ -5,9 +5,12 @@
 // Doppler).
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
 import * as THREE from 'three';
-import { panoDepth } from './pano_depth.js?v=20261009220132';
-import { contactShadow } from './contact_shadow.js?v=20261009220132';
-import * as sfx from './sfx.js?v=20261009220132';
+import { panoDepth } from './pano_depth.js?v=20261010020251';
+import { contactShadow } from './contact_shadow.js?v=20261010020251';
+import * as sfx from './sfx.js?v=20261010020251';
+import { Footballer } from './footballer.js?v=20261010020251';
+import { NightFireworks } from './fireworks.js?v=20261010020251';
+import { StadiumScreen } from './stadium_screen.js?v=20261010020251';
 
 const EYE = 1.65;
 // il Sole della foto: Blender (-0.2484, -0.5327, 0.809) -> gioco (y, z, x)
@@ -16,18 +19,78 @@ const SUN = new THREE.Vector3(-0.5327, 0.809, -0.2484).normalize();
 const BANNER_L = 30, BANNER_H = 6.5, SEG_X = 60, SEG_Y = 8;
 const _v = new THREE.Vector3(), _w = new THREE.Vector3();
 
+// scia di fumo dell'aereo: tante nuvolette (quadrati che guardano sempre la camera) in un'unica draw call; ognuna nasce
+// dietro l'aereo, si allarga, sale piano col vento e svanisce in ~14 s
+const SMOKE_N = 320;
+class Smoke {
+  constructor(parent) {
+    this.t = 0; this.i = 0;
+    this.p = new Float32Array(SMOKE_N * 3); this.age = new Float32Array(SMOKE_N).fill(99); this.ttl = new Float32Array(SMOKE_N).fill(1);
+    this.r0 = new Float32Array(SMOKE_N); this.vel = new Float32Array(SMOKE_N * 3); this.seed = new Float32Array(SMOKE_N);
+    const g = new THREE.InstancedBufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0]), 3));
+    g.setIndex([0, 1, 2, 0, 2, 3]);
+    this.aPos = new THREE.InstancedBufferAttribute(new Float32Array(SMOKE_N * 3), 3); this.aPos.setUsage(THREE.DynamicDrawUsage);
+    this.aSize = new THREE.InstancedBufferAttribute(new Float32Array(SMOKE_N), 1); this.aSize.setUsage(THREE.DynamicDrawUsage);
+    this.aAlpha = new THREE.InstancedBufferAttribute(new Float32Array(SMOKE_N), 1); this.aAlpha.setUsage(THREE.DynamicDrawUsage);
+    this.aSeed = new THREE.InstancedBufferAttribute(this.seed, 1);
+    g.setAttribute('iPos', this.aPos); g.setAttribute('iSize', this.aSize); g.setAttribute('iAlpha', this.aAlpha); g.setAttribute('iSeed', this.aSeed);
+    g.instanceCount = SMOKE_N;
+    const m = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, fog: false,
+      vertexShader: `attribute vec3 iPos; attribute float iSize; attribute float iAlpha; attribute float iSeed; varying vec2 vUv; varying float vA; varying float vS;
+        void main(){ vUv = position.xy; vA = iAlpha; vS = iSeed;
+          vec4 mv = modelViewMatrix * vec4(iPos, 1.0); mv.xy += position.xy * iSize;
+          gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `varying vec2 vUv; varying float vA; varying float vS;
+        void main(){ float r = length(vUv); if (r > 1.0) discard;
+          float edge = 1.0 - smoothstep(0.35, 1.0, r);
+          float n = 0.82 + 0.18 * sin(vUv.x * 5.0 + vS * 40.0) * sin(vUv.y * 5.0 + vS * 17.0);       // un po' di grana: non un disco liscio
+          vec3 col = mix(vec3(0.97), vec3(0.78, 0.8, 0.84), smoothstep(0.0, 1.0, r)) * n;
+          gl_FragColor = vec4(col, vA * edge); }`,
+    });
+    this.mesh = new THREE.Mesh(g, m); this.mesh.frustumCulled = false; this.mesh.renderOrder = 3; parent.add(this.mesh);
+    for (let k = 0; k < SMOKE_N; k++) this.aSeed.array[k] = Math.random();
+    this.aSeed.needsUpdate = true;
+  }
+  emit(pos, vel) {
+    const k = this.i; this.i = (this.i + 1) % SMOKE_N;
+    this.p[k * 3] = pos.x; this.p[k * 3 + 1] = pos.y; this.p[k * 3 + 2] = pos.z;
+    this.vel[k * 3] = vel.x + (Math.random() - 0.5) * 0.7; this.vel[k * 3 + 1] = vel.y + 0.15 + Math.random() * 0.3; this.vel[k * 3 + 2] = vel.z + (Math.random() - 0.5) * 0.7;
+    this.age[k] = 0; this.ttl[k] = 11 + Math.random() * 5; this.r0[k] = 0.45 + Math.random() * 0.25;
+  }
+  update(dt) {
+    for (let k = 0; k < SMOKE_N; k++) {
+      if (this.age[k] >= this.ttl[k]) { this.aAlpha.array[k] = 0; continue; }
+      this.age[k] += dt; const u = this.age[k] / this.ttl[k];
+      this.p[k * 3] += this.vel[k * 3] * dt; this.p[k * 3 + 1] += this.vel[k * 3 + 1] * dt; this.p[k * 3 + 2] += this.vel[k * 3 + 2] * dt;
+      this.vel[k * 3] *= Math.pow(0.8, dt); this.vel[k * 3 + 1] *= Math.pow(0.9, dt); this.vel[k * 3 + 2] *= Math.pow(0.8, dt);     // il getto si ferma, resta il vento
+      this.aPos.array[k * 3] = this.p[k * 3]; this.aPos.array[k * 3 + 1] = this.p[k * 3 + 1]; this.aPos.array[k * 3 + 2] = this.p[k * 3 + 2];
+      this.aSize.array[k] = this.r0[k] + u * 4.2;                         // si allarga fino a ~9 m
+      this.aAlpha.array[k] = 0.5 * Math.min(1, this.age[k] / 0.4) * Math.pow(1 - u, 1.6);   // appare subito e svanisce piano
+    }
+    this.aPos.needsUpdate = this.aSize.needsUpdate = this.aAlpha.needsUpdate = true;
+  }
+}
+
 export class Stadium {
-  constructor() {
-    this.group = new THREE.Group(); this.group.name = 'stadio';
+  constructor({ night = false } = {}) {
+    this.night = night;                                  // stadio di notte: stesso stadio (e stessa profondita'), fari accesi, cielo stellato; niente aereo ne' calciatore
+    this.group = new THREE.Group(); this.group.name = night ? 'stadio di notte' : 'stadio';
     this.sunDir = SUN.clone();
     this.t = 0;
-    this._sky(); this._plane();
+    this._sky();
+    this.screen = new StadiumScreen(this.group);          // il maxischermo (spento nel panorama): ogni tanto ci appare la scritta HOME BOXING
+    if (night) { this._nightLights(); this.fw = new NightFireworks(this.group); return; }
+    this._plane();
+    this.smoke = new Smoke(this.group); this.smokeT = 0;
+    this.player = new Footballer(this.group);           // il calciatore col pallone
     this.nextPlane = 12 + Math.random() * 14;           // il primo passaggio dopo un po'
     this.fly = null;
   }
   // ---------------------------------------------------------------- foto a 360 gradi
   _sky() {
-    const tex = new THREE.TextureLoader().load('assets/stadio_panorama.jpg?v=20261009220132', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load(this.night ? 'assets/stadio_notte_panorama.jpg?v=20261010020251' : 'assets/stadio_panorama.jpg?v=20261010020251', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -44,6 +107,24 @@ export class Stadium {
     sky.renderOrder = -10; sky.frustumCulled = false; this.group.add(sky);
     // sfondo in 3D vero: il prato piatto, le gradinate e le torri alla loro distanza
     this.group.add(panoDepth('assets/stadio_profondita.png', tex, { eye: EYE, flat: 40 }));
+  }
+
+  // ---------------------------------------------------------------- di notte: i quattro fari illuminano il ring
+  // (sono le torri del panorama: x = y di Blender, z = x di Blender, a 58 m di quota). Ognuno e' un faro vero, che punta sul ring:
+  // luce calda, nessun calo con la distanza; sul ring, sulle corde e sui pugili si vedono quattro riflessi. Attorno a ogni lampada
+  // un alone luminoso (come l'abbagliamento dei fari veri).
+  _nightLights() {
+    this.lights = [];
+    const halo = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+      const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,248,230,1)'); gr.addColorStop(0.12, 'rgba(255,236,200,0.75)'); gr.addColorStop(0.4, 'rgba(255,220,170,0.18)'); gr.addColorStop(1, 'rgba(255,210,150,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
+    for (const [x, z] of [[-74, -98], [74, -98], [-74, 98], [74, 98]]) {
+      const L = new THREE.SpotLight(0xffefd8, 0.62, 0, 0.16, 0.65, 0);
+      L.position.set(x * 0.99, 58, z * 0.99); L.target.position.set(0, 0.6, 0); this.group.add(L); this.group.add(L.target);
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: halo, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, toneMapped: false, fog: false, opacity: 0.9 }));
+      s.position.set(x * 0.97, 58.5, z * 0.97); s.scale.setScalar(34); s.renderOrder = 7; this.group.add(s);
+      this.lights.push(L);
+    }
   }
 
   // ---------------------------------------------------------------- l'aereo
@@ -119,26 +200,31 @@ export class Stadium {
     this.group.add(this.line);
   }
 
-  // un passaggio: retta a quota 75-125 m, a 30-110 m dal ring, da un lato all'altro (lunga ~1 km: ~30 s)
+  // un passaggio: retta a quota 90-130 m, a 30-110 m dal ring, da un lato all'altro (lunga ~1 km: ~30 s)
   _launch() {
     const a = Math.random() * Math.PI * 2;
     const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));                        // direzione del volo
     const side = new THREE.Vector3(-dir.z, 0, dir.x);
     const off = (Math.random() < 0.5 ? -1 : 1) * (30 + Math.random() * 80);
-    const h = 75 + Math.random() * 50;
+    const h = 90 + Math.random() * 40;                                                   // sopra le torri faro (58 m + fari): non attraversa niente
     const L = 520;
     this.fly = { dir, side, off, h, p: new THREE.Vector3().copy(dir).multiplyScalar(-L).addScaledVector(side, off).setY(h), v: 30 + Math.random() * 5, L, t: 0, roll: 0 };
     this.plane.visible = this.banner.visible = this.pole.visible = this.line.visible = true;
   }
 
   setRing(size) {
+    if (this.player) this.player.setRing(size);
     if (!this.ringShadow) { this.ringShadow = contactShadow(1, 1, 0.55, 0.66); this.ringShadow.position.y = 0.008; this.group.add(this.ringShadow); }
     this.ringShadow.scale.set((size + 0.3) * 1.45, (size + 0.3) * 1.45, 1);
   }
 
   update(dt, cam) {
+    if (this.screen) this.screen.update(dt);
+    if (this.night) { if (this.fw) this.fw.update(dt, cam); return; }
     this.t += dt;
     this.bannerMat.uniforms.uT.value = this.t;
+    this.player.update(dt, cam);
+    this.smoke.update(dt);                                  // la scia continua a svanire anche dopo che l'aereo se n'e' andato
     const F = this.fly;
     if (!F) {
       if ((this.nextPlane -= dt) <= 0) this._launch();
@@ -161,6 +247,13 @@ export class Stadium {
     const lp = this.line.geometry.attributes.position;
     lp.setXYZ(0, tail.x, tail.y, tail.z); lp.setXYZ(1, poleC.x, poleC.y + BANNER_H / 2, poleC.z);
     lp.setXYZ(2, tail.x, tail.y, tail.z); lp.setXYZ(3, poleC.x, poleC.y - BANNER_H / 2, poleC.z); lp.needsUpdate = true;
+    // fumo: una nuvoletta ogni ~1,2 m di volo, dallo scarico (sotto e dietro il muso)
+    this.smokeT += dt;
+    while (this.smokeT > 1.2 / F.v) {
+      this.smokeT -= 1.2 / F.v;
+      const ex = _v.copy(F.dir).multiplyScalar(-3.2).add(pos).add(new THREE.Vector3(0, -0.5, 0));       // scarico (la posizione e' del passo corrente)
+      this.smoke.emit(ex, new THREE.Vector3(-F.dir.x * 0.6, 0, -F.dir.z * 0.6));
+    }
     // rumore del motore, con l'effetto Doppler (piu' acuto quando si avvicina)
     if (cam) {
       const cp = cam.getWorldPosition(new THREE.Vector3()), wp = this.group.localToWorld(pos.clone());

@@ -5,15 +5,21 @@
 // Tabellone sul muro dietro al sacco: tempo, colpi a segno, colpo piu' forte, colpi al minuto.
 // Sistema: quello del ring (arena): il giocatore sta in (0, 0, playerZ) e guarda verso -Z; il pavimento e' a 0.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261009220132';
-import { t as tr } from './i18n.js?v=20261009220132';
+import * as sfx from './sfx.js?v=20261010020251';
+import { t as tr } from './i18n.js?v=20261010020251';
 
-const M = 45, R = 0.19, H = 1.3;              // massa, raggio, altezza del sacco
+let M = 45;                                    // massa (kg): si regola con la barra (KG_MIN..KG_MAX)
+const R = 0.19, H = 1.3;                       // raggio, altezza del sacco
+const KG_MIN = 30, KG_MAX = 60, KG_DEF = 38;   // il sacco di serie era 45 kg: troppo duro, ora si parte da 38
 const HOOK = 2.72;                             // gancio (perno)
 const TOP = 0.62;                              // dal gancio al bordo alto del sacco (catena + cinghie)
 const D = TOP + H / 2;                         // dal gancio al baricentro
-const ICM = M * (3 * R * R + H * H) / 12;
-const IB = new THREE.Vector3(ICM + M * D * D, M * R * R / 2, ICM + M * D * D);   // inerzia attorno al gancio (assi del sacco)
+const IB = new THREE.Vector3();                // inerzia attorno al gancio (assi del sacco)
+function setMass(kg) {
+  M = kg; const icm = M * (3 * R * R + H * H) / 12;
+  IB.set(icm + M * D * D, M * R * R / 2, icm + M * D * D);
+}
+setMass(KG_DEF);
 const G = 9.81;
 const PUNCH_MASS = 2.4;                       // massa efficace di un pugno (pugno + avambraccio + spinta)
 const REST = 0.15;                            // rimbalzo (il sacco e' morbido: assorbe)
@@ -73,7 +79,7 @@ export class BagTraining {
     this.group = new THREE.Group(); this.group.name = 'allenamento sacco'; this.group.visible = false;
     parent.add(this.group);
     this.pivot = new THREE.Group(); this.group.add(this.pivot);       // ruota attorno al gancio
-    this._build(); this._board();
+    this._build(); this._board(); this._slider();
     this.q = new THREE.Quaternion(); this.w = new THREE.Vector3();
     this.Iw = new THREE.Matrix3(); this.IwInv = new THREE.Matrix3();
     this.inside = { left: false, right: false };
@@ -156,14 +162,67 @@ export class BagTraining {
     this.btex.needsUpdate = true;
   }
 
+  // ---- barra del peso del sacco (come quella dell'altezza dello spago): la tieni col guantone, la trascini, la lasci
+  _slider() {
+    const G = new THREE.Group(); G.visible = false;
+    const track = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.5, 0.02), new THREE.MeshStandardMaterial({ color: 0x2a2e36, roughness: 0.6 })); G.add(track);
+    const fill = new THREE.Mesh(new THREE.BoxGeometry(0.037, 1, 0.022), new THREE.MeshBasicMaterial({ color: 0xd81e2c })); G.add(fill);
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.035, 20, 14), new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.3 })); G.add(knob);
+    const c = document.createElement('canvas'); c.width = 320; c.height = 96; this.sc = c;
+    this.stex = new THREE.CanvasTexture(c); this.stex.colorSpace = THREE.SRGBColorSpace;
+    const lab = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 0.075), new THREE.MeshBasicMaterial({ map: this.stex, transparent: true, depthWrite: false })); lab.position.y = 0.31; G.add(lab);
+    this.slider = { G, knob, fill, grab: null, hover: 0, last: '' };
+    let kg = KG_DEF; try { const v = parseFloat(localStorage.getItem('hb-bag-kg')); if (v >= KG_MIN && v <= KG_MAX) kg = v; } catch (e) {}
+    this.p = (kg - KG_MIN) / (KG_MAX - KG_MIN); setMass(kg);
+    this.group.add(G);
+  }
+  _drawSlider() {
+    const txt = `${tr('bag_weight')} ${Math.round(M)} kg`;
+    if (txt === this.slider.last) return; this.slider.last = txt;
+    const g = this.sc.getContext('2d'); g.clearRect(0, 0, 320, 96);
+    g.fillStyle = 'rgba(10,12,16,0.85)'; g.beginPath(); g.roundRect(0, 0, 320, 96, 20); g.fill();
+    g.fillStyle = '#fff'; g.font = '800 34px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, 160, 48);
+    this.stex.needsUpdate = true;
+  }
+  _layoutSlider() {
+    const S = this.slider, y = -0.25 + 0.5 * this.p;
+    S.knob.position.set(0, y, 0.02); S.fill.scale.y = Math.max(0.001, 0.5 * this.p); S.fill.position.y = -0.25 + 0.25 * this.p;
+    this._drawSlider();
+  }
+  _updSlider(dt, player) {
+    const S = this.slider; if (!S.G.visible) return;
+    S.G.updateMatrixWorld(true);
+    const kw = S.knob.getWorldPosition(new THREE.Vector3());
+    if (S.grab) {
+      const g = player.gloves[S.grab];
+      if (!g.mesh.visible) { S.grab = null; return; }
+      const loc = S.G.worldToLocal(g.center.clone());
+      if (Math.hypot(loc.x, loc.z) > 0.2) { S.grab = null; S.knob.material.color.set(0xf2f2f2); return; }   // allontani la mano: lasciato
+      this.p = THREE.MathUtils.clamp((loc.y + 0.25) / 0.5, 0, 1);
+      setMass(KG_MIN + (KG_MAX - KG_MIN) * this.p); this._layoutSlider();
+      S.still = g.speed < 0.05 ? (S.still || 0) + dt : 0;
+      if (S.still > 0.8) { S.grab = null; S.knob.material.color.set(0xf2f2f2); try { localStorage.setItem('hb-bag-kg', M.toFixed(1)); } catch (e) {} }
+      return;
+    }
+    let near = null;
+    for (const side of ['left', 'right']) { const g = player.gloves[side]; if (g.mesh.visible && g.center.distanceTo(kw) < 0.08) near = side; }
+    S.hover = near ? S.hover + dt : 0;
+    S.knob.material.color.set(near ? 0xffd34d : 0xf2f2f2);
+    if (near && S.hover > 0.35) { S.grab = near; S.hover = 0; S.still = 0; sfx.punchBlock(); }
+  }
+
   // piazza il sacco davanti al giocatore (a 85 cm) e il tabellone sul muro dietro
   start(playerZ) {
     this.group.visible = true;
     this.group.position.set(0, 0, playerZ - 0.85);
     this.board.position.set(1.35, 2.25, -1.5); this.board.rotation.set(0, -0.5, 0);    // a destra del sacco, staccato dal muro (prima ci finiva dentro), girato verso di te
+    // la barra del peso: a sinistra, all'altezza del petto, girata verso di te (il sacco e' a 85 cm: sta a 0,75 m da lui)
+    this.slider.G.position.set(-0.85, 1.15, 0.45); this.slider.G.visible = true;
+    this.group.updateMatrixWorld(true); this.slider.G.lookAt(this.group.localToWorld(new THREE.Vector3(-0.3, 1.15, 0.9)));
+    this._layoutSlider();
     this.reset();
   }
-  stop() { this.group.visible = false; }
+  stop() { this.group.visible = false; this.slider.G.visible = false; this.slider.grab = null; }
   reset() {
     this.q.identity(); this.w.set(0, 0, 0); this.time = 0; this.hits = 0; this.best = 0; this.lastDraw = ''; this.prevSwing = 0; this.creakT = 0;
     this._apply(); this._drawBoard();
@@ -200,6 +259,7 @@ export class BagTraining {
   update(dt, player, cam) {
     if (!this.group.visible) return;
     this.time += dt;
+    this._updSlider(dt, player);
     const n = Math.max(1, Math.ceil(dt / 0.004)), h = dt / n;
     for (let i = 0; i < n; i++) this._step(h);
     this._apply();

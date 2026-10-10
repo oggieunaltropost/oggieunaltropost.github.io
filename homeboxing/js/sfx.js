@@ -33,14 +33,14 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261009220132';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261010020251';
 // Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
   'final_round', 'ten_seconds', 'knockdown', 'winner_intro', 'scorecards', 'win_you_ko', 'win_you_tko', 'win_you_points',
   'win_you_dq', 'draw', 'box', 'lowblow_1', 'lowblow_2', 'dq', 'out_1', 'out_2', 'adapted', 'intro_1', 'intro_red', 'intro_blue_g', 'intro_red_g', 'title',
   // l'avversario: parte comune + il suo nome (per un nuovo pugile bastano intro_<id> e name_<id>)
-  'win_opp_ko', 'win_opp_tko', 'win_opp_points', 'win_opp_dq', 'win_red_ko', 'win_red_tko', 'win_red_points', 'win_red_dq', 'intro_gen',
+  'win_opp_ko', 'win_opp_tko', 'win_opp_points', 'win_opp_dq', 'win_red_ko', 'win_red_tko', 'win_red_points', 'win_red_dq', 'intro_gen', 'intro_gen2', 'intro_gen3', 'intro_gen4',
   // torneo: benvenuto, nome del turno, campione, eliminato
   'tour_intro', 'tour_r0', 'tour_r1', 'tour_r2', 'tour_r3', 'tour_r4', 'tour_champ', 'tour_out',
   ...FIGHTER_IDS.flatMap(id => FIGHTERS[id].genericIntro ? [`name_${id}`] : [`intro_${id}`, `name_${id}`]),   // (i nuovi: presentazione comune intro_gen)
@@ -55,18 +55,23 @@ let vbuf = {}, vLang = 'it';
 let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261009220132`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261010020251`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
 export function setVoiceLang(l) { if (l === vLang) return; vLang = l; if (ctx) loadVoices(); }
 // durata di una frase (s), 0 se non ancora caricata
 export function voiceDur(n) { return vbuf[n] ? vbuf[n].duration : 0; }
+// quando parte l'ultima frase messa in coda (il nome del vincitore): ms da adesso
+let lastVoiceAt = 0, lastVoiceEnd = 0;
+export function lastVoiceEnds() { return ctx && ctx.state === 'running' ? Math.max(0, (lastVoiceEnd - ctx.currentTime) * 1000) : 0; }   // ms da adesso alla fine dell'ultima frase
+export function lastVoiceIn() { return ctx && ctx.state === 'running' ? Math.max(0, (lastVoiceAt - ctx.currentTime) * 1000) : 0; }
 export function announce(names, gain = 1.0) {
   if (!ctx || ctx.state !== 'running') return;        // audio in pausa (fuori dal gioco): niente frasi in coda
   let t = Math.max(ctx.currentTime + 0.02, vEnd);
   for (const n of [].concat(names)) {
     const b = vbuf[n]; if (!b) continue;
+    lastVoiceAt = t; lastVoiceEnd = t + b.duration;
     const s = ctx.createBufferSource(); s.buffer = b;
     const g = ctx.createGain(); g.gain.value = gain;
     s.connect(g); g.connect(master); s.start(t);
@@ -194,7 +199,7 @@ const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261009220132`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261010020251`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
   loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (snowWanted && !snowW) snowAmbient(true); if (lavaWanted && !lavaW) lavaAmbient(true); if (underWanted && !underW) underAmbient(true); if (spaceWanted && !spaceW) spaceAmbient(true); if (windWanted && (!wind || wind.synth)) { if (wind) { wind.s.stop(); wind = null; } windAmbient(true); } });   // vento vero appena caricato
   return loading;
@@ -566,7 +571,7 @@ export function spaceAmbient(on) {
   if (!ctx) return;
   if (on && !spaceW) {
     if (!spaceBuf) spaceBuf = makeSpace();
-    spaceW = loopSrc(spaceBuf, 0.0); spaceW.g.gain.setTargetAtTime(0.28, ctx.currentTime, 2.5);   // molto soft, di sottofondo
+    spaceW = loopSrc(spaceBuf, 0.0); spaceW.g.gain.setTargetAtTime(0.11, ctx.currentTime, 2.5);   // molto soft, di sottofondo
   } else if (!on && spaceW) { const w = spaceW; spaceW = null; w.g.gain.setTargetAtTime(0, ctx.currentTime, 0.3); setTimeout(() => { try { w.s.stop(); } catch (e) {} }, 1200); }
 }
 export function snowAmbient(on) {
@@ -622,4 +627,129 @@ export function eruption(pos, cam, gain = 1.0) {
 }
 export function lavaSplash(pos, cam) {
   playSpatial(['schizzo_0', 'schizzo_1', 'schizzo_2', 'schizzo_3', 'schizzo_4', 'schizzo_5'], pos, cam, 0.7, 2.5, 0.85 + Math.random() * 0.3);
+}
+// colpo di piede sul pallone (stage Stadio): tonfo secco + schiocco del cuoio, nel mondo. Piu' e' lontano, piu' arriva
+// tardi (340 m/s), piu' e' piano e ovattato. `power` 0..1 = forza del tocco.
+export function ballKick(pos, cam, power = 0.6) {
+  if (!ctx || ctx.state !== 'running') return;
+  setListener(cam);
+  const cp = cam.getWorldPosition(new cam.position.constructor()), dist = cp.distanceTo(pos);
+  const t0 = ctx.currentTime + 0.01 + dist / 340, pw = 0.35 + 0.65 * power;
+  const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 4; p.rolloffFactor = 1.3; p.maxDistance = 400;
+  if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 400 + 7000 * Math.exp(-dist / 45);   // lontano = ovattato
+  const g = ctx.createGain(); g.gain.value = 0.5 * pw; lp.connect(g); g.connect(p); p.connect(master);
+  const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(320, t0); o.frequency.exponentialRampToValueAtTime(110, t0 + 0.09);   // il corpo del pallone (i toni bassi non escono dagli altoparlanti: c'e' anche il medio)
+  const og = ctx.createGain(); og.gain.setValueAtTime(0, t0); og.gain.linearRampToValueAtTime(0.8, t0 + 0.004); og.gain.exponentialRampToValueAtTime(0.001, t0 + 0.13);
+  o.connect(og); og.connect(lp); o.start(t0); o.stop(t0 + 0.16);
+  if (!noiseBuf) { noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+  const n = ctx.createBufferSource(); n.buffer = noiseBuf;                                  // lo schiocco del cuoio
+  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1100 + 900 * power; bp.Q.value = 0.8;
+  const ng = ctx.createGain(); ng.gain.setValueAtTime(0, t0); ng.gain.linearRampToValueAtTime(0.9, t0 + 0.002); ng.gain.exponentialRampToValueAtTime(0.001, t0 + 0.05);
+  n.connect(bp); bp.connect(ng); ng.connect(lp); n.start(t0, Math.random() * 0.5); n.stop(t0 + 0.07);
+}
+// palla contro palo/traversa (clangore metallico che risuona), contro la rete (fruscio sordo) o rimbalzo sul prato (tonfo
+// morbido); nel mondo, in ritardo con la distanza come ballKick. power 0..1
+export function ballHit(pos, cam, kind = 'bounce', power = 0.5) {
+  if (!ctx || ctx.state !== 'running') return;
+  setListener(cam);
+  const cp = cam.getWorldPosition(new cam.position.constructor()), dist = cp.distanceTo(pos);
+  const t0 = ctx.currentTime + 0.01 + dist / 340, pw = Math.min(1, Math.max(0.1, power));
+  const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 4; p.rolloffFactor = 1.3; p.maxDistance = 400;
+  if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500 + 8000 * Math.exp(-dist / 45);
+  const g = ctx.createGain(); g.gain.value = 0.5; lp.connect(g); g.connect(p); p.connect(master);
+  if (!noiseBuf) { noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+  const noise = (f, q, dur, amp, type = 'bandpass') => {
+    const n = ctx.createBufferSource(); n.buffer = noiseBuf; const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q;
+    const ng = ctx.createGain(); ng.gain.setValueAtTime(0, t0); ng.gain.linearRampToValueAtTime(amp, t0 + 0.004); ng.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    n.connect(b); b.connect(ng); ng.connect(lp); n.start(t0, Math.random() * 0.5); n.stop(t0 + dur + 0.03);
+  };
+  const tone = (f, f2, dur, amp) => {
+    const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(f, t0); o.frequency.exponentialRampToValueAtTime(f2, t0 + dur);
+    const og = ctx.createGain(); og.gain.setValueAtTime(0, t0); og.gain.linearRampToValueAtTime(amp, t0 + 0.003); og.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    o.connect(og); og.connect(lp); o.start(t0); o.stop(t0 + dur + 0.03);
+  };
+  if (kind === 'post') {                                    // tubo d'alluminio: toni alti e lunghi
+    tone(1180, 1120, 0.45, 0.7 * pw); tone(2150, 2100, 0.3, 0.4 * pw); tone(3300, 3250, 0.18, 0.2 * pw); noise(2500, 1, 0.04, 0.8 * pw);
+    tone(330, 200, 0.12, 0.6 * pw);
+  } else if (kind === 'net') {                              // rete: fruscio sordo
+    noise(1400, 0.5, 0.35, 0.5 * pw, 'lowpass'); noise(3000, 0.7, 0.12, 0.25 * pw); tone(200, 120, 0.15, 0.25 * pw);
+  } else {                                                  // rimbalzo sul prato
+    tone(240, 120, 0.1, 0.55 * pw); noise(900, 0.8, 0.04, 0.3 * pw);
+  }
+}
+// fuochi d'artificio dello stadio di notte, nel mondo: il botto arriva in ritardo (340 m/s), piu' ovattato e piano da lontano.
+// Lancio: fischio che sale. Botto: tonfo + corpo medio (gli altoparlanti del Quest non rendono i bassi) + crepitio di scintille.
+function fwChain(pos, cam, ref = 30) {
+  setListener(cam);
+  const cp = cam.getWorldPosition(new cam.position.constructor()), dist = cp.distanceTo(pos);
+  const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = ref; p.rolloffFactor = 0.8; p.maxDistance = 800;
+  if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1500 + 9000 * Math.exp(-dist / 140);
+  const g = ctx.createGain(); g.gain.value = 1.0; lp.connect(g); g.connect(p); p.connect(master);
+  if (!noiseBuf) { noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+  return { lp, t0: ctx.currentTime + 0.02 + dist / 340, dist };
+}
+function fwNoise(C, at, f0, f1, dur, amp, q = 0.8, type = 'bandpass') {
+  const n = ctx.createBufferSource(); n.buffer = noiseBuf; const b = ctx.createBiquadFilter(); b.type = type; b.Q.value = q;
+  b.frequency.setValueAtTime(f0, at); if (f1 !== f0) b.frequency.exponentialRampToValueAtTime(f1, at + dur);
+  const g = ctx.createGain(); g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(amp, at + Math.min(0.01, dur / 3)); g.gain.exponentialRampToValueAtTime(0.001, at + dur);
+  n.connect(b); b.connect(g); g.connect(C.lp); n.start(at, Math.random() * 0.5); n.stop(at + dur + 0.05);
+}
+function fwTone(C, at, f0, f1, dur, amp) {
+  const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(f0, at); o.frequency.exponentialRampToValueAtTime(f1, at + dur);
+  const g = ctx.createGain(); g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(amp, at + 0.008); g.gain.exponentialRampToValueAtTime(0.001, at + dur);
+  o.connect(g); g.connect(C.lp); o.start(at); o.stop(at + dur + 0.05);
+}
+export function fireworkLaunch(pos, cam, T = 3.5) {
+  if (!ctx || ctx.state !== 'running') return;
+  const C = fwChain(pos, cam, 70), t = C.t0;
+  fwNoise(C, t, 700, 700, 0.22, 0.45, 0.6, 'lowpass');                 // la partenza: un "puff" sordo
+  // il fischio del razzo: sale piano per tutta la salita (con un leggero tremolio), poi si spegne appena prima dello scoppio
+  const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(1500, t + 0.15); o.frequency.exponentialRampToValueAtTime(3600, t + T - 0.1);
+  const lfo = ctx.createOscillator(); lfo.frequency.value = 7; const lg = ctx.createGain(); lg.gain.value = 30; lfo.connect(lg); lg.connect(o.frequency);
+  const g = ctx.createGain(); g.gain.setValueAtTime(0, t + 0.15); g.gain.linearRampToValueAtTime(0.16, t + 0.7); g.gain.setValueAtTime(0.16, t + T - 0.6); g.gain.linearRampToValueAtTime(0, t + T);
+  o.connect(g); g.connect(C.lp); o.start(t + 0.15); lfo.start(t + 0.15); o.stop(t + T + 0.05); lfo.stop(t + T + 0.05);
+  fwNoise(C, t + 0.1, 2500, 5200, T - 0.2, 0.06, 1.5);                 // e il sibilo della miccia
+}
+export function fireworkBurst(pos, cam, type = 'peony', power = 1) {
+  if (!ctx || ctx.state !== 'running') return;
+  const C = fwChain(pos, cam, 70), t = C.t0 + Math.random() * 0.03, P = Math.max(0.2, power), big = type === 'double' ? 1.15 : 1;
+  // lo scoppio classico: "crack" secco a banda larga, tonfo profondo, corpo medio (si sente anche dagli altoparlanti piccoli)
+  // e poi il rimbombo che rotola con piu' riflessioni tra le gradinate
+  fwNoise(C, t, 6000, 3000, 0.045, 1.4 * P * big, 0.5, 'highpass');
+  fwNoise(C, t, 2200, 1500, 0.11, 1.0 * P * big, 0.5, 'lowpass');
+  fwTone(C, t, 230, 44, 0.55, 1.0 * P * big);
+  fwTone(C, t, 470, 95, 0.2, 0.55 * P * big);
+  fwNoise(C, t + 0.01, 420, 420, 0.32, 0.7 * P * big, 0.7);                // corpo
+  fwNoise(C, t + 0.03, 800, 220, 1.3, 0.65 * P * big, 0.5, 'lowpass');     // rimbombo
+  const ne = 4 + Math.floor(Math.random() * 4);
+  for (let i = 0; i < ne; i++) fwNoise(C, t + 0.22 + i * (0.16 + Math.random() * 0.22), 500 + Math.random() * 1100, 180 + Math.random() * 150, 0.25 + Math.random() * 0.35, (0.42 - i * 0.05) * P, 0.6, 'lowpass');   // riflessioni
+  const n = type === 'willow' ? 40 : type === 'ring' ? 14 : type === 'palm' ? 34 : 18, span = type === 'willow' || type === 'palm' ? 3.0 : 1.6;
+  for (let i = 0; i < n; i++) fwNoise(C, t + 0.15 + Math.random() * span, 3200 + Math.random() * 3800, 3200 + Math.random() * 3800, 0.02 + Math.random() * 0.03, (0.08 + Math.random() * 0.22) * P, 1.2);   // crepitio
+}
+// crepitio di scintille bianche (fine di alcuni scoppi): tanti piccoli schiocchi ravvicinati
+export function fireworkCrackle(pos, cam) {
+  if (!ctx || ctx.state !== 'running') return;
+  const C = fwChain(pos, cam, 70), t = C.t0;
+  for (let i = 0; i < 60; i++) fwNoise(C, t + Math.random() * 1.6, 3500 + Math.random() * 3500, 3500 + Math.random() * 3500, 0.012 + Math.random() * 0.02, 0.1 + Math.random() * 0.3, 1.5);
+}
+
+// fruscio bassissimo dello scorpione che scava / esce / raspa sulla sabbia (nel mondo, quasi sussurrato): rumore filtrato con un
+// tremolio rapido (le zampe che grattano)
+export function sandRustle(pos, cam, dur = 1.5, gain = 0.05) {
+  if (!ctx || ctx.state !== 'running') return;
+  setListener(cam);
+  const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 1.5; p.rolloffFactor = 1.6; p.maxDistance = 60;
+  if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);
+  if (!noiseBuf) { noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+  const t0 = ctx.currentTime + 0.02, src = ctx.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
+  const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1100;
+  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2600; bp.Q.value = 0.6;
+  const am = ctx.createGain(); am.gain.value = 0.55;
+  const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 9 + Math.random() * 5; const ld = ctx.createGain(); ld.gain.value = 0.45; lfo.connect(ld); ld.connect(am.gain);
+  const env = ctx.createGain(); env.gain.setValueAtTime(0, t0); env.gain.linearRampToValueAtTime(gain, t0 + Math.min(0.3, dur * 0.3)); env.gain.setValueAtTime(gain, t0 + dur * 0.7); env.gain.linearRampToValueAtTime(0, t0 + dur);
+  src.connect(hp); hp.connect(bp); bp.connect(am); am.connect(env); env.connect(p); p.connect(master);
+  src.start(t0, Math.random() * 0.5); lfo.start(t0); src.stop(t0 + dur + 0.05); lfo.stop(t0 + dur + 0.05);
 }
