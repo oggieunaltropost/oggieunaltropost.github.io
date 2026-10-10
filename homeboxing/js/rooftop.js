@@ -4,7 +4,7 @@
 // La citta' si muove (city_life.js): auto, battelli, navi, uccelli, aerei. Ogni tanto passa un elicottero (il suono lo fa sfx.heli, spaziale: piu' forte quando e' vicino).
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
 import * as THREE from 'three';
-import { CityLife } from './city_life.js?v=20261010174937';
+import { CityLife } from './city_life.js?v=20261010175245';
 
 const PANO_U = 0.0;               // rotazione del panorama (il sole della foto a sinistra, un po' dietro)
 const TOWER_H = 260;              // dal tetto alla strada
@@ -25,7 +25,7 @@ export class Rooftop {
   }
 
   _sky() {
-    const tex = new THREE.TextureLoader().load(this.night ? 'assets/citta_notte_panorama.jpg?v=20261010174937' : 'assets/citta_panorama.jpg?v=20261010174937', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load(this.night ? 'assets/citta_notte_panorama.jpg?v=20261010175245' : 'assets/citta_panorama.jpg?v=20261010175245', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -230,7 +230,8 @@ export class Rooftop {
       dur = 600 / speed;
     }
     this.flight = { pathFn, dur, t: 0, prev: pathFn(0), yaw: 0 };
-    this.heli.visible = true;
+    this.heli.position.copy(pathFn(0)); this.rotor.rotation.y = 0;      // (subito al punto di partenza: prima restava un fotogramma dov'era finito il giro precedente)
+    this.heli.scale.setScalar(1); this.heli.visible = false; this._pendingShow = true;   // (compare dal fotogramma dopo, a posizione e direzione gia' giuste)
   }
   // ritorna la posizione (nel mondo) dell'elicottero se sta volando, per il suono
   update(dt) {
@@ -245,6 +246,7 @@ export class Rooftop {
     }
     const F = this.flight; F.t += dt;
     const k = F.t / F.dur;
+    if (this._pendingShow && F.t > 0.05) { this._pendingShow = false; this.heli.visible = true; }
     if (k >= 1) { this.flight = null; this.heli.visible = false; this.nextHeli = 30 + Math.random() * 45; return null; }
     const p = F.pathFn(k), v = p.clone().sub(F.prev); F.prev = p;
     this.heli.position.copy(p);

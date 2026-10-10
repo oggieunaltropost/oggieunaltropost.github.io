@@ -4,7 +4,7 @@
 // genericIntro: lo speaker usa la presentazione comune (intro_gen) e poi il nome: niente frase dedicata.
 export const FIGHTERS = {
   bruce: {
-    id: 'bruce', name: 'Bruce', glb: 'assets/bruce.glb?v=20261010174937', thumb: 'assets/fighter_bruce.webp?v=20261010174937',
+    id: 'bruce', name: 'Bruce', glb: 'assets/bruce.glb?v=20261010175245', thumb: 'assets/fighter_bruce.webp?v=20261010175245',
     face: [163, 5, 110],                                           // volto nell'anteprima (x, y, lato) per il tabellone
     skinTint: 0xe3b98f,                                            // pelle piu' abbronzata della texture MakeHuman
     evenSkin: false,                                               // (la schiaritura delle gambe serve solo alla pelle di Mike)
@@ -14,14 +14,14 @@ export const FIGHTERS = {
     feints: { rate: 1.3, moves: ['feint_jab', 'feint_dip', 'feint_hop', 'feint_jab'], speed: 1.0 },
   },
   mike: {
-    id: 'mike', name: 'Mike', glb: 'assets/mike.glb?v=20261010174937', thumb: 'assets/fighter_mike.webp?v=20261010174937',
+    id: 'mike', name: 'Mike', glb: 'assets/mike.glb?v=20261010175245', thumb: 'assets/fighter_mike.webp?v=20261010175245',
     face: [178, 0, 110],
     skinTint: null,
     band: { bg: '#f4f4f0', line: '#c99a2e', text: '#1239a8' },
     legName: { side: 'right', color: '#ffffff', stars: 3 },         // il nome in bianco sulla coscia destra, con tre stelle bianche sotto
   },
   eddy: {
-    id: 'eddy', name: 'Eddy', glb: 'assets/eddy.glb?v=20261010174937', thumb: 'assets/fighter_eddy.webp?v=20261010174937',
+    id: 'eddy', name: 'Eddy', glb: 'assets/eddy.glb?v=20261010175245', thumb: 'assets/fighter_eddy.webp?v=20261010175245',
     face: [182, 52, 110],
     skinTint: null, evenSkin: false, noStubble: true,            // ai lati rasato a zero: niente ombra di capelli sotto la cresta
     band: { bg: '#0b0b0e', line: '#0a8cff', text: '#3fb0ff' },     // fascia nera con scritta blu fosforescente
@@ -31,7 +31,7 @@ export const FIGHTERS = {
     feints: { rate: 0.6, moves: ['feint_hop', 'feint_dip'], speed: 1.15 },
   },
   fury: {
-    id: 'fury', name: 'Fury', glb: 'assets/fury.glb?v=20261010174937', thumb: 'assets/fighter_fury.webp?v=20261010174937',
+    id: 'fury', name: 'Fury', glb: 'assets/fury.glb?v=20261010175245', thumb: 'assets/fighter_fury.webp?v=20261010175245',
     face: [190, 8, 102],
     skinTint: 0xc99872, evenSkin: false,                           // pelle abbronzata
     // calzoncini thai: fascia dorata larga con il riquadro bianco e la scritta rossa
@@ -40,7 +40,7 @@ export const FIGHTERS = {
     mods: { moveSpeed: 0.6, defenseSpeed: 1.0, attackEvery: 1.15, extraCombos: ['1-2-3-2', '1-6-3-2', '2-3-2', '1-2-5-2', '3-2-3', '6-3b-3', '1-2-3'] },
   },
   maxim: {
-    id: 'maxim', name: 'Maxim', glb: 'assets/maxim.glb?v=20261010174937', thumb: 'assets/fighter_maxim.webp?v=20261010174937',
+    id: 'maxim', name: 'Maxim', glb: 'assets/maxim.glb?v=20261010175245', thumb: 'assets/fighter_maxim.webp?v=20261010175245',
     face: [192, 34, 100],
     skinTint: null, evenSkin: false, hairTint: '#d9b872',          // biondo
     band: { bg: '#f4f4f0', line: '#c40f22', text: '#c40f22', label: 'MAXIM ★' },
@@ -48,7 +48,7 @@ export const FIGHTERS = {
     mods: { moveSpeed: 1.15, defenseSpeed: 0.95, attackEvery: 0.7, extraCombos: ['3-4', '3-2-3', '2-3', '1-2-3', '3-2', '2-3-2', '6-3', '1-2-3-2', '3b-4', '3b-3'] },
   },
   brutus: {
-    id: 'brutus', name: 'Brutus', glb: 'assets/brutus.glb?v=20261010174937', thumb: 'assets/fighter_brutus.webp?v=20261010174937',
+    id: 'brutus', name: 'Brutus', glb: 'assets/brutus.glb?v=20261010175245', thumb: 'assets/fighter_brutus.webp?v=20261010175245',
     face: [188, 30, 100],
     skinTint: 0xe8c4a8, evenSkin: false,
     band: { bg: '#7a0f14', line: '#d4a537', text: '#e8c25a', label: 'BRUTUS' },
@@ -59,7 +59,7 @@ export const FIGHTERS = {
       extraCombos: ['3-4', '6-3', '1-6', '5-2', '6-3b-3', '3-2-3', '1-6-3-2', '1-2-5-2', '3b-4', '6-3'] },
   },
   rocco: {
-    id: 'rocco', name: 'Rocco', glb: 'assets/rocco.glb?v=20261010174937', thumb: 'assets/fighter_rocco.webp?v=20261010174937',
+    id: 'rocco', name: 'Rocco', glb: 'assets/rocco.glb?v=20261010175245', thumb: 'assets/fighter_rocco.webp?v=20261010175245',
     face: [195, 12, 92],
     skinTint: 0xf0d2b8, evenSkin: false, skinGloss: 0.32,           // pelle lucida di sudore
     band: { bg: '#121214', line: '#121214', text: '#f1efe8', label: ' ' },   // fascia nera liscia
@@ -71,7 +71,7 @@ export const FIGHTERS = {
       extraCombos: ['3b-3', '1-3b-3', '2b-3-2', '3b-4', '1-2b', '3-2', '1-2-3'] },
   },
   ace: {
-    id: 'ace', name: 'Ace', glb: 'assets/ace.glb?v=20261010174937', thumb: 'assets/fighter_ace.webp?v=20261010174937',
+    id: 'ace', name: 'Ace', glb: 'assets/ace.glb?v=20261010175245', thumb: 'assets/fighter_ace.webp?v=20261010175245',
     face: [195, 15, 95],
     skinTint: 0x6e5244, evenSkin: false, skinGloss: 0.4,           // nerissimo, un po' lucido
     fur: '#0c0a09',                                                 // capelli rasati neri (non grigi sulla pelle scura)
@@ -82,7 +82,7 @@ export const FIGHTERS = {
     feints: { rate: 0.5, moves: ['feint_jab', 'feint_hop'], speed: 1.25 },
   },
   riki: {
-    id: 'riki', name: 'Riki', glb: 'assets/riki.glb?v=20261010174937', thumb: 'assets/fighter_riki.webp?v=20261010174937',
+    id: 'riki', name: 'Riki', glb: 'assets/riki.glb?v=20261010175245', thumb: 'assets/fighter_riki.webp?v=20261010175245',
     face: [185, 0, 115],
     skinTint: 0xeac39e, evenSkin: false, hairTint: '#141110',          // capelli neri corvini
     band: { bg: '#c4122a', line: '#f4f3ee', text: '#f4f3ee', label: 'RIKI', icon: 'sole' },   // fascia rossa, sol levante
@@ -92,7 +92,7 @@ export const FIGHTERS = {
   },
   bob: {
     goatee: true,                                                      // pizzetto: segue il mento, non il labbro di sopra (bocca aperta)
-    id: 'bob', name: 'Rob', glb: 'assets/bob.glb?v=20261010174937', thumb: 'assets/fighter_bob.webp?v=20261010174937',
+    id: 'bob', name: 'Rob', glb: 'assets/bob.glb?v=20261010175245', thumb: 'assets/fighter_bob.webp?v=20261010175245',
     face: [185, 30, 110],
     skinTint: 0xf2cdb4, evenSkin: false,                               // riccioli biondi (fatti in Blender, colore gia' nel modello)
     fur: '#e2c27a',                                                     // pizzetto e base dei riccioli: stesso biondo dei capelli
@@ -104,7 +104,7 @@ export const FIGHTERS = {
   // ---- i cinque nuovi (2026-10-04): presentazione generica + nome
   diego: {
     goatee: true,                                                      // pizzetto: segue il mento, non il labbro di sopra (bocca aperta)
-    id: 'diego', name: 'Diego', glb: 'assets/diego.glb?v=20261010174937', thumb: 'assets/fighter_diego.webp?v=20261010174937', genericIntro: true,
+    id: 'diego', name: 'Diego', glb: 'assets/diego.glb?v=20261010175245', thumb: 'assets/fighter_diego.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // messicano, 1,72 m, 70 kg. "El Toro": basso e compatto, ti pressa sempre e lavora al corpo (ganci al fegato)
     skinTint: 0xd6a57c, evenSkin: false,
@@ -114,7 +114,7 @@ export const FIGHTERS = {
       extraCombos: ['3b-3', '1-3b-3', '2b-3-2', '3b-4', '1-2b', '3b-3b', '2-3b-3', '1-2-3b'] },
   },
   kwame: {
-    id: 'kwame', name: 'Kwame', glb: 'assets/kwame.glb?v=20261010174937', thumb: 'assets/fighter_kwame.webp?v=20261010174937', genericIntro: true,
+    id: 'kwame', name: 'Kwame', glb: 'assets/kwame.glb?v=20261010175245', thumb: 'assets/fighter_kwame.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // ghanese, 1,88 m, 95 kg. "Il Leone": contrattaccante. Aspetta, para benissimo e ti punisce con il destro
     skinTint: null, evenSkin: false, fur: '#0b0908',
@@ -124,7 +124,7 @@ export const FIGHTERS = {
       extraCombos: ['2', '1-2', '2-3', '3-2', '2-3-2', '5-2', '1-2-3'] },
   },
   lars: {
-    id: 'lars', name: 'Lars', glb: 'assets/lars.glb?v=20261010174937', thumb: 'assets/fighter_lars.webp?v=20261010174937', genericIntro: true,
+    id: 'lars', name: 'Lars', glb: 'assets/lars.glb?v=20261010175245', thumb: 'assets/fighter_lars.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // norvegese, 1,98 m, 112 kg, tatuaggi vichinghi e coda rossa. Ti tiene lontano con un jab lunghissimo
     skinTint: null, evenSkin: false, fur: '#9c5226', hairTint: '#b0602a',        // rosso rame
@@ -134,7 +134,7 @@ export const FIGHTERS = {
       extraCombos: ['1', '1-1', '1-2', '1-1-2', '1-2-1', '1-1', '1-2', '1-6'] },
   },
   malik: {
-    id: 'malik', name: 'Malik', glb: 'assets/malik.glb?v=20261010174937', thumb: 'assets/fighter_malik.webp?v=20261010174937', genericIntro: true,
+    id: 'malik', name: 'Malik', glb: 'assets/malik.glb?v=20261010175245', thumb: 'assets/fighter_malik.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // marocchino, 1,76 m, 64 kg. "Il Falco": leggero, gambe velocissime, schiva tutto e ti punge di rimessa
     skinTint: 0xc99a70, evenSkin: false, fur: '#15110e',
@@ -145,7 +145,7 @@ export const FIGHTERS = {
     feints: { rate: 0.8, moves: ['feint_jab', 'feint_dip', 'feint_hop'], speed: 1.2 },
   },
   connor: {
-    id: 'connor', name: 'Connor', glb: 'assets/connor.glb?v=20261010174937', thumb: 'assets/fighter_connor.webp?v=20261010174937', genericIntro: true,
+    id: 'connor', name: 'Connor', glb: 'assets/connor.glb?v=20261010175245', thumb: 'assets/fighter_connor.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // irlandese, 1,83 m, 82 kg, rosso con le lentiggini. Rissaiolo instancabile: ganci larghi, para poco, non molla mai
     skinTint: null, evenSkin: false, hairTint: '#a8441c',               // capelli rossi
@@ -155,7 +155,7 @@ export const FIGHTERS = {
   },
   // ---- altri cinque (2026-10-05): presentazione generica + nome
   tavita: {
-    id: 'tavita', name: 'Tavita', glb: 'assets/tavita.glb?v=20261010174937', thumb: 'assets/fighter_tavita.webp?v=20261010174937', genericIntro: true,
+    id: 'tavita', name: 'Tavita', glb: 'assets/tavita.glb?v=20261010175245', thumb: 'assets/fighter_tavita.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // samoano, 1,86 m, 118 kg, tatuaggi tribali. Il picchiatore: lento, incassa tutto, ma i suoi ganci ti spengono
     skinTint: 0xb98a62, evenSkin: false,
@@ -165,7 +165,7 @@ export const FIGHTERS = {
       extraCombos: ['3', '4', '3-4', '2-3', '6-3', '3b-3', '1-3-4', '4-3'] },
   },
   arjun: {
-    id: 'arjun', name: 'Arjun', glb: 'assets/arjun.glb?v=20261010174937', thumb: 'assets/fighter_arjun.webp?v=20261010174937', genericIntro: true,
+    id: 'arjun', name: 'Arjun', glb: 'assets/arjun.glb?v=20261010175245', thumb: 'assets/fighter_arjun.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // indiano, 1,81 m, 80 kg. Il tecnico: gambe leggere, jab continuo, ti tiene alla distanza e conta i punti
     skinTint: 0xd29c74, evenSkin: false,
@@ -176,7 +176,7 @@ export const FIGHTERS = {
     feints: { rate: 0.7, moves: ['feint_jab', 'feint_jab', 'feint_dip'], speed: 1.15 },
   },
   moussa: {
-    id: 'moussa', name: 'Moussa', glb: 'assets/moussa.glb?v=20261010174937', thumb: 'assets/fighter_moussa.webp?v=20261010174937', genericIntro: true,
+    id: 'moussa', name: 'Moussa', glb: 'assets/moussa.glb?v=20261010175245', thumb: 'assets/fighter_moussa.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // senegalese, 2,01 m, 92 kg. Il lungo: braccia infinite, guardia bassa e calma, e quando entri ti aspetta il montante
     skinTint: null, evenSkin: false,
@@ -185,7 +185,7 @@ export const FIGHTERS = {
       extraCombos: ['5', '6', '1-6', '2-5', '5-6', '6-3', '1-2-5', '3-6', '1-schivata-6'] },
   },
   mateo: {
-    id: 'mateo', name: 'Mateo', glb: 'assets/mateo.glb?v=20261010174937', thumb: 'assets/fighter_mateo.webp?v=20261010174937', genericIntro: true,
+    id: 'mateo', name: 'Mateo', glb: 'assets/mateo.glb?v=20261010175245', thumb: 'assets/fighter_mateo.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // argentino, 1,79 m, 76 kg. Il martello: ti viene sempre addosso, non smette mai di lavorare al corpo
     skinTint: 0xe8bf98, evenSkin: false,
@@ -195,7 +195,7 @@ export const FIGHTERS = {
       extraCombos: ['1-2b', '3b-3', '2b-3', '1-3b-3', '3b-4b', '2-3b-2', '1-2-3b-3', '4b-3'] },
   },
   joon: {
-    id: 'joon', name: 'Joon', glb: 'assets/joon.glb?v=20261010174937', thumb: 'assets/fighter_joon.webp?v=20261010174937', genericIntro: true,
+    id: 'joon', name: 'Joon', glb: 'assets/joon.glb?v=20261010175245', thumb: 'assets/fighter_joon.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // coreano, 1,74 m, 68 kg. Il fulmine: mani velocissime, raffiche di quattro o cinque colpi e via
     skinTint: 0xe8c39c, evenSkin: false,
@@ -207,7 +207,7 @@ export const FIGHTERS = {
   },
   // ---- altri sedici (2026-10-05): con loro il torneo da 32 e' tutto di personaggi veri
   ink: {
-    id: 'ink', name: 'Ink', glb: 'assets/ink.glb?v=20261010174937', thumb: 'assets/fighter_ink.webp?v=20261010174937', genericIntro: true,
+    id: 'ink', name: 'Ink', glb: 'assets/ink.glb?v=20261010175245', thumb: 'assets/fighter_ink.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // tedesco, 1,84 m, 84 kg, tatuato dalla testa ai piedi. Imprevedibile: entra a testa bassa e cambia ritmo di continuo
     skinTint: null, evenSkin: false,
@@ -216,7 +216,7 @@ export const FIGHTERS = {
     feints: { rate: 0.5, moves: ['feint_dip', 'feint_jab'], speed: 1.1 },
   },
   thiago: {
-    id: 'thiago', name: 'Thiago', glb: 'assets/thiago.glb?v=20261010174937', thumb: 'assets/fighter_thiago.webp?v=20261010174937', genericIntro: true,
+    id: 'thiago', name: 'Thiago', glb: 'assets/thiago.glb?v=20261010175245', thumb: 'assets/fighter_thiago.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // brasiliano, 1,80 m, 79 kg. La ginga: ondeggia a tempo di musica, ti fa sbagliare e risponde
     skinTint: 0xd6a27a, evenSkin: false,
@@ -227,7 +227,7 @@ export const FIGHTERS = {
     feints: { rate: 0.8, moves: ['feint_dip', 'feint_hop'], speed: 1.1 },
   },
   danilo: {
-    id: 'danilo', name: 'Danilo', glb: 'assets/danilo.glb?v=20261010174937', thumb: 'assets/fighter_danilo.webp?v=20261010174937', genericIntro: true,
+    id: 'danilo', name: 'Danilo', glb: 'assets/danilo.glb?v=20261010175245', thumb: 'assets/fighter_danilo.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // filippino, 1,65 m, 63 kg. Il tornado: piccolo, velocissimo, entra con quattro colpi ed e' gia' fuori
     skinTint: 0xd9a982, evenSkin: false,
@@ -238,7 +238,7 @@ export const FIGHTERS = {
     feints: { rate: 0.7, moves: ['feint_hop', 'feint_jab'], speed: 1.3 },
   },
   emeka: {
-    id: 'emeka', name: 'Emeka', glb: 'assets/emeka.glb?v=20261010174937', thumb: 'assets/fighter_emeka.webp?v=20261010174937', genericIntro: true,
+    id: 'emeka', name: 'Emeka', glb: 'assets/emeka.glb?v=20261010175245', thumb: 'assets/fighter_emeka.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // nigeriano, 1,93 m, 108 kg. Il re leone: lento e calmo, ma il suo destro chiude gli incontri
     skinTint: null, evenSkin: false,
@@ -247,7 +247,7 @@ export const FIGHTERS = {
     mods: { power: 1.5, punchSpeed: 0.85, moveSpeed: 0.8, defenseSpeed: 0.9, attackEvery: 1.15, toughness: 0.75, extraCombos: ['2', '3', '2-3', '1-2', '6', '2-6', '3-2'] },
   },
   taras: {
-    id: 'taras', name: 'Taras', glb: 'assets/taras.glb?v=20261010174937', thumb: 'assets/fighter_taras.webp?v=20261010174937', genericIntro: true,
+    id: 'taras', name: 'Taras', glb: 'assets/taras.glb?v=20261010175245', thumb: 'assets/fighter_taras.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // ucraino, 1,98 m, 108 kg, biondo. Il professore: jab lungo come un palo, ti tiene sempre alla sua distanza
     skinTint: null, evenSkin: false, hairTint: '#c9a46a',
@@ -256,7 +256,7 @@ export const FIGHTERS = {
   },
   javi: {
     goatee: true,                                                      // pizzetto: segue il mento, non il labbro di sopra (bocca aperta)
-    id: 'javi', name: 'Javi', glb: 'assets/javi.glb?v=20261010174937', thumb: 'assets/fighter_javi.webp?v=20261010174937', genericIntro: true,
+    id: 'javi', name: 'Javi', glb: 'assets/javi.glb?v=20261010175245', thumb: 'assets/fighter_javi.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // portoricano, 1,75 m, 70 kg, pizzetto. Il bandido: furbo, ti fa alzare la guardia e ti colpisce al fegato
     skinTint: 0xdcae86, evenSkin: false,
@@ -268,7 +268,7 @@ export const FIGHTERS = {
     feints: { rate: 0.6, moves: ['feint_jab', 'feint_dip'], speed: 1.15 },
   },
   bastien: {
-    id: 'bastien', name: 'Bastien', glb: 'assets/bastien.glb?v=20261010174937', thumb: 'assets/fighter_bastien.webp?v=20261010174937', genericIntro: true,
+    id: 'bastien', name: 'Bastien', glb: 'assets/bastien.glb?v=20261010175245', thumb: 'assets/fighter_bastien.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // francese, 1,82 m, 78 kg, coda di cavallo. Il moschettiere: elegante, finte continue e jab di fioretto
     skinTint: null, evenSkin: false, hairTint: '#3a2416',
@@ -279,7 +279,7 @@ export const FIGHTERS = {
     feints: { rate: 0.9, moves: ['feint_jab', 'feint_jab', 'feint_dip'], speed: 1.15 },
   },
   nurlan: {
-    id: 'nurlan', name: 'Nurlan', glb: 'assets/nurlan.glb?v=20261010174937', thumb: 'assets/fighter_nurlan.webp?v=20261010174937', genericIntro: true,
+    id: 'nurlan', name: 'Nurlan', glb: 'assets/nurlan.glb?v=20261010175245', thumb: 'assets/fighter_nurlan.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // kazako, 1,78 m, 75 kg. Il lupo della steppa: avanza sempre, ganci pesanti alla testa e al corpo
     skinTint: 0xe0b48e, evenSkin: false,
@@ -289,7 +289,7 @@ export const FIGHTERS = {
   },
   kerem: {
     goatee: true,                                                      // pizzetto: segue il mento, non il labbro di sopra (bocca aperta)
-    id: 'kerem', name: 'Kerem', glb: 'assets/kerem.glb?v=20261010174937', thumb: 'assets/fighter_kerem.webp?v=20261010174937', genericIntro: true,
+    id: 'kerem', name: 'Kerem', glb: 'assets/kerem.glb?v=20261010175245', thumb: 'assets/fighter_kerem.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // turco, 1,85 m, 95 kg, peloso e col pizzetto. Il toro: fisico da lottatore, ti spinge all'angolo e lavora di ganci
     skinTint: 0xe2b590, evenSkin: false,
@@ -298,7 +298,7 @@ export const FIGHTERS = {
     mods: { power: 1.25, moveSpeed: 1.0, defenseSpeed: 0.85, attackEvery: 0.85, toughness: 0.7, extraCombos: ['3', '3-4', '3b-3', '2-3', '1-3-4', '4-3'] },
   },
   karim: {
-    id: 'karim', name: 'Karim', glb: 'assets/karim.glb?v=20261010174937', thumb: 'assets/fighter_karim.webp?v=20261010174937', genericIntro: true,
+    id: 'karim', name: 'Karim', glb: 'assets/karim.glb?v=20261010175245', thumb: 'assets/fighter_karim.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // egiziano, 1,83 m, 82 kg, cicatrici sulle arcate. Il faraone: guardia bassa di spalla, aspetta il tuo errore e contrattacca
     skinTint: 0xc8956a, evenSkin: false,
@@ -308,7 +308,7 @@ export const FIGHTERS = {
     mods: { defenseSpeed: 1.3, evade: 0.07, attackEvery: 1.05, punchSpeed: 1.1, extraCombos: ['2', '1-schivata-2', '2-3', 'schivata-2-3', '1-2', '6-2'] },
   },
   logan: {
-    id: 'logan', name: 'Hogan', glb: 'assets/logan.glb?v=20261010174937', thumb: 'assets/fighter_logan.webp?v=20261010174937', genericIntro: true,
+    id: 'logan', name: 'Hogan', glb: 'assets/logan.glb?v=20261010175245', thumb: 'assets/fighter_logan.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // canadese, 1,90 m, 120 kg, basettoni alla Wolverine. Il boscaiolo: lento, incassa di tutto e picchia come un'ascia
     skinTint: 0xf0c6a4, evenSkin: false, hairTint: '#3a2414',
@@ -317,7 +317,7 @@ export const FIGHTERS = {
     mods: { power: 1.35, punchSpeed: 0.85, moveSpeed: 0.7, defenseSpeed: 0.75, attackEvery: 1.05, toughness: 0.6, extraCombos: ['3', '4', '3-4', '2-3', '3-4-3', '6-3'] },
   },
   kuba: {
-    id: 'kuba', name: 'Kuba', glb: 'assets/kuba.glb?v=20261010174937', thumb: 'assets/fighter_kuba.webp?v=20261010174937', genericIntro: true,
+    id: 'kuba', name: 'Kuba', glb: 'assets/kuba.glb?v=20261010175245', thumb: 'assets/fighter_kuba.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // polacco, 1,88 m, 96 kg, 41 anni, capelli grigi. Il veterano: ha visto tutto, para quasi tutto e non spreca un colpo
     skinTint: null, evenSkin: false, hairTint: '#9a9794',
@@ -325,7 +325,7 @@ export const FIGHTERS = {
     mods: { defenseSpeed: 1.35, moveSpeed: 0.85, attackEvery: 1.0, toughness: 0.8, extraCombos: ['1-2', '1-1-2', '2-3', '1-2-3', '1-6-3'] },
   },
   desmond: {
-    id: 'desmond', name: 'Desmond', glb: 'assets/desmond.glb?v=20261010174937', thumb: 'assets/fighter_desmond.webp?v=20261010174937', genericIntro: true,
+    id: 'desmond', name: 'Desmond', glb: 'assets/desmond.glb?v=20261010175245', thumb: 'assets/fighter_desmond.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // giamaicano, 1,87 m, 86 kg, capelli afro. Il serpente: sciolto, braccia lunghe, montanti che arrivano dal basso
     skinTint: null, evenSkin: false,
@@ -336,7 +336,7 @@ export const FIGHTERS = {
     feints: { rate: 0.5, moves: ['feint_dip'], speed: 1.1 },
   },
   ante: {
-    id: 'ante', name: 'Ante', glb: 'assets/ante.glb?v=20261010174937', thumb: 'assets/fighter_ante.webp?v=20261010174937', genericIntro: true,
+    id: 'ante', name: 'Ante', glb: 'assets/ante.glb?v=20261010175245', thumb: 'assets/fighter_ante.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // croato, 2,03 m, 115 kg. La torre: il piu' alto di tutti, uno-due dritti dall'alto
     skinTint: null, evenSkin: false, hairTint: '#6b4a2e',
@@ -346,7 +346,7 @@ export const FIGHTERS = {
     mods: { power: 1.3, punchSpeed: 0.9, moveSpeed: 0.85, defenseSpeed: 1.0, attackEvery: 1.0, extraCombos: ['1-2', '2', '1-1-2', '1-2-1-2', '2-3-2'] },
   },
   batu: {
-    id: 'batu', name: 'Batu', glb: 'assets/batu.glb?v=20261010174937', thumb: 'assets/fighter_batu.webp?v=20261010174937', genericIntro: true,
+    id: 'batu', name: 'Batu', glb: 'assets/batu.glb?v=20261010175245', thumb: 'assets/fighter_batu.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // mongolo, 1,72 m, 90 kg, testa rasata. Il khan: basso e tozzo come un lottatore, ti si incolla addosso
     skinTint: 0xe0b48e, evenSkin: false,
@@ -356,7 +356,7 @@ export const FIGHTERS = {
     mods: { power: 1.25, moveSpeed: 1.0, defenseSpeed: 0.85, attackEvery: 0.8, toughness: 0.65, extraCombos: ['3b', '4b', '3b-3', '4b-4', '6-3', '3-4-3', '1-3b-3'] },
   },
   camilo: {
-    id: 'camilo', name: 'Camilo', glb: 'assets/camilo.glb?v=20261010174937', thumb: 'assets/fighter_camilo.webp?v=20261010174937', genericIntro: true,
+    id: 'camilo', name: 'Camilo', glb: 'assets/camilo.glb?v=20261010175245', thumb: 'assets/fighter_camilo.webp?v=20261010175245', genericIntro: true,
     face: [185, 30, 110],
     // colombiano, 1,77 m, 72 kg, 20 anni, riccio. Il colibri': giovane e sfrontato, raffiche velocissime
     skinTint: 0xd9a57c, evenSkin: false,
@@ -368,7 +368,7 @@ export const FIGHTERS = {
   },
 };
 FIGHTERS.atom = {
-  id: 'atom', name: 'Atom', glb: 'assets/atom.glb?v=20261010174937', thumb: 'assets/fighter_atom.webp?v=20261010174937', genericIntro: true,
+  id: 'atom', name: 'Atom', glb: 'assets/atom.glb?v=20261010175245', thumb: 'assets/fighter_atom.webp?v=20261010175245', genericIntro: true,
   face: [185, 30, 110],
   // nazionalita' ignota (bandiera del mondo), 2,10 m, 125 kg, statuario. Il piu' forte del gioco: stile misto,
   // tanti jab, combinazioni lunghe, ganci, montanti e corpo; tutto al massimo. Il volto e' quello di Marco (sue foto).

@@ -33,7 +33,7 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261010174937';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261010175245';
 // Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
@@ -55,7 +55,7 @@ let vbuf = {}, vLang = 'it';
 let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261010174937`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261010175245`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
@@ -220,7 +220,7 @@ const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261010174937`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261010175245`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
   loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (snowWanted && !snowW) snowAmbient(true); if (lavaWanted && !lavaW) lavaAmbient(true); if (underWanted && !underW) underAmbient(true); if (spaceWanted && !spaceW) spaceAmbient(true); if (windWanted && (!wind || wind.synth)) { if (wind) { wind.s.stop(); wind = null; } windAmbient(true); } });   // vento vero appena caricato
   return loading;
@@ -333,19 +333,23 @@ export function heli(pos, cam) {
     const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 45; p.rolloffFactor = 1.3; p.maxDistance = 2000;
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3000;   // lontano = piu' ovattato
     const g = ctx.createGain(); g.gain.value = 0.0; g.gain.setTargetAtTime(buf.elicottero ? 0.9 : 0.45, ctx.currentTime, 1.5);
-    s.connect(lp); lp.connect(g); g.connect(p); p.connect(master); s.start(s.context.currentTime, Math.random() * 3);
-    heliSrc = { s, p, g, lp };
+    s.connect(lp); lp.connect(g); g.connect(p); p.connect(master);
+    heliSrc = { s, p, g, lp, started: false };
   }
   setListener(cam);
   const cp = cam.getWorldPosition(new cam.position.constructor()), dist = cp.distanceTo(pos);
   heliSrc.lp.frequency.setTargetAtTime(500 + 9000 * Math.exp(-dist / 140), ctx.currentTime, 0.2);
   const P = heliSrc.p;
   if (P.positionX) { P.positionX.value = pos.x; P.positionY.value = pos.y; P.positionZ.value = pos.z; } else P.setPosition(pos.x, pos.y, pos.z);
+  if (!heliSrc.started) {                                  // parte solo ora che il panner e il filtro sono gia' al posto giusto (prima partiva dal centro e scattava)
+    heliSrc.started = true; heliSrc.lp.frequency.value = 500 + 9000 * Math.exp(-dist / 140);
+    heliSrc.s.start(heliSrc.s.context.currentTime + 0.03, Math.random() * 3);
+  }
 }
 export function heliStop() {
   if (!heliSrc) return;
   const h = heliSrc; heliSrc = null;
-  h.g.gain.setTargetAtTime(0, ctx.currentTime, 0.4); setTimeout(() => { try { h.s.stop(); } catch (e) {} }, 1500);
+  h.g.gain.setTargetAtTime(0, ctx.currentTime, 0.4); setTimeout(() => { try { if (h.started) h.s.stop(); } catch (e) {} }, 1500);
 }
 // sibilo del gas dello zaino (astronauta sulla Luna): fruscio a banda larga che sale subito e cala, ovattato dalla distanza;
 // `dur` = quanto dura la spinta (s). La sorgente e' nel mondo (pos) e panneggiata.
