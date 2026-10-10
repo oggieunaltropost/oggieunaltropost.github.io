@@ -21,7 +21,7 @@ function drawIcon(g, kind, cx, cy, w) {
   g.restore();
 }
 import * as THREE from 'three';
-export { StyleLearner } from './style_learn.js?v=20261010131707';
+export { StyleLearner } from './style_learn.js?v=20261010135749';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const _lq = new THREE.Quaternion(), _lr = new THREE.Quaternion(), _qI = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ld = new THREE.Vector3();
 
@@ -171,7 +171,7 @@ export class Mike {
       else if (n.includes('high-poly')) { m.transparent = false; m.alphaTest = 0.9; m.depthWrite = true; m.roughness = 0.15; o.castShadow = false; }
       if (m.envMapIntensity !== undefined) m.envMapIntensity = 0.8;
     });
-    this.brandShorts();
+    this.brandShorts(); this.legName();
     if (this.cfg0.hairTint) this.model.traverse(o => { if (o.isMesh && o.material.name === 'Capelli folti') this.tintHair(o.material, this.cfg0.hairTint); });
     if (this.cfg0.fur) this.model.traverse(o => { if (o.isMesh && o.material.name === 'Capelli') this.furMaterial(o.material, this.cfg0.fur); });
     if (this.cfg0.noStubble) this.model.traverse(o => { if (o.isMesh && o.material.name === 'Capelli') o.visible = false; });
@@ -373,6 +373,41 @@ export class Mike {
     const t = new THREE.CanvasTexture(c); const o = m.map;
     t.flipY = o.flipY; t.colorSpace = o.colorSpace; t.wrapS = o.wrapS; t.wrapT = o.wrapT;
     m.map = t; m.color.set(0xffffff); m.needsUpdate = true;
+  }
+
+  // il nome sulla coscia dei calzoncini (cfg.legName = { side: 'left' | 'right', color, stars }): scritta stampata sul davanti della gamba,
+  // disegnata nello shader del raso blu (in coordinate della mesh a riposo, quindi resta attaccata alla stoffa mentre si muove)
+  legName() {
+    const L = this.cfg0.legName; if (!L) return;
+    let sh = null; this.model.traverse(o => { if (o.isMesh && o.material.name === 'Raso blu') sh = o; });
+    if (!sh) return;
+    const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d');
+    const name = (this.cfg0.name || '').toUpperCase(), n = L.stars || 0;
+    g.fillStyle = L.color; g.textAlign = 'center'; g.textBaseline = 'middle';
+    let size = 150; g.font = `900 ${size}px system-ui, sans-serif`;
+    while (g.measureText(name).width > 470 && size > 40) { size -= 6; g.font = `900 ${size}px system-ui, sans-serif`; }
+    g.fillText(name, 256, n ? 92 : 128);
+    for (let i = 0; i < n; i++) {                                       // stelle sotto il nome
+      const cx = 256 + (i - (n - 1) / 2) * 78, cy = 208, R = 34; g.beginPath();
+      for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, r = k % 2 ? R * 0.42 : R; g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
+      g.closePath(); g.fill();
+    }
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+    const geo = sh.geometry; geo.computeBoundingBox(); const bb = geo.boundingBox, W = bb.max.x - bb.min.x, Hh = bb.max.y - bb.min.y;
+    const side = L.side === 'left' ? 1 : -1;                               // (il pugile guarda +Z: la sua sinistra e' +X)
+    const box = new THREE.Vector4((bb.max.x + bb.min.x) / 2 + side * W * 0.30, bb.min.y + Hh * (L.y ?? 0.4), W * (L.w ?? 0.19), W * (L.w ?? 0.19) * 0.5);
+    const m = sh.material = sh.material.clone();
+    m.onBeforeCompile = shd => {
+      shd.uniforms.uDecal = { value: tex }; shd.uniforms.uBox = { value: box };
+      shd.vertexShader = shd.vertexShader.replace('void main() {', `varying vec3 vOP; varying vec3 vON;
+void main() {`).replace('#include <begin_vertex>', `#include <begin_vertex>
+ vOP = position; vON = normal;`);
+      shd.fragmentShader = shd.fragmentShader.replace('void main() {', `uniform sampler2D uDecal; uniform vec4 uBox; varying vec3 vOP; varying vec3 vON;
+void main() {`).replace('#include <map_fragment>', `#include <map_fragment>
+        { vec2 q = vec2((vOP.x - uBox.x) / uBox.z, (vOP.y - uBox.y) / uBox.w);
+          if (abs(q.x) < 1.0 && abs(q.y) < 1.0 && vON.z > 0.25) { vec4 d = texture2D(uDecal, vec2(q.x * 0.5 + 0.5, q.y * 0.5 + 0.5)); diffuseColor.rgb = mix(diffuseColor.rgb, d.rgb, d.a); } }`);
+    };
+    m.needsUpdate = true;
   }
 
   brandShorts() {

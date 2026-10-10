@@ -1,7 +1,7 @@
 // Incontro vero: danno, atterramenti, conteggio dell'arbitro, KO e KO tecnico (regole del pugilato),
 // e la prova per rialzarsi quando vai a terra tu.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261010131707';
+import { t as tr } from './i18n.js?v=20261010135749';
 
 export const ROUNDS = 3, ROUND_S = 180, REST_S = 30;
 

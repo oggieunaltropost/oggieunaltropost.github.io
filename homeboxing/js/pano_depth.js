@@ -11,7 +11,7 @@ export let panoPending = 0;
 // il worker: legge la mappa di profondita' e costruisce i due strati (davanti e riempimento dietro)
 const WORKER_URL = URL.createObjectURL(new Blob([`
 const SKY = 880;
-onmessage = async ({ data: { url, eye, uU, flat, hi } }) => {
+onmessage = async ({ data: { url, eye, uU, flat, hi, ratio } }) => {
   try {
     const bmp = await createImageBitmap(await (await fetch(url)).blob(), { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
     const c = new OffscreenCanvas(bmp.width, bmp.height), g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(bmp, 0, 0);
@@ -62,7 +62,7 @@ onmessage = async ({ data: { url, eye, uU, flat, hi } }) => {
       return idx.slice(0, n); };
     const GW = hi ? 1024 : 512, GH = hi ? 192 : 256, pw = hi ? 1.8 : 1, GWB = hi ? 512 : GW, GHB = hi ? 96 : GH;
     const pos = build(distMin, GW, GH, pw), posB = build(distMax, GWB, GHB, pw);
-    const idx = tris(pos, 1.45, 120, GW, GH), idxB = tris(posB, 3, 200, GWB, GHB);   // dietro: si tolgono solo i salti enormi
+    const idx = tris(pos, ratio || 1.45, 120, GW, GH), idxB = tris(posB, 3, 200, GWB, GHB);   // dietro: si tolgono solo i salti enormi
     postMessage({ pos, idx, posB, idxB }, [pos.buffer, idx.buffer, posB.buffer, idxB.buffer]);
   } catch (e) { postMessage({ err: String(e) }); }
 };
@@ -74,7 +74,7 @@ onmessage = async ({ data: { url, eye, uU, flat, hi } }) => {
 // separato, che faceva un cerchio di colore diverso): ci camminano sopra lupo, scorpione, impronte
 // grain: texture di dettaglio (grana) stesa sul pavimento piatto vicino, dove la foto ha pochi pixel ed e' sfocata;
 // grainMean = sua luminosita' media (lineare), cosi' il colore della foto non cambia
-export function panoDepth(url, tex, { eye = 1.65, uU = 0, onReady = null, clip = 0, flat = 0, hi = false, grain = null, grainMean = 0.5, grainScale = 1.6 } = {}) {
+export function panoDepth(url, tex, { eye = 1.65, uU = 0, onReady = null, clip = 0, flat = 0, hi = false, ratio = 0, grain = null, grainMean = 0.5, grainScale = 1.6 } = {}) {
   const mesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.ShaderMaterial({
     fog: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 4, polygonOffsetUnits: 4,   // (dietro al terreno 3D vicino)
     uniforms: { uPano: { value: tex }, uEye: { value: eye }, uU: { value: uU }, uClip: { value: clip }, uGrain: { value: grain }, uGM: { value: grainMean }, uGS: { value: grainScale }, uFlat: { value: grain ? flat : 0 } },
@@ -113,6 +113,6 @@ export function panoDepth(url, tex, { eye = 1.65, uU = 0, onReady = null, clip =
   // se il worker non risponde (errore o niente) il caricamento non deve restare al buio per sempre
   let done = false; const fail = e => { if (done) return; done = true; panoPending--; try { w.terminate(); } catch (_) {} console.warn('profondita', url, e); };
   w.onerror = e => fail(e.message || 'worker'); setTimeout(() => fail('tempo scaduto'), 25000);
-  w.postMessage({ url: new URL(url, location.href).href, eye, uU, flat, hi });
+  w.postMessage({ url: new URL(url, location.href).href, eye, uU, flat, hi, ratio });
   return root;
 }

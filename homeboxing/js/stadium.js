@@ -5,12 +5,12 @@
 // Doppler).
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
 import * as THREE from 'three';
-import { panoDepth } from './pano_depth.js?v=20261010131707';
-import { contactShadow } from './contact_shadow.js?v=20261010131707';
-import * as sfx from './sfx.js?v=20261010131707';
-import { Footballer } from './footballer.js?v=20261010131707';
-import { NightFireworks } from './fireworks.js?v=20261010131707';
-import { StadiumScreen } from './stadium_screen.js?v=20261010131707';
+import { panoDepth } from './pano_depth.js?v=20261010135749';
+import { contactShadow } from './contact_shadow.js?v=20261010135749';
+import * as sfx from './sfx.js?v=20261010135749';
+import { Footballer } from './footballer.js?v=20261010135749';
+import { NightFireworks } from './fireworks.js?v=20261010135749';
+import { StadiumScreen } from './stadium_screen.js?v=20261010135749';
 
 const EYE = 1.65;
 // il Sole della foto: Blender (-0.2484, -0.5327, 0.809) -> gioco (y, z, x)
@@ -91,7 +91,7 @@ export class Stadium {
   }
   // ---------------------------------------------------------------- foto a 360 gradi
   _sky() {
-    const tex = new THREE.TextureLoader().load(this.night ? 'assets/stadio_notte_panorama.jpg?v=20261010131707' : 'assets/stadio_panorama.jpg?v=20261010131707', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load(this.night ? 'assets/stadio_notte_panorama.jpg?v=20261010135749' : 'assets/stadio_panorama.jpg?v=20261010135749', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -107,7 +107,7 @@ export class Stadium {
     const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 64, 32), m);
     sky.renderOrder = -10; sky.frustumCulled = false; this.group.add(sky);
     // sfondo in 3D vero: il prato piatto, le gradinate e le torri alla loro distanza
-    this.group.add(panoDepth('assets/stadio_profondita.png', tex, { eye: EYE, flat: 40, hi: true }));
+    this.group.add(panoDepth('assets/stadio_profondita.png', tex, { eye: EYE, flat: 40, hi: true, ratio: 2.6 }));
   }
 
   // ---------------------------------------------------------------- di notte: i quattro fari illuminano il ring
