@@ -6,8 +6,8 @@
 // Durata libera: si va avanti finche' non fermi dalla pausa. La velocita' del partner (colpi, andata e ritorno,
 // spostamenti, parate) si regola trascinando su e giu' il cursore della barra al tuo fianco.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261010174448';
-import { t as tr } from './i18n.js?v=20261010174448';
+import * as sfx from './sfx.js?v=20261010174914';
+import { t as tr } from './i18n.js?v=20261010174914';
 
 // combinazioni chiamate: voce, colpi che tira il partner (non qui) e quello che devi tirare tu
 // codici: 1 jab, 2 diretto, 3 gancio sinistro, 4 gancio destro, 5 montante sinistro, 6 montante destro; 'b' = al corpo
@@ -35,7 +35,7 @@ const ALL_ATTACKS = Object.values(DEF_KINDS).flat();
 const pick = a => a[Math.floor(Math.random() * a.length)];
 // numeri sopra il partner nelle combinazioni: un colore per colpo
 const CUE_COL = { '1': '#3fb0ff', '2': '#4cff7a', '3': '#ffd34d', '4': '#ff8a3d', '5': '#c77dff', '6': '#ff5aa8', b: '#ff4d4d' };
-const GOOD = ['c_good1', 'c_good2', 'c_good3', 'c_good4'];
+const GOOD = ['c_good1', 'c_good2', 'c_good3'];                 // ('Ancora!' tolto: sembrava un'istruzione e confondeva)
 
 export class Sparring {
   constructor(scene) {
@@ -258,8 +258,13 @@ export class Sparring {
     const g = player.gloves[side]; let p0 = g.center, bf = Infinity;
     for (const h of g.hist2 || []) { const f = h.p.dot(fwd); if (f < bf) { bf = f; p0 = h.p; } }
     const d = (end || g.center).clone().sub(p0), F = d.dot(fwd), U = d.dot(up), I = d.dot(right) * (side === 'left' ? 1 : -1);
-    if (U > 0.11 && U > F * 0.75) return side === 'left' ? '5' : '6';
-    if (I > 0.18 && I > F * 0.4) return side === 'left' ? '3' : '4';
+    // quanto il guantone si e' spostato di lato negli ultimi 0,4 s: nel gancio e' tanto (parte largo e arriva al centro, o viceversa), nel diretto poco
+    let lo = Infinity, hi = -Infinity;
+    for (const h of g.hist2 || []) if (g.clock - h.t < 0.4) { const l = h.p.dot(right); lo = Math.min(lo, l); hi = Math.max(hi, l); }
+    const e2 = (end || g.center).dot(right); lo = Math.min(lo, e2); hi = Math.max(hi, e2);
+    const lat = hi - lo;
+    if (U > 0.14 && U > F * 0.9 && lat < 0.2) return side === 'left' ? '5' : '6';
+    if (lat > 0.24 || (I > 0.22 && I > F * 0.5)) return side === 'left' ? '3' : '4';
     return side === 'left' ? '1' : '2';
   }
   // contatto con il partner (testa o busto): e' il momento in cui il colpo conta, senza le soglie di velocita' dell'incontro vero.
@@ -376,7 +381,7 @@ export class Sparring {
     m.lowTarget = toBody ? 0 : 1; m.low += (m.lowTarget - m.low) * Math.min(1, dt * 6);
     // jab e diretto contano per la mano (quello a segno quasi dritto a volte sembrava un gancio): sinistro = jab, destro = diretto; ganci e montanti restano precisi
     const straight = n => n === '1' || n === '2', hand = n => (n === '1' ? 'left' : 'right');
-    const match = (x, g) => x === 'b' ? g.body : x.endsWith('b') ? (g.body && (g.n === x[0] || (straight(x[0]) && g.side === hand(x[0])))) : (!g.body && (g.n === x || (straight(x) && g.side === hand(x))));
+    const match = (x, g) => x === 'b' ? g.body : x.endsWith('b') ? (g.body && (g.n === x[0] || (straight(x[0]) && g.side === hand(x[0])))) : straight(x) ? (!g.body && g.side === hand(x)) : g.n === x;   // ganci e montanti valgono sia alla testa sia al corpo
     let res = null;
     for (const p of this._contacts(dt, player)) {
       if (match(seq[T.step], p)) {

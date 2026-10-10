@@ -1,7 +1,7 @@
 // Scheda dei lottatori (menu iniziale, "Lottatori"): per ogni pugile paese con la bandiera, soprannome, altezza,
 // peso, stile e quattro caratteristiche da 1 a 10. Le bandiere sono disegnate (semplificate) su una tela.
 import * as THREE from 'three';
-import { lang } from './i18n.js?v=20261010174448';
+import { lang } from './i18n.js?v=20261010174914';
 
 // paese (codice bandiera), nomi, misure, soprannome e stile (it / en), caratteristiche: potenza, velocita', difesa, resistenza
 export const ROSTER = {
