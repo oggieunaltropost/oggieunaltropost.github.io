@@ -5,8 +5,8 @@
 // (modello e animazioni: blender/create_astronaut.py)
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { contactShadow } from './contact_shadow.js?v=20261010141843';
-import * as sfx from './sfx.js?v=20261010141843';
+import { contactShadow } from './contact_shadow.js?v=20261010143350';
+import * as sfx from './sfx.js?v=20261010143350';
 
 const R = 5.6, G = 1.62, HOP = 0.95;                   // raggio del giro (attorno al ring), metri a balzo
 const T_UP = 0.32, T_DOWN = 0.86;                      // frazioni del balzo: stacco e atterraggio (come in Blender)
@@ -32,7 +32,13 @@ export class Astronaut {
       sp.visible = false; sp.renderOrder = 5; this.group.add(sp);
       this.puffs.push({ sp, life: 0, ttl: 1, v: new THREE.Vector3(), r0: 0.1, grow: 0.9, a: 0.75 });
     }
-    new GLTFLoader().load('assets/astronauta.glb?v=20261010141843', g => {
+    this.dust = [];                                                    // polvere lunare sollevata dai salti: nuvolette grigie basse che si allargano piano
+    for (let i = 0; i < 70; i++) {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), transparent: true, depthWrite: false, opacity: 0, color: 0xd2ccc2 }));
+      sp.visible = false; sp.renderOrder = 4; this.group.add(sp);
+      this.dust.push({ sp, life: 0, ttl: 1, v: new THREE.Vector3(), r0: 0.1, grow: 0.5, a: 0.5 });
+    }
+    new GLTFLoader().load('assets/astronauta.glb?v=20261010143350', g => {
       this.model = g.scene; this.model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
       // visiera dorata a specchio: riflette il paesaggio lunare (l'ambiente della scena e' la foto della luna)
       this.model.traverse(o => { if (o.isMesh && /Visiera/.test(o.material.name)) { const m = o.material; m.metalness = 1; m.roughness = 0.03; m.color.setRGB(1.0, 0.78, 0.4); m.envMapIntensity = 2.2; } });
@@ -67,6 +73,28 @@ export class Astronaut {
     }
   }
 
+  // polvere dell'atterraggio (o dello stacco): un anello di nuvolette che si allarga sul terreno e ricade piano (poca gravita', niente aria)
+  _dustPuff(x, z, n, big = 1) {
+    for (let k = 0; k < n; k++) {
+      const D = this.dust.find(q => q.life <= 0); if (!D) return;
+      const a = Math.random() * Math.PI * 2, sp = (0.5 + Math.random() * 1.1) * big;
+      D.sp.position.set(x + Math.cos(a) * 0.15, 0.05 + Math.random() * 0.08, z + Math.sin(a) * 0.15);
+      D.v.set(Math.cos(a) * sp, 0.12 + Math.random() * 0.3 * big, Math.sin(a) * sp);
+      D.ttl = D.life = 1.6 + Math.random() * 1.6; D.r0 = (0.2 + Math.random() * 0.12) * big; D.grow = (0.8 + Math.random() * 0.6) * big; D.a = 0.62 * Math.min(1, big);
+      D.sp.visible = true;
+    }
+  }
+  _updDust(dt) {
+    for (const D of this.dust) {
+      if (D.life <= 0) continue;
+      D.life -= dt; const k = 1 - Math.max(0, D.life) / D.ttl;
+      D.sp.position.addScaledVector(D.v, dt); D.v.multiplyScalar(Math.pow(0.3, dt)); D.v.y -= 0.25 * dt;
+      if (D.sp.position.y < 0.03) { D.sp.position.y = 0.03; D.v.y = 0; }
+      D.sp.scale.setScalar(D.r0 + k * D.grow); D.sp.material.opacity = D.a * Math.min(1, k * 8) * (1 - k) * (1 - k);
+      if (D.life <= 0) D.sp.visible = false;
+    }
+  }
+
   // ---------------------------------------------------------------- il volo col gas: accucciato, spinta (0,75 s), planata
   // con la gravita' lunare, soffio di frenata, atterraggio piegando le gambe
   _startJet() {
@@ -95,7 +123,7 @@ export class Astronaut {
     }
     if (J.phase === 'thrust' || J.phase === 'coast') {
       J.y += J.vy * dt; this.a += (J.vh / R) * dt;
-      if (J.phase === 'coast' && J.y <= 0 && J.vy < 0) { J.y = 0; J.phase = 'land'; this.hop.time = T_DOWN * this.dur; this.hop.paused = false; J.vh = 0; }
+      if (J.phase === 'coast' && J.y <= 0 && J.vy < 0) { J.y = 0; J.phase = 'land'; this.hop.time = T_DOWN * this.dur; this.hop.paused = false; J.vh = 0; this._dustPuff(Math.cos(this.a) * R, Math.sin(this.a) * R, 16, 1.5); }
     } else if (J.phase === 'land') {                             // atterra piegando le gambe (la fine del balzo)
       J.lean *= Math.pow(0.05, dt);
       const ph = (this.hop.time % this.dur) / this.dur;
@@ -110,7 +138,7 @@ export class Astronaut {
   update(dt, cam) {
     if (!this.mixer) return;
     this.t += dt;
-    this._updPuffs(dt);
+    this._updPuffs(dt); this._updDust(dt);
     const ph = (this.hop.time % this.dur) / this.dur;
     let y = 0, lean = 0;
     if (this.state === 'jet') {
@@ -132,6 +160,8 @@ export class Astronaut {
       this.st -= dt;
       if (this.st <= 0) { this.state = 'hop'; this.next = this.t + 20 + Math.random() * 20; this.hop.time = 0; this.hop.setEffectiveWeight(1); this.look.setEffectiveWeight(0); }
     }
+    if (this.state === 'hop' && this.prevPh < T_DOWN && ph >= T_DOWN) this._dustPuff(Math.cos(this.a) * R, Math.sin(this.a) * R, 9, 1);        // tocca terra: polvere
+    if (this.state === 'hop' && this.prevPh < T_UP && ph >= T_UP) this._dustPuff(Math.cos(this.a) * R, Math.sin(this.a) * R, 4, 0.6);          // si stacca: un po' meno
     this.prevPh = ph;
     if (this.state !== 'jet') this.hop.paused = this.state !== 'hop';
     this.mixer.update(dt);
