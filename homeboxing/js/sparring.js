@@ -6,8 +6,8 @@
 // Durata libera: si va avanti finche' non fermi dalla pausa. La velocita' del partner (colpi, andata e ritorno,
 // spostamenti, parate) si regola trascinando su e giu' il cursore della barra al tuo fianco.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261010143350';
-import { t as tr } from './i18n.js?v=20261010143350';
+import * as sfx from './sfx.js?v=20261010144641';
+import { t as tr } from './i18n.js?v=20261010144641';
 
 // combinazioni chiamate: voce, colpi che tira il partner (non qui) e quello che devi tirare tu
 // codici: 1 jab, 2 diretto, 3 gancio sinistro, 4 gancio destro, 5 montante sinistro, 6 montante destro; 'b' = al corpo
@@ -220,10 +220,14 @@ export class Sparring {
     const fwd = ph.clone().sub(head).setY(0).normalize(), up = new THREE.Vector3(0, 1, 0), right = new THREE.Vector3().crossVectors(fwd, up);
     const out = [];
     this.cool = this.cool || { left: 0, right: 0 };
-    const kind = (side, T) => {
-      const d = T.pBest.clone().sub(T.p0), F = d.dot(fwd), U = d.dot(up), I = d.dot(right) * (side === 'left' ? 1 : -1);   // in avanti, in su, verso l'interno
-      if (U > 0.09 && U > F * 0.7) return side === 'left' ? '5' : '6';
-      if (I > 0.14 && I > F * 0.8) return side === 'left' ? '3' : '4';      // gancio: arriva di lato
+    // tipo di pugno dal percorso: parte dal punto piu' arretrato del guantone negli ultimi 0,6 s (la guardia o il fianco, dove parte
+    // davvero un gancio: il tracciamento comincia solo quando il guantone e' gia' veloce in avanti e li' il gancio sembrava un diretto)
+    const kind = (side, T, end = null) => {
+      const g = player.gloves[side]; let p0 = T ? T.p0 : g.center, bf = Infinity;
+      for (const h of g.hist2 || []) { const f = h.p.dot(fwd); if (f < bf) { bf = f; p0 = h.p; } }
+      const d = (end || (T && T.pBest) || g.center).clone().sub(p0), F = d.dot(fwd), U = d.dot(up), I = d.dot(right) * (side === 'left' ? 1 : -1);   // in avanti, in su, verso l'interno
+      if (U > 0.11 && U > F * 0.75) return side === 'left' ? '5' : '6';
+      if (I > 0.18 && I > F * 0.4) return side === 'left' ? '3' : '4';      // gancio: arriva di lato
       return side === 'left' ? '1' : '2';
     };
     for (const side of ['left', 'right']) {
@@ -234,7 +238,7 @@ export class Sparring {
       if (landed[side] && this.cool[side] > 0.1) continue;            // stesso pugno (es. toccato il guanto e poi la testa): conta una volta
       if (landed[side]) {                                              // a segno: il colpo e' questo, subito
         const body = landed[side] === 'body';
-        out.push({ n: T ? kind(side, T) : (side === 'left' ? '1' : '2'), body, side, landed: true });
+        out.push({ n: kind(side, T, g.center), body, side, landed: true });
         this.st.thrown++; this.track[side] = null; this.cool[side] = 0.35; continue;
       }
       if (this.cool[side] > 0) continue;                               // (lo stesso colpo non si conta due volte)
@@ -298,7 +302,7 @@ export class Sparring {
     m.lowTarget = toBody ? 0 : 1; m.low += (m.lowTarget - m.low) * Math.min(1, dt * 6);
     const seq = T.c.seq, sp = Math.sqrt(this.speed);
     // tempo per questo colpo (il primo ha in piu' il tempo della chiamata: il numero e' gia' li' dall'inizio)
-    const win = (T.step === 0 ? 1.6 / sp + T.wait * 0.6 : 0.75 / sp);
+    const win = (T.step === 0 ? 1.6 / sp + T.wait * 0.6 : 1.05 / sp);
     const match = (x, g) => x === 'b' ? g.body : x.endsWith('b') ? (g.body && g.n === x[0]) : (g.n === x && !g.body);
     let res = null;
     for (const p of punches) {

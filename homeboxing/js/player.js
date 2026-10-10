@@ -133,6 +133,7 @@ class Glove {
     this.contactPoint = new THREE.Vector3();
     this.punchId = 0;                       // cresce a ogni nuova "spinta" in avanti
     this.wasFast = false;
+    this.hist2 = [];                        // storia piu' lunga (0,6 s): per riconoscere il tipo di pugno (gancio, montante) dalla partenza vera
     this.hist = [];                         // posizioni recenti, per capire se il pugno e' partito davvero
     this.clock = 0;
   }
@@ -187,6 +188,8 @@ class Glove {
     this.clock += dt;
     this.hist.push({ t: this.clock, p: this.center.clone(), s: this.speed });
     while (this.hist.length && this.clock - this.hist[0].t > 0.25) this.hist.shift();
+    this.hist2.push({ t: this.clock, p: this.center.clone() });
+    while (this.hist2.length && this.clock - this.hist2[0].t > 0.6) this.hist2.shift();
     const fast = this.speed > 0.7;           // inizio di una spinta: serve a Mike per "leggere" il pugno presto
     if (fast && !this.wasFast) this.punchId++;
     this.wasFast = fast;

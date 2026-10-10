@@ -1,7 +1,7 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261010143350';
-import { drawFlagAny } from './roster.js?v=20261010143350';
+import { t as tr } from './i18n.js?v=20261010144641';
+import { drawFlagAny } from './roster.js?v=20261010144641';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
 // ogni raggio: { o, d, hit, sel (grilletto / pizzico tenuto), click (appena premuto) }
