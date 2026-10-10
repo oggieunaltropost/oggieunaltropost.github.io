@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 
 const W = 640, H = 242;                                   // pixel della tela (stesso rapporto dello schermo)
-const SCREEN = { x: 0, y: 35.65, z: 115.2, w: 20.6, h: 7.8 };   // (spazio del ring: x = y di Blender, z = x di Blender)
+const SCREEN = { x: 0, y: 39.56, z: 119.3, w: 20.6, h: 7.8 };   // (spazio del ring: x = y di Blender, z = x di Blender)
 const FONT = '900 112px Impact, "Arial Black", system-ui, sans-serif';
 const rnd = (a, b) => a + Math.random() * (b - a);
 // parole a caso (la scritta HOME BOXING resta il tema delle altre animazioni): le lettere entrano una a una dall'alto con un rimbalzo
@@ -31,7 +31,11 @@ export class StadiumScreen {
     this.t = 0; this.acc = 0; this.mode = null; this.next = 4 + Math.random() * 6; this.mt = 0;
     this._black();
   }
-  _black() { const g = this.g; g.fillStyle = '#05060a'; g.fillRect(0, 0, W, H); this.tex.needsUpdate = true; }
+  _black() {                                       // spento: vetro scuro che riflette il cielo (sfumatura + un riflesso in diagonale), non una macchia nera
+    const g = this.g, gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#16263d'); gr.addColorStop(0.55, '#0b121e'); gr.addColorStop(1, '#05070b');
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    const gl = g.createLinearGradient(W * 0.15, 0, W * 0.45, H); gl.addColorStop(0, 'rgba(255,255,255,0)'); gl.addColorStop(0.5, 'rgba(190,215,255,0.10)'); gl.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gl; g.beginPath(); g.moveTo(W * 0.1, 0); g.lineTo(W * 0.5, 0); g.lineTo(W * 0.3, H); g.lineTo(0, H); g.closePath(); g.fill(); this.tex.needsUpdate = true; }
 
   update(dt) {
     this.t += dt;

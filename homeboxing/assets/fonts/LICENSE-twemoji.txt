@@ -1,0 +1,1 @@
+twemoji-flags.ttf: subset (solo le bandiere) di Twemoji Mozilla, grafica Twemoji (c) Twitter/Mozilla, licenza CC-BY 4.0 - https://creativecommons.org/licenses/by/4.0/

@@ -1,7 +1,7 @@
 // Scheda dei lottatori (menu iniziale, "Lottatori"): per ogni pugile paese con la bandiera, soprannome, altezza,
 // peso, stile e quattro caratteristiche da 1 a 10. Le bandiere sono disegnate (semplificate) su una tela.
 import * as THREE from 'three';
-import { lang } from './i18n.js?v=20261010121339';
+import { lang } from './i18n.js?v=20261010123104';
 
 // paese (codice bandiera), nomi, misure, soprannome e stile (it / en), caratteristiche: potenza, velocita', difesa, resistenza
 export const ROSTER = {
@@ -120,6 +120,42 @@ export function drawFlag(g, code, W, H) {
     mn: () => { stripesV(g, W, H, ['#c4272f', '#015197', '#c4272f']); g.fillStyle = '#f9cf02'; g.beginPath(); g.arc(W / 6, H * 0.4, H * 0.08, 0, 7); g.fill(); g.fillRect(W / 6 - H * 0.08, H * 0.52, H * 0.16, H * 0.3); },
   };
   (F[code] || (() => { g.fillStyle = '#888'; g.fillRect(0, 0, W, H); }))();
+}
+
+// ---------------------------------------------------------------- bandiere di tutti i paesi (per quella del giocatore)
+// Disegno dalle bandiere-emoji del font Twemoji (CC-BY 4.0, assets/fonts/twemoji-flags.ttf, solo le bandiere): il visore
+// non ha un font con le bandiere, quindi si carica questo. Ogni bandiera si ritaglia una volta sola e si tiene in cache.
+export const COUNTRY_CODES = ('AF AL DZ AD AO AG AR AM AU AT AZ BS BH BD BB BY BE BZ BJ BT BO BA BW BR BN BG BF BI CV KH CM CA CF TD CL CN CO KM CG CD CR CI HR CU CY CZ DK DJ DM DO EC EG SV GQ ER EE SZ ET FJ FI FR GA GM GE DE GH GR GD GT GN GW GY HT HN HU IS IN ID IR IQ IE IL IT JM JP JO KZ KE KI KP KR KW KG LA LV LB LS LR LY LI LT LU MG MW MY MV ML MT MH MR MU MX FM MD MC MN ME MA MZ MM NA NR NP NL NZ NI NE NG MK NO OM PK PW PA PG PY PE PH PL PT QA RO RU RW KN LC VC WS SM ST SA SN RS SC SL SG SK SI SB SO ZA SS ES LK SD SR SE CH SY TW TJ TZ TH TL TG TO TT TN TR TM TV UG UA AE GB US UY UZ VU VA VE VN YE ZM ZW XK PS HK MO PR').split(' ');
+let flagFontOk = false;
+export const flagFontReady = (typeof FontFace !== 'undefined' ? new FontFace('TwemojiFlags', `url(${new URL('../assets/fonts/twemoji-flags.ttf', import.meta.url).href})`).load()
+  .then(f => { document.fonts.add(f); flagFontOk = true; }).catch(() => {}) : Promise.resolve());
+const flagBmp = {};
+function emojiFlag(code) {
+  if (flagBmp[code]) return flagBmp[code];
+  if (!flagFontOk) return null;
+  const S = 120, c = document.createElement('canvas'); c.width = S * 2; c.height = S * 2; const g = c.getContext('2d', { willReadFrequently: true });
+  g.font = `${S}px TwemojiFlags`; g.textBaseline = 'middle'; g.fillStyle = '#000';
+  g.fillText(String.fromCodePoint(...[...code].map(ch => 0x1F1E6 + ch.charCodeAt(0) - 65)), 10, S);
+  const d = g.getImageData(0, 0, c.width, c.height).data; let x0 = c.width, y0 = c.height, x1 = -1, y1 = -1;
+  for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (d[(y * c.width + x) * 4 + 3] > 24) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  if (x1 < x0 || x1 - x0 < S * 0.4) return null;                 // niente bandiera (resta il segno delle due lettere): non si salva
+  const o = document.createElement('canvas'); o.width = x1 - x0 + 1; o.height = y1 - y0 + 1; o.getContext('2d').drawImage(c, x0, y0, o.width, o.height, 0, 0, o.width, o.height);
+  return (flagBmp[code] = o);
+}
+// '?' = rettangolo nero con il punto di domanda (nessuna bandiera scelta); 'x:IT' = bandiera dal font; altrimenti disegno semplificato
+export function drawFlagAny(g, code, W, H) {
+  if (code && code.startsWith('x:')) {
+    const b = emojiFlag(code.slice(2));
+    if (b) { g.drawImage(b, 0, 0, W, H); return; }
+    g.fillStyle = '#556'; g.fillRect(0, 0, W, H); g.fillStyle = '#fff'; g.font = `800 ${H * 0.5}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(code.slice(2), W / 2, H / 2 + 2); return;
+  }
+  if (code === '?') { g.fillStyle = '#000'; g.fillRect(0, 0, W, H); g.fillStyle = '#fff'; g.font = `900 ${H * 0.8}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('?', W / 2, H / 2 + H * 0.04); return; }
+  drawFlag(g, code, W, H);
+}
+// nome del paese nella lingua data (it / en)
+const dn = {};
+export function countryName(code, lang) {
+  try { return (dn[lang] || (dn[lang] = new Intl.DisplayNames([lang], { type: 'region' }))).of(code) || code; } catch (e) { return code; }
 }
 
 // ---------------------------------------------------------------- scheda del pugile (pannello a sinistra)

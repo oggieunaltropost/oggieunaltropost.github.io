@@ -1,7 +1,7 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261010121339';
-import { drawFlag } from './roster.js?v=20261010121339';
+import { t as tr } from './i18n.js?v=20261010123104';
+import { drawFlagAny } from './roster.js?v=20261010123104';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
 // ogni raggio: { o, d, hit, sel (grilletto / pizzico tenuto), click (appena premuto) }
@@ -151,9 +151,21 @@ export class Scoreboard {
     g.font = '800 64px ui-monospace, monospace';
     g.fillText(`${mm}:${ss}`, W * 0.81, 54);
     // colonne giocatore / Mike
-    const col = (x, name, color, p) => {
+    const col = (x, name, color, p, flag, right) => {
       g.fillStyle = color; g.fillRect(x - 230, 100, 460, 64);
-      g.fillStyle = '#fff'; g.font = '800 44px system-ui, sans-serif'; g.fillText(name, x, 133);
+      // bandierina piccola con il bordo bianco dentro la barra colorata: a sinistra del nome per il nome di sinistra, a destra per quello di destra
+      const fw = flag ? 60 : 0, fh = 40, gap = flag ? 16 : 0; let size = 44;
+      g.font = `800 ${size}px system-ui, sans-serif`;
+      while (g.measureText(name).width + fw + gap > 430 && size > 20) { size -= 2; g.font = `800 ${size}px system-ui, sans-serif`; }
+      const tw = g.measureText(name).width, x0 = x - (tw + fw + gap) / 2;
+      g.fillStyle = '#fff'; g.textAlign = 'left';
+      g.fillText(name, right ? x0 : x0 + fw + gap, 133);
+      g.textAlign = 'center';
+      if (flag) {
+        const fx = Math.round(right ? x0 + tw + gap : x0), fy = 132 - fh / 2;
+        g.save(); g.translate(fx, fy); g.beginPath(); g.rect(0, 0, fw, fh); g.clip(); drawFlagAny(g, flag, fw, fh); g.restore();
+        g.lineWidth = 4; g.strokeStyle = '#ffffff'; g.strokeRect(fx - 1, fy - 1, fw + 2, fh + 2);
+      }
       g.font = '900 150px system-ui, sans-serif'; g.fillText(p.points, x, 250);
       // energia: verde -> rosso
       const e = Math.max(0, 1 - (p.dmg || 0) / 100);
@@ -164,20 +176,14 @@ export class Scoreboard {
       const extra = [p.kd ? tr('down_times', { n: p.kd, v: tr(p.kd === 1 ? 'once' : 'times') }) : '', p.penalties ? tr('penalties', { n: p.penalties }) : ''].filter(Boolean).join(' · ');
       if (extra) { g.fillStyle = p.penalties ? '#ffd34d' : '#ff8a8a'; g.fillText(extra, x, 428); }
     };
-    col(W * 0.27, s.names ? s.names[0] : tr('you'), '#c4161f', s.player);
-    col(W * 0.73, s.names ? s.names[1] : tr('opp'), '#1a49b8', s.mike);
+    const fl = s.flags || [];
+    col(W * 0.27, s.names ? s.names[0] : tr('you'), '#c4161f', s.player, fl[0], false);
+    col(W * 0.73, s.names ? s.names[1] : tr('opp'), '#1a49b8', s.mike, fl[1], true);
     g.fillStyle = '#2a2f3a'; g.fillRect(W / 2 - 2, 110, 4, 300);
     g.fillStyle = '#ffffff'; g.font = '700 34px system-ui, sans-serif';
     g.fillText(s.message || '', W / 2, 482);
     g.fillStyle = '#9aa3b6'; g.font = '500 27px system-ui, sans-serif';
     g.fillText(s.diag || '', W / 2, 535);
-    // bandierine del paese dei due pugili in basso, agli angoli: a sinistra quello a sinistra, a destra l'altro
-    (s.flags || []).forEach((code, i) => {
-      if (!code) return;
-      const w = 104, h = 70, x = i === 0 ? 22 : W - 22 - w, y = H - 22 - h;
-      g.save(); g.translate(x, y); g.beginPath(); g.roundRect(0, 0, w, h, 6); g.clip(); drawFlag(g, code, w, h); g.restore();
-      g.lineWidth = 3; g.strokeStyle = 'rgba(255,255,255,0.5)'; g.beginPath(); g.roundRect(x, y, w, h, 6); g.stroke();
-    });
     this.tex.needsUpdate = true;
   }
 }
@@ -387,6 +393,10 @@ export class MenuPanel {
     this.spec = spec; this.rowLabels = [];
     if (spec.subtitle) { this.sub = lab(spec.subtitle, 0, H / 2 - 0.155, W - 0.1, 0.045, '#c9ced8', 30); this.group.add(this.sub); }
     this.buttons = []; this.carousels = [];
+    if (spec.vdiv) {                                       // linea verticale che divide le due colonne
+      const dv = new THREE.Mesh(new THREE.PlaneGeometry(0.004, spec.vdiv[1] - spec.vdiv[0]), new THREE.MeshBasicMaterial({ color: 0x4a5368, transparent: true, opacity: 0.8, depthTest: false }));
+      dv.position.set(0, (spec.vdiv[0] + spec.vdiv[1]) / 2, 0.012); dv.renderOrder = 1101; this.group.add(dv);
+    }
     // barra sotto il pannello (o maniglia sul lato sinistro): la si prende e il pannello si sposta
     if (spec.draggable) this.drag = spec.dragSide === 'left' ? makeDragBar(this.group, 0, -W / 2 - 0.04, true, Math.max(0.08, H - 0.02)) : makeDragBar(this.group, -H / 2 - 0.085);
     for (const row of spec.rows) {
@@ -395,11 +405,11 @@ export class MenuPanel {
         row._arrows = [{ id: `__car${k}-`, text: '‹', w: 0.06, x: -W / 2 + 0.065 }, { id: `__car${k}+`, text: '›', w: 0.06, x: W / 2 - 0.065 }];   // dentro la cornice
       }
       if (row.label) {
-        const m = lab(row.label, 0, row.y + (row.h || 0.09) / 2 + 0.03, W - 0.1, 0.04, '#9aa3b6', 28);
+        const m = lab(row.label, row.cx || 0, row.y + (row.h || 0.09) / 2 + 0.03, row.colW || W - 0.1, 0.04, '#9aa3b6', 28);
         this.group.add(m); this.rowLabels.push({ m, tk: row.tk });
       }
       const gap = 0.02, total = row.buttons.reduce((a, b) => a + b.w, 0) + gap * (row.buttons.length - 1);
-      let x = row.x ?? -total / 2;                  // (row.x: riga allineata da quel punto, es. in basso a sinistra)
+      let x = row.x ?? (row.cx || 0) - total / 2;                  // (row.x: riga allineata da quel punto, es. in basso a sinistra)
       const car = row.carousel ? { row, items: [], idx: 0, off: 0, goal: null, drag: null, hoverT: 0, hoverI: -1, y: row.y, h: row.h || 0.09,
         spacing: (row.buttons[0] ? row.buttons[0].w : 0.18) + 0.03 } : null;
       if (car) {
@@ -421,11 +431,11 @@ export class MenuPanel {
         const fill = new THREE.Mesh(new THREE.PlaneGeometry(b.w, h),
           new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthTest: false }));
         fill.position.z = 0.016; fill.renderOrder = 1102; fill.scale.x = 0.001; fill.visible = false; g.add(fill);
-        let t;
+        let t, imMesh = null;
         if (b.img) {                                   // pulsante con anteprima: immagine sopra, nome sotto
           const ih = h * 0.7, im = new THREE.Mesh(new THREE.PlaneGeometry(b.w - 0.018, ih - 0.012),
             new THREE.MeshBasicMaterial({ map: b.img, transparent: true, depthTest: false, toneMapped: false }));
-          im.position.set(0, h / 2 - ih / 2, 0.017); im.renderOrder = 1102; g.add(im);
+          im.position.set(0, h / 2 - ih / 2, 0.017); im.renderOrder = 1102; g.add(im); imMesh = im;
           const lh = h * 0.24, px = Math.round(512 * (lh * 0.75) / (b.w - 0.01) * 0.82);
           t = lab(b.text, 0, -h / 2 + h * 0.15, b.w - 0.01, lh * 0.75, '#ffffff', px); t.position.z = 0.018; g.add(t);
         } else {
@@ -433,7 +443,7 @@ export class MenuPanel {
           t = lab(b.text, 0, 0, b.w - 0.01, h * 0.6, '#ffffff', px); t.position.z = 0.018; g.add(t);
         }
         this.group.add(g);
-        const bt = { ...b, w: b.w, bh: h, g, sel, fill, t: 0, base, label: t, on: false, color0: b.color || 0x3a4254 };
+        const bt = { ...b, w: b.w, bh: h, g, sel, fill, t: 0, base, label: t, im: imMesh, on: false, color0: b.color || 0x3a4254 };
         if (b.x !== undefined) g.position.x = b.x;
         if (car && !b.id.startsWith('__car')) { bt.car = car; car.items.push(bt); }
         this.buttons.push(bt);
@@ -469,9 +479,10 @@ export class MenuPanel {
     for (const r of this.rowLabels) if (r.tk) this._paint(r.m, tr(r.tk), r.m.userData.color);
     for (const b of this.buttons) if (b.tk) { b.text = tr(b.tk) + (b.disabled ? ' (' + tr('soon') + ')' : ''); this._paint(b.label, b.text, b.disabled ? '#8a909c' : b.on ? '#111111' : '#ffffff'); }
     this.titleText = null;
+    if (this.spec.onRelabel) this.spec.onRelabel(this);
   }
   setTitle(text) { if (text !== this.titleText) { this.titleText = text; this._paint(this.title, text, this.title.userData.color); } }
-  open(head, yaw, dist = 0.55, drop = 0.2) {
+  open(head, yaw, dist = this.spec.dist || 0.55, drop = 0.2) {
     this.age = 0;
     this.group.position.set(head.x - Math.sin(yaw) * dist, head.y - drop, head.z - Math.cos(yaw) * dist);
     this.group.rotation.set(-0.25, yaw, 0, 'YXZ');

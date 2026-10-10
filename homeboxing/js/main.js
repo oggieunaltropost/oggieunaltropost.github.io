@@ -2,39 +2,39 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261010121339';
-import { Mike, LEVELS, loadMikeGLTF, StyleLearner } from './mike.js?v=20261010121339';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261010121339';
-import { Player, SimInput } from './player.js?v=20261010121339';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261010121339';
-import { Room } from './room.js?v=20261010121339';
-import { Arena } from './arena.js?v=20261010121339';
-import { Beach } from './beach.js?v=20261010121339';
-import { Rooftop } from './rooftop.js?v=20261010121339';
-import { Desert } from './desert.js?v=20261010121339';
-import { Snow } from './snow.js?v=20261010121339';
-import { Volcano } from './volcano.js?v=20261010121339';
-import { Sea, WATER } from './sea.js?v=20261010121339';
-import { Moon } from './moon.js?v=20261010121339';
-import { Stadium } from './stadium.js?v=20261010121339';
-import { FighterCard, ROSTER } from './roster.js?v=20261010121339';
-import { Gym } from './gym.js?v=20261010121339';
-import { BagTraining } from './training.js?v=20261010121339';
-import { RopeTraining } from './rope.js?v=20261010121339';
-import { SpeedBagTraining } from './speedbag.js?v=20261010121339';
-import { SlipLineTraining } from './slipline.js?v=20261010121339';
-import { RingSkirt } from './ring_skirt.js?v=20261010121339';
-import { panoPending } from './pano_depth.js?v=20261010121339';
-import { DoubleEndTraining } from './doubleend.js?v=20261010121339';
-import { Sparring } from './sparring.js?v=20261010121339';
-import { RingGirl } from './ringgirl.js?v=20261010121339';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261010121339';
-import * as sfx from './sfx.js?v=20261010121339';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261010121339';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261010121339';
-import { Tournament, BracketView } from './tournament.js?v=20261010121339';
-import { CpuMatch } from './cpu_match.js?v=20261010121339';
-import { TowerView } from './tower.js?v=20261010121339';
+import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261010123104';
+import { Mike, LEVELS, loadMikeGLTF, StyleLearner } from './mike.js?v=20261010123104';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261010123104';
+import { Player, SimInput } from './player.js?v=20261010123104';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261010123104';
+import { Room } from './room.js?v=20261010123104';
+import { Arena } from './arena.js?v=20261010123104';
+import { Beach } from './beach.js?v=20261010123104';
+import { Rooftop } from './rooftop.js?v=20261010123104';
+import { Desert } from './desert.js?v=20261010123104';
+import { Snow } from './snow.js?v=20261010123104';
+import { Volcano } from './volcano.js?v=20261010123104';
+import { Sea, WATER } from './sea.js?v=20261010123104';
+import { Moon } from './moon.js?v=20261010123104';
+import { Stadium } from './stadium.js?v=20261010123104';
+import { FighterCard, ROSTER, COUNTRY_CODES, countryName, drawFlagAny, flagFontReady } from './roster.js?v=20261010123104';
+import { Gym } from './gym.js?v=20261010123104';
+import { BagTraining } from './training.js?v=20261010123104';
+import { RopeTraining } from './rope.js?v=20261010123104';
+import { SpeedBagTraining } from './speedbag.js?v=20261010123104';
+import { SlipLineTraining } from './slipline.js?v=20261010123104';
+import { RingSkirt } from './ring_skirt.js?v=20261010123104';
+import { panoPending } from './pano_depth.js?v=20261010123104';
+import { DoubleEndTraining } from './doubleend.js?v=20261010123104';
+import { Sparring } from './sparring.js?v=20261010123104';
+import { RingGirl } from './ringgirl.js?v=20261010123104';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261010123104';
+import * as sfx from './sfx.js?v=20261010123104';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261010123104';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261010123104';
+import { Tournament, BracketView } from './tournament.js?v=20261010123104';
+import { CpuMatch } from './cpu_match.js?v=20261010123104';
+import { TowerView } from './tower.js?v=20261010123104';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -454,8 +454,8 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261010121339`); t.colorSpace = THREE.SRGBColorSpace; return t; };
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261010121339`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261010123104`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261010123104`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -591,14 +591,37 @@ const stageRow = y => ({ label: t('stage'), tk: 'stage', y, h: 0.2, carousel: tr
   { id: 's:spiaggia', tk: 'm_spiaggia', w: 0.22, img: stageImg('spiaggia') },
   { id: 's:grattacielo', tk: 'm_grattacielo', w: 0.22, img: stageImg('grattacielo') }, { id: 's:notte', tk: 'm_notte', w: 0.22, img: stageImg('notte') },
   { id: 's:deserto', tk: 'm_deserto', w: 0.22, img: stageImg('deserto') }, { id: 's:neve', tk: 'm_neve', w: 0.22, img: stageImg('neve') }, { id: 's:vulcano', tk: 'm_vulcano', w: 0.22, img: stageImg('vulcano') }, ...(SEA_READY ? [{ id: 's:mare', tk: 'm_mare', w: 0.22, img: stageImg('mare') }] : []), { id: 's:luna', tk: 'm_luna', w: 0.22, img: stageImg('luna') }, { id: 's:stadio', tk: 'm_stadio', w: 0.22, img: stageImg('stadio') }, { id: 's:stadionotte', tk: 'm_stadionotte', w: 0.22, img: stageImg('stadionotte') }, { id: 's:palestra', tk: 'm_palestra', w: 0.22, img: stageImg('palestra') }, { id: 's:random', tk: 'm_random', w: 0.22, img: randomPreview() }] });
-const optionRows = y0 => [
-  { label: t('level'), tk: 'level', y: y0, buttons: [{ id: 'l:facile', tk: 'l_facile', w: 0.205 }, { id: 'l:normale', tk: 'l_normale', w: 0.205 },
-    { id: 'l:difficile', tk: 'l_difficile', w: 0.205 }, { id: 'l:impossibile', tk: 'l_impossibile', w: 0.205 }] },
-  { label: t('rounds'), tk: 'rounds', y: y0 - 0.16, buttons: [{ id: 'r:1', text: '1', w: 0.15 }, { id: 'r:3', text: '3', w: 0.15 }, { id: 'r:6', text: '6', w: 0.15 }, { id: 'r:12', text: '12', w: 0.15 }] },
-  { label: t('duration'), tk: 'duration', y: y0 - 0.32, buttons: [{ id: 'd:60', text: '1 min', w: 0.2 }, { id: 'd:120', text: '2 min', w: 0.2 }, { id: 'd:180', text: '3 min', w: 0.2 }] },
-  { label: t('rule3'), tk: 'rule3', y: y0 - 0.48, buttons: [{ id: 'k:si', tk: 'yes', w: 0.2 }, { id: 'k:no', tk: 'no', w: 0.2 }] },
-  { label: t('rule1'), tk: 'rule1', y: y0 - 0.64, buttons: [{ id: 'ko:si', tk: 'yes', w: 0.2 }, { id: 'ko:no', tk: 'no', w: 0.2 }] },
-];
+// la tua bandiera (si sceglie nelle opzioni, tra tutti i paesi): sul tabellone sta nella barra del tuo nome. 'none' = rettangolo nero con "?"
+let playerFlag = 'none';
+try { playerFlag = localStorage.getItem('hb-pflag') || 'none'; } catch (e) {}
+const playerFlagCode = () => playerFlag === 'none' ? '?' : 'x:' + playerFlag;
+const pflagTex = {};
+function pflagImg(code) {
+  if (pflagTex[code]) return pflagTex[code];
+  const c = document.createElement('canvas'); c.width = 144; c.height = 96;
+  const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; tx.userData.code = code;
+  tx.userData.paint = () => { const g = c.getContext('2d'); g.clearRect(0, 0, 144, 96); drawFlagAny(g, code === 'none' ? '?' : 'x:' + code, 144, 96); tx.needsUpdate = true; };
+  tx.userData.paint(); return (pflagTex[code] = tx);
+}
+flagFontReady.then(() => { for (const k in pflagTex) pflagTex[k].userData.paint(); board.last = ''; });
+// elenco dei paesi in ordine alfabetico nella lingua corrente ("nessuna" sempre per prima)
+const pflagOrder = () => ['none', ...COUNTRY_CODES.slice().sort((a, b) => countryName(a, lang).localeCompare(countryName(b, lang), lang))];
+const pflagName = code => code === 'none' ? t('pf_none') : countryName(code, lang);
+function pflagRelabel(menu) {
+  const car = menu.carousels.find(c => c.row.pflagRow); if (!car) return;
+  pflagOrder().forEach((code, i) => {
+    const b = car.items[i]; b.id = 'pf:' + code; b.text = pflagName(code); b.im.material.map = pflagImg(code);
+    menu._paint(b.label, b.text, b.on ? '#111111' : '#ffffff');
+  });
+}
+const optionRows = (y0, step = 0.16) => { const L = { cx: -0.385, colW: 0.74 }, R = { cx: 0.385, colW: 0.74 }; return [   // due colonne affiancate
+  { ...L, label: t('level'), tk: 'level', y: y0, buttons: [{ id: 'l:facile', tk: 'l_facile', w: 0.17 }, { id: 'l:normale', tk: 'l_normale', w: 0.17 },
+    { id: 'l:difficile', tk: 'l_difficile', w: 0.17 }, { id: 'l:impossibile', tk: 'l_impossibile', w: 0.17 }] },
+  { ...L, label: t('rounds'), tk: 'rounds', y: y0 - step, buttons: [{ id: 'r:1', text: '1', w: 0.15 }, { id: 'r:3', text: '3', w: 0.15 }, { id: 'r:6', text: '6', w: 0.15 }, { id: 'r:12', text: '12', w: 0.15 }] },
+  { ...L, label: t('duration'), tk: 'duration', y: y0 - 2 * step, buttons: [{ id: 'd:60', text: '1 min', w: 0.2 }, { id: 'd:120', text: '2 min', w: 0.2 }, { id: 'd:180', text: '3 min', w: 0.2 }] },
+  { ...R, label: t('rule3'), tk: 'rule3', y: y0, buttons: [{ id: 'k:si', tk: 'yes', w: 0.2 }, { id: 'k:no', tk: 'no', w: 0.2 }] },
+  { ...R, label: t('rule1'), tk: 'rule1', y: y0 - step, buttons: [{ id: 'ko:si', tk: 'yes', w: 0.2 }, { id: 'ko:no', tk: 'no', w: 0.2 }] },
+]; };
 // menu iniziale: modalita' di gioco, regole generali, lingua
 const rootMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.1, height: 1.16,   // (largo: margini ai lati come sopra e sotto)
   draggable: true, rows: withText([
@@ -653,12 +676,13 @@ const survMenu = new MenuPanel({ title: t('surv'), titleTk: 'surv', titleH: 0.1,
   { y: -0.38, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'start_surv', tk: 'start_surv', w: 0.5, color: 0x6a1f8a }] },
 ]) });
 // Opzioni: valgono per tutte le modalita'
-const optionsMenu = new MenuPanel({ title: t('options_title'), titleTk: 'options_title', titleH: 0.1, width: 1.0, height: 1.46, draggable: true, rows: withText([
-  ...optionRows(0.5),
+const optionsMenu = new MenuPanel({ title: t('options_title'), titleTk: 'options_title', titleH: 0.1, width: 1.5, height: 1.3, dist: 0.72, draggable: true, onRelabel: pflagRelabel, vdiv: [-0.06, 0.43], rows: withText([
+  ...optionRows(0.34),
   // con quale mano si punta nei menu (con tutte e due si facevano scelte per sbaglio)
-  { label: t('pointer'), tk: 'pointer', y: -0.3, h: 0.09, buttons: [{ id: 'pt:left', tk: 'pt_left', w: 0.22 }, { id: 'pt:right', tk: 'pt_right', w: 0.22 }, { id: 'pt:both', tk: 'pt_both', w: 0.22 }] },
-  { label: t('vibration'), tk: 'vibration', y: -0.46, h: 0.09, buttons: [{ id: 'vb:si', tk: 'yes', w: 0.2 }, { id: 'vb:no', tk: 'no', w: 0.2 }] },
-  { y: -0.62, h: 0.1, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'opt_floor', tk: 'opt_floor', w: 0.4, color: 0x1f6f8a }] },
+  { label: t('pointer'), tk: 'pointer', y: -0.14, h: 0.09, buttons: [{ id: 'pt:left', tk: 'pt_left', w: 0.23 }, { id: 'pt:right', tk: 'pt_right', w: 0.23 }, { id: 'pt:both', tk: 'pt_both', w: 0.23 }] },
+  { cx: 0.385, colW: 0.74, label: t('vibration'), tk: 'vibration', y: 0.02, h: 0.09, buttons: [{ id: 'vb:si', tk: 'yes', w: 0.2 }, { id: 'vb:no', tk: 'no', w: 0.2 }] },
+  { label: t('pflag'), tk: 'pflag', y: -0.38, h: 0.2, carousel: true, pflagRow: true, buttons: pflagOrder().map(c => ({ id: 'pf:' + c, text: pflagName(c), w: 0.22, img: pflagImg(c) })) },
+  { y: -0.58, h: 0.1, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'opt_floor', tk: 'opt_floor', w: 0.4, color: 0x1f6f8a }] },
 ]) });
 // Lottatori: griglia di ritratti (come la scelta dei personaggi nei giochi di combattimento); punti un ritratto e
 // a sinistra compare la sua scheda (bandiera, misure, stile, caratteristiche), a destra lui in 3D
@@ -1323,7 +1347,7 @@ function updateGame(dt) {
   board.draw({ round: game.round, rounds: rounds, level: t('l_' + level), time: game.phase === 'rest' ? Math.max(0, REST_S - game.phaseT) : game.time,
     running: game.phase === 'fight', player: game.player, mike: game.mike, message: game.message,
     names: pending && ((pending.cm && tour) || pending.arcade) ? cpuNames().map(n => n.toUpperCase()) : undefined,   // (tra un incontro CPU e l'altro: niente "TU")
-    flags: pending && ((pending.cm && tour) || pending.arcade) ? cpuIds().map(id => id && ROSTER[id] && ROSTER[id].flag) : [null, ROSTER[fighterId] && ROSTER[fighterId].flag],
+    flags: pending && ((pending.cm && tour) || pending.arcade) ? cpuIds().map(id => id && ROSTER[id] && ROSTER[id].flag) : [playerFlagCode(), ROSTER[fighterId] && ROSTER[fighterId].flag],
     diag: t('diag', { m: ringSize.toFixed(1), f: floorSource, e: (player.head.y + 0.06 - floorY).toFixed(1) }) + (feats ? ' · ' + feats : '') });
 }
 
@@ -1780,7 +1804,7 @@ function closePause() {
 }
 try { player.vibrate = localStorage.getItem('hb-vibe') !== 'no'; } catch (e) {}   // vibrazione dei controller (di serie: si')
 const menuChoices = () => ['s:' + stageChoice, 'f:' + oppChoice, 'wa:' + watchA, 'wb:' + watchB, 'l:' + level, 'r:' + rounds, 'd:' + roundSecs,
-  threeKO ? 'k:si' : 'k:no', oneKO ? 'ko:si' : 'ko:no', 'tz:' + tourSize, 'tw:' + towerSize, 'g:' + lang, 'pt:' + pointerHand, player.vibrate === false ? 'vb:no' : 'vb:si'];
+  threeKO ? 'k:si' : 'k:no', oneKO ? 'ko:si' : 'ko:no', 'tz:' + tourSize, 'tw:' + towerSize, 'g:' + lang, 'pt:' + pointerHand, player.vibrate === false ? 'vb:no' : 'vb:si', 'pf:' + playerFlag];
 function menuYaw() {
   const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
   return new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ').y;
@@ -1860,7 +1884,7 @@ function sparSounds(ev) {
   }
 }
 // ---- sparring: il partner (caschetto, alto come te) prende il posto dell'avversario sul ring della palestra
-const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261010121339', evenSkin: false,
+const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261010123104', evenSkin: false,
   band: { bg: '#1a1a1c', line: '#c4122a', text: '#f2ece0', label: 'SPARRING' } };
 let spar = null, partner = null, savedMike = null, sparLoading = false;
 async function startSparring(kind, defKinds = null) {
@@ -2402,6 +2426,7 @@ function updateMainMenu(dt, gloves) {
   else if (id.startsWith('k:')) { threeKO = id === 'k:si'; try { localStorage.setItem('hb-3ko', threeKO ? 'si' : 'no'); } catch (e) {} }
   else if (id.startsWith('r:')) { rounds = parseInt(id.slice(2)); try { localStorage.setItem('hb-rounds', rounds); } catch (e) {} }
   else if (id.startsWith('g:')) setLang(id.slice(2));
+  else if (id.startsWith('pf:')) { playerFlag = id.slice(3); try { localStorage.setItem('hb-pflag', playerFlag); } catch (e) {} }
   else if (id.startsWith('vb:')) { player.vibrate = id === 'vb:si'; try { localStorage.setItem('hb-vibe', id.slice(3)); } catch (e) {} if (player.vibrate) { player.pulse('left', 0.8, 120); player.pulse('right', 0.8, 120); } }
   else if (id.startsWith('pt:')) { pointerHand = id.slice(3); try { localStorage.setItem('hb-pointer', pointerHand); } catch (e) {} mtabText(); }
   else if (id.startsWith('f:')) {
@@ -2518,7 +2543,7 @@ loadMikeGLTF(FIGHTERS[fighterId].glb, f => statusT('loading', { p: Math.min(100,
   bruises = new Bruises(mike.model);
   mike.bounds = keepInRing;
   placeArena(new THREE.Vector3(0, 1.65, 0), 0);
-  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.getUpFx = getUp; window.gameApi = { mtab: () => mtab, mtabUpdate: (dt, rays) => updateMenuTab(dt, rays), setStage, newMatch, showMainMenu, openPause, pause, startTraining, bag: () => bagTr, rope: () => ropeTr, slip: () => slipTr, spar: () => spar, startSparring, speed: () => speedTr, de: () => deTr, envs: () => ({ roofEnv, nightEnv, desertEnv, gymEnv, snowEnv, volcEnv, seaEnv, moonEnv, stadiumEnv, stadiumNEnv }), setFighter, startIntro, startPresentation, girl: () => girl, arena: () => arena, ringSize: () => ringSize }; window.sweatFx = sweat;   // per le prove
+  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.getUpFx = getUp; window.gameApi = { board: () => board, optionsMenu: () => optionsMenu, mtab: () => mtab, mtabUpdate: (dt, rays) => updateMenuTab(dt, rays), setStage, newMatch, showMainMenu, openPause, pause, startTraining, bag: () => bagTr, rope: () => ropeTr, slip: () => slipTr, spar: () => spar, startSparring, speed: () => speedTr, de: () => deTr, envs: () => ({ roofEnv, nightEnv, desertEnv, gymEnv, snowEnv, volcEnv, seaEnv, moonEnv, stadiumEnv, stadiumNEnv }), setFighter, startIntro, startPresentation, girl: () => girl, arena: () => arena, ringSize: () => ringSize }; window.sweatFx = sweat;   // per le prove
   window.tourApi = { MENUS, bracket, tourBtns, show: () => showMainMenu(), watchTour: () => { surv = null; tour = new Tournament(FIGHTERS, true, tourSize); specRound(); }, toFinal: () => { surv = null; tour = new Tournament(FIGHTERS, true, tourSize); while (!tour.isFinal()) tour.result(true, {}); specRound(); }, get pending() { return pending; }, open: m => openMenu(MENUS[m]), start: () => { tour = new Tournament(FIGHTERS, false, tourSize); showBracketNext(); },
     after: win => { game.result = { winner: win ? 'player' : 'mike' }; showBracketAfter(); }, fight: () => startFight(tour.opponent()), setStageChoice: c => { stageChoice = c; }, get mode() { return mode; }, get tour() { return tour; }, get cpu() { return cpu; }, skipBtn, tower, startSurvival, get surv() { return surv; }, survAfter: win => { game.result = { winner: win ? 'player' : 'mike' }; showTowerAfter(); } };   // (prove)
   status('');
