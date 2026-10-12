@@ -1,7 +1,7 @@
 // Scheda dei lottatori (menu iniziale, "Lottatori"): per ogni pugile paese con la bandiera, soprannome, altezza,
 // peso, stile e quattro caratteristiche da 1 a 10. Le bandiere sono disegnate (semplificate) su una tela.
 import * as THREE from 'three';
-import { lang } from './i18n.js?v=20261012215037';
+import { lang } from './i18n.js?v=20261013002357';
 
 // paese (codice bandiera), nomi, misure, soprannome e stile (it / en), caratteristiche: potenza, velocita', difesa, resistenza
 export const ROSTER = {
@@ -145,7 +145,7 @@ export function drawFlag(g, code, W, H) {
 // non ha un font con le bandiere, quindi si carica questo. Ogni bandiera si ritaglia una volta sola e si tiene in cache.
 export const COUNTRY_CODES = ('AF AL DZ AD AO AG AR AM AU AT AZ BS BH BD BB BY BE BZ BJ BT BO BA BW BR BN BG BF BI CV KH CM CA CF TD CL CN CO KM CG CD CR CI HR CU CY CZ DK DJ DM DO EC EG SV GQ ER EE SZ ET FJ FI FR GA GM GE DE GH GR GD GT GN GW GY HT HN HU IS IN ID IR IQ IE IL IT JM JP JO KZ KE KI KP KR KW KG LA LV LB LS LR LY LI LT LU MG MW MY MV ML MT MH MR MU MX FM MD MC MN ME MA MZ MM NA NR NP NL NZ NI NE NG MK NO OM PK PW PA PG PY PE PH PL PT QA RO RU RW KN LC VC WS SM ST SA SN RS SC SL SG SK SI SB SO ZA SS ES LK SD SR SE CH SY TW TJ TZ TH TL TG TO TT TN TR TM TV UG UA AE GB US UY UZ VU VA VE VN YE ZM ZW XK PS HK MO PR').split(' ');
 let flagFontOk = false;
-export const flagFontReady = (typeof FontFace !== 'undefined' ? new FontFace('TwemojiFlags', `url(${new URL('../assets/fonts/twemoji-flags.ttf?v=20261012215037', import.meta.url).href})`).load()
+export const flagFontReady = (typeof FontFace !== 'undefined' ? new FontFace('TwemojiFlags', `url(${new URL('../assets/fonts/twemoji-flags.ttf?v=20261013002357', import.meta.url).href})`).load()
   .then(f => { document.fonts.add(f); flagFontOk = true; }).catch(() => {}) : Promise.resolve());
 const flagBmp = {};
 function emojiFlag(code) {

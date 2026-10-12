@@ -4,7 +4,7 @@
 // La citta' si muove (city_life.js): auto, battelli, navi, uccelli, aerei. Ogni tanto passa un elicottero (il suono lo fa sfx.heli, spaziale: piu' forte quando e' vicino).
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
 import * as THREE from 'three';
-import { CityLife } from './city_life.js?v=20261012215037';
+import { CityLife } from './city_life.js?v=20261013002357';
 
 const PANO_U = 0.0;               // rotazione del panorama (il sole della foto a sinistra, un po' dietro)
 const TOWER_H = 260;              // dal tetto alla strada
@@ -25,7 +25,7 @@ export class Rooftop {
   }
 
   _sky() {
-    const tex = new THREE.TextureLoader().load(this.night ? 'assets/citta_notte_panorama.jpg?v=20261012215037' : 'assets/citta_panorama.jpg?v=20261012215037', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load(this.night ? 'assets/citta_notte_panorama.jpg?v=20261013002357' : 'assets/citta_panorama.jpg?v=20261013002357', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -57,7 +57,7 @@ export class Rooftop {
     floor.position.y = -0.16; floor.receiveShadow = true; this.group.add(floor);
     const metal = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: 0.85, roughness: 0.3 });
     const curbM = new THREE.MeshStandardMaterial({ color: 0x3a3d43, roughness: 0.7 });
-    const glass = new THREE.MeshPhysicalMaterial({ color: 0xbfd6e6, metalness: 0, roughness: 0.05, transmission: 0, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
+    const glass = new THREE.MeshPhysicalMaterial({ color: 0xbfd6e6, metalness: 0, roughness: 0.05, transmission: 0, transparent: true, opacity: 0.14, depthWrite: false, side: THREE.DoubleSide });
     for (let k = 0; k < 4; k++) {
       const a = k * Math.PI / 2, side = new THREE.Group(); side.rotation.y = a;
       const curb = new THREE.Mesh(new THREE.BoxGeometry(S + 0.3, 0.25, 0.3), curbM); curb.position.set(0, 0.1, h); side.add(curb);
@@ -177,19 +177,19 @@ export class Rooftop {
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: halo, color: col, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
       sp.scale.setScalar(size); parent.add(sp); return sp;
     };
-    for (const l of this.heliLights) glow(l, l.material.color, 3.2);
+    for (const l of this.heliLights) glow(l, l.material.color, 1.5);
     this.strobes = [[0, -0.95, 0.4], [0, 1.15, 7.6]].map(p => {
       const l = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }));
-      l.position.set(...p); H.add(l); glow(l, 0xffffff, 7); l.visible = false; return l;
+      l.position.set(...p); H.add(l); glow(l, 0xffffff, 2.7); l.visible = false; return l;
     });
     // faro: lampada sotto il muso e cono di luce verso il basso e in avanti
-    const spot = new THREE.Group(); spot.position.set(0, -1.1, -1.8); spot.rotation.x = 0.75; H.add(spot);   // (giu' e in avanti: il muso e' verso -Z)
+    const spot = new THREE.Group(); spot.position.set(0, -1.1, -1.8); spot.quaternion.setFromUnitVectors(new THREE.Vector3(0,-1,0),new THREE.Vector3(0,-1,-.8).normalize()); H.add(spot);   // (giu' e in avanti: il muso e' verso -Z)
     const lamp = new THREE.Mesh(new THREE.CircleGeometry(0.22, 16), new THREE.MeshBasicMaterial({ color: 0xfff6e0, toneMapped: false, side: THREE.DoubleSide }));
-    lamp.rotation.x = Math.PI / 2; spot.add(lamp); glow(lamp, 0xfff2d8, 5);
+    lamp.rotation.x = Math.PI / 2; spot.add(lamp); glow(lamp, 0xfff2d8, 2.5);
     const bc = document.createElement('canvas'); bc.width = 8; bc.height = 256; const bg = bc.getContext('2d');
     const gy = bg.createLinearGradient(0, 0, 0, 256); gy.addColorStop(0, 'rgba(255,255,255,0.9)'); gy.addColorStop(0.3, 'rgba(255,255,255,0.35)'); gy.addColorStop(1, 'rgba(255,255,255,0)');
     bg.fillStyle = gy; bg.fillRect(0, 0, 8, 256);
-    const L = 90, cone = new THREE.Mesh(new THREE.ConeGeometry(9, L, 24, 1, true),
+    const L = 55, cone = new THREE.Mesh(new THREE.ConeGeometry(6, L, 24, 1, true),
       new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(bc), color: 0xfff0d0, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false }));
     cone.position.y = -L / 2; spot.add(cone);                  // (apice sulla lampada, si allarga verso il basso)
     this.searchCone = cone; this.searchSpot = spot;
@@ -198,7 +198,7 @@ export class Rooftop {
     const seen = new Map();
     H.traverse(o => {
       if (!o.isMesh || !o.material || !o.material.isMeshStandardMaterial) return;
-      if (!seen.has(o.material)) { const m = o.material.clone(); m.color.multiplyScalar(0.28); if (m.clearcoat === 1) m.emissive = new THREE.Color(0x1a2a3a); seen.set(o.material, m); }
+      if (!seen.has(o.material)) { const m = o.material.clone(); m.color.multiplyScalar(0.58);m.emissive.copy(m.color).multiplyScalar(.07); if (m.clearcoat === 1) m.emissive = new THREE.Color(0x1a2a3a); seen.set(o.material, m); }
       o.material = seen.get(o.material);
     });
   }
@@ -229,7 +229,8 @@ export class Rooftop {
       pathFn = u => dir.clone().multiplyScalar(d0 + u * 500).setY(-170 + u * 330);   // sale dai palazzi verso il cielo
       dur = 600 / speed;
     }
-    this.flight = { pathFn, dur, t: 0, prev: pathFn(0), yaw: 0 };
+    const direction=pathFn(.0001).sub(pathFn(0));this.flight = { pathFn, dur, t: 0, prev: pathFn(0), yaw: Math.atan2(-direction.x,-direction.z) };
+    this.heli.rotation.set(.1,this.flight.yaw,0,'YXZ');
     this.heli.position.copy(pathFn(0)); this.rotor.rotation.y = 0;      // (subito al punto di partenza: prima restava un fotogramma dov'era finito il giro precedente)
     this.heli.scale.setScalar(1); this.heli.visible = false; this._pendingShow = true;   // (compare dal fotogramma dopo, a posizione e direzione gia' giuste)
   }

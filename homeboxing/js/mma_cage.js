@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import {beam,mergeParts,label} from './venue_parts.js?v=20261012215037';
-import {grandstands,arenaRoof} from './venue_structure.js?v=20261012215037';
-import {FighterCrowd} from './fighter_crowd.js?v=20261012215037';
-import {CageEffects} from './cage_effects.js?v=20261012215037';
+import {beam,mergeParts,label} from './venue_parts.js?v=20261013002357';
+import {grandstands,arenaRoof} from './venue_structure.js?v=20261013002357';
+import {FighterCrowd} from './fighter_crowd.js?v=20261013002357';
+import {CageEffects} from './cage_effects.js?v=20261013002357';
 
 export class MmaCage {
  constructor(size=3.2){

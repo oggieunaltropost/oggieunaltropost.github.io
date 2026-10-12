@@ -1,5 +1,5 @@
 {
-  "version": "20261012215037",
+  "version": "20261013002357",
   "compression": "lossless Meshopt (no quantization) + lossless WebP when smaller",
   "models": 75,
   "compressedModels": 67

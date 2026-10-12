@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import {mergeParts,beam} from './venue_parts.js?v=20261012215037';
-import * as sfx from './sfx.js?v=20261012215037';
+import {mergeParts,beam} from './venue_parts.js?v=20261013002357';
+import * as sfx from './sfx.js?v=20261013002357';
 
 export class CageEffects {
  constructor(parent){

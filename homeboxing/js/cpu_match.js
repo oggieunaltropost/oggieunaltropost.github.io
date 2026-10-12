@@ -2,7 +2,7 @@
 // testa e i suoi guantoni veri, cosi' usano la stessa intelligenza (parate, schivate, combinazioni) che usano
 // contro di te. Tu guardi senza guantoni e puoi saltare al risultato.
 import * as THREE from 'three';
-import { conditioning, recoverCombat, applyImpact } from './combat.js?v=20261012215037';
+import { conditioning, recoverCombat, applyImpact } from './combat.js?v=20261013002357';
 
 const _v = new THREE.Vector3();
 
@@ -83,8 +83,8 @@ export class CpuMatch {
         const o = 1 - i, power = (e.power??1)*({facile:.65,normale:.95,difficile:1.3,impossibile:1.8}[this.f[i].levelName]??.95)*(this.f[i].cfg0.mods?.power??1)*(this.f[o].cfg.toughness??1)*(e.counter?1.5:1);
         // rarissimo: un colpo al corpo finisce sotto la cintura. Come nei tuoi incontri: niente punti, chi lo prende si
         // piega, l'incontro si ferma, penalita' a chi l'ha tirato (alla terza squalifica)
-        if (e.zone === 'body' && e.point?.y < this.f[o].bonePos('pelvis').y+.1 && this.dmg[o] <= 50) {
-          const n = ++this.pen[i], dq = n >= 3;
+        if (e.zone === 'body' && e.point?.y < this.f[o].bonePos('pelvis').y-.015 && this.dmg[o] <= 50 && this.round!==(this.lastFoulRound??0) && Math.random()<.04) {
+          this.lastFoulRound=this.round;const n = ++this.pen[i], dq = n >= 3;
           this.dmg[o] = this.condition[o].dmg = Math.min(99, this.dmg[o] + 10);
           this.f[o].lowBlowed(); this.f[i].enabled = false;
           this.foul = { t: 0, o, i, dq };
@@ -143,6 +143,8 @@ export class CpuMatch {
   // atterrato: stesse regole tue. Energia che si recupera: 75, 50, 25 (con la regola dei 3 atterramenti il terzo e'
   // KO tecnico); senza la regola si continua con 15, 8, poi niente: si resta giu' e si conta fino a 10
   _knockdown(o) {
+    if(this.kd)return;
+    this.pts[1-o]+=10;
     this.condition[o].shock=0;this.condition[o].stamina=Math.max(25,this.condition[o].stamina-15);
     const n = ++this.kdN[o], R = this.hooks.refills || [75, 50, 25];
     this.kdLvl[o] += 1; const lvl = Math.max(1, Math.round(this.kdLvl[o]));      // (atterramenti lontani nel tempo pesano meno)

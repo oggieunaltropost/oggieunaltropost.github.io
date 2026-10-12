@@ -5,12 +5,12 @@
 // Doppler).
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
 import * as THREE from 'three';
-import { panoDepth } from './pano_depth.js?v=20261012215037';
-import { contactShadow } from './contact_shadow.js?v=20261012215037';
-import * as sfx from './sfx.js?v=20261012215037';
-import { Footballer } from './footballer.js?v=20261012215037';
-import { NightFireworks } from './fireworks.js?v=20261012215037';
-import { StadiumScreen } from './stadium_screen.js?v=20261012215037';
+import { panoDepth } from './pano_depth.js?v=20261013002357';
+import { contactShadow } from './contact_shadow.js?v=20261013002357';
+import * as sfx from './sfx.js?v=20261013002357';
+import { Footballer } from './footballer.js?v=20261013002357';
+import { NightFireworks } from './fireworks.js?v=20261013002357';
+import { StadiumScreen } from './stadium_screen.js?v=20261013002357';
 
 const EYE = 1.65;
 // il Sole della foto: Blender (-0.2484, -0.5327, 0.809) -> gioco (y, z, x)
@@ -91,7 +91,7 @@ export class Stadium {
   }
   // ---------------------------------------------------------------- foto a 360 gradi
   _sky() {
-    const tex = new THREE.TextureLoader().load(this.night ? 'assets/stadio_notte_panorama.jpg?v=20261012215037' : 'assets/stadio_panorama.jpg?v=20261012215037', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load(this.night ? 'assets/stadio_notte_panorama.jpg?v=20261013002357' : 'assets/stadio_panorama.jpg?v=20261013002357', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -107,7 +107,7 @@ export class Stadium {
     const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 64, 32), m);
     sky.renderOrder = -10; sky.frustumCulled = false; this.group.add(sky);
     // sfondo in 3D vero: il prato piatto, le gradinate e le torri alla loro distanza
-    this.group.add(panoDepth('assets/stadio_profondita.png?v=20261012215037', tex, { eye: EYE, flat: 40, hi: true, ratio: 2.6 }));
+    this.group.add(panoDepth('assets/stadio_profondita.png?v=20261013002357', tex, { eye: EYE, flat: 40, hi: true, ratio: 2.6 }));
     if(!this.night)this._stadiumOcclusion();
   }
 
@@ -115,7 +115,7 @@ export class Stadium {
     // The reconstructed mesh intentionally drops triangles at near/sky jumps.
     // At the upper rim those gaps retained the photo but no foreground depth,
     // letting a distant aircraft draw on top. Restore depth per panorama pixel.
-    const depth=new THREE.TextureLoader().load('assets/stadio_profondita.png?v=20261012215037');
+    const depth=new THREE.TextureLoader().load('assets/stadio_profondita.png?v=20261013002357');
     depth.colorSpace=THREE.NoColorSpace;depth.minFilter=depth.magFilter=THREE.NearestFilter;depth.generateMipmaps=false;
     const material=new THREE.ShaderMaterial({side:THREE.BackSide,colorWrite:false,depthWrite:true,depthTest:true,
       uniforms:{uDepth:{value:depth}},

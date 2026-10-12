@@ -14,7 +14,7 @@ export class Deer {
     this.state='walk';this.speed=0;this.pauseIn=13;this.stateTime=0;this.time=0;
     this.alertCooldown=0;this.ears=[];this.hooves=[];this.lookYaw=0;this.observing=false;
     this._shadow();
-    this.ready=new GLTFLoader().loadAsync('assets/foresta/deer.glb?v=20261012215037').then(g=>{
+    this.ready=new GLTFLoader().loadAsync('assets/foresta/deer.glb?v=20261013002357').then(g=>{
       if(this.dead){this._release(g.scene);return;}
       this.model=g.scene;
       g.scene.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false;

@@ -106,11 +106,11 @@ function legIcon(g, kind, cx, cy, s) {
   g.restore();
 }
 import * as THREE from 'three';
-import { drawFlag } from './roster.js?v=20261012215037';
-import { punchMotion } from './punch_motion.js?v=20261012215037';
-export { StyleLearner } from './style_learn.js?v=20261012215037';
+import { drawFlag } from './roster.js?v=20261013002357';
+import { punchMotion } from './punch_motion.js?v=20261013002357';
+export { StyleLearner } from './style_learn.js?v=20261013002357';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { firstContact, fighterShapes, playerShapes, PUNCH_LIMITS, impactPower, conditioning, exert } from './combat.js?v=20261012215037';
+import { firstContact, fighterShapes, playerShapes, PUNCH_LIMITS, impactPower, conditioning, exert } from './combat.js?v=20261013002357';
 const _lq = new THREE.Quaternion(), _lr = new THREE.Quaternion(), _qI = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ld = new THREE.Vector3();
 
 // Caratteristiche dell'avversario: per i prossimi pugili bastera' cambiare questi numeri.
@@ -395,6 +395,7 @@ export class Fighter {
       const z=sh.z+Math.sqrt(Math.max(.04,horizontal*horizontal-sh.x*sh.x))+.07;
       Object.assign(res[name],{x:0,y,z,dist:Math.max(.46,z),yaw:0});
     }
+    for(const name of Object.keys(PUNCH))if(res[name])res[name].yaw=0;
     // velocita' di riferimento: la media dei colpi di questo pugile (il suo ritmo resta quello)
     const v = Object.values(res).map(r => r.speed).filter(x => x > 0);
     this.refSpeed = v.reduce((a, b) => a + b, 0) / Math.max(1, v.length);
@@ -752,12 +753,15 @@ void main() {`).replace('#include <map_fragment>', `#include <map_fragment>
     this.play('lowblow', 1, true); this.pain = 1.6;
   }
   celebrate() {
+    const pose=[];this.model.traverse(b=>{if(b.isBone)pose.push([b,b.quaternion.clone(),b.position.clone()]);});
+    this.victoryBlend={pose,t:0,duration:1.35};this.enabled=false;this.punch=null;this.combo=[];this.defending=null;this.reaction=null;this.vel.set(0,0,0);this.moveVel.set(0,0,0);
     for (const l of this.layers) l.out = true;
     // a caso: due braccia alzate o un braccio solo
     const name = this.clips.celebrate1 && Math.random() < 0.5 ? 'celebrate1' : 'celebrate';
+    this.celebrating={t:0,one:name==='celebrate1',side:Math.random()<.5?'l':'r',hands:Object.fromEntries(['l','r'].map(s=>[s,this.root.worldToLocal(this.bonePos('hand_'+s))])),elbows:Object.fromEntries(['l','r'].map(s=>[s,this.root.worldToLocal(this.bonePos('lowerarm_'+s))]))};
     const a = this.mixer.clipAction(this.clips[name]);
     a.reset(); a.setLoop(THREE.LoopRepeat, Infinity); a.setEffectiveWeight(0); a.play();
-    this.layers.push({ name, action: a, t: 0, dur: 1e9, ts: 1, w: 0, out: false, hold: true });
+    this.layers.push({ name, action: a, t: 0, dur: 1e9, ts: 1, w: 0, out: false, hold: true,fin:1.35 });
   }
 
   // ---- espressioni: battito di ciglia, smorfia quando lo colpisci, fiatone quando e' stanco
@@ -826,6 +830,8 @@ transformed += uSwInv * uSwing * aSw;`);
       v.fromBufferAttribute(fp, i).applyMatrix4(FB); fw[i * 3] = v.x; fw[i * 3 + 1] = v.y; fw[i * 3 + 2] = v.z;
       const k = key(v.x, v.y, v.z); let l = grid.get(k); if (!l) grid.set(k, l = []); l.push(i);
     }
+    const faceUV=fg.attributes.uv,uvGrid=new Map(),uvKey=(u,v)=>`${Math.round(u*100000)},${Math.round(v*100000)}`;
+    if(faceUV)for(let i=0;i<faceUV.count;i++){const key=uvKey(faceUV.getX(i),faceUV.getY(i));if(!uvGrid.has(key))uvGrid.set(key,[]);uvGrid.get(key).push(i);}
     const FBr = new THREE.Matrix3().setFromMatrix4(FB);
     const mo = fm[F.morphTargetDictionary && F.morphTargetDictionary.mouth_open] || null;      // (spostamento della bocca aperta, per il pizzetto)
     this.model.traverse(o => {
@@ -833,11 +839,15 @@ transformed += uSwInv * uSwing * aSw;`);
       const isGoatee = this.cfg0.goatee && /pizzett/i.test((o.material?.name||'')+o.name);
       const jawBeard = isGoatee || (this.cfg0.id === 'reza' && /barba/i.test(o.name));
       const g = o.geometry, gp = g.attributes.position, inv = new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().copy(o.bindMatrix).invert());
-      const near = new Int32Array(gp.count).fill(-1);
+      const near = new Int32Array(gp.count).fill(-1),neighbors=Array.from({length:gp.count},()=>[]);
       for (let i = 0; i < gp.count; i++) {
         v.fromBufferAttribute(gp, i).applyMatrix4(o.bindMatrix);
         const cx = Math.floor(v.x / C), cy = Math.floor(v.y / C), cz = Math.floor(v.z / C);
         let best = 0.04 * 0.04, bi = -1;
+        // Skin-derived beard shells retain the skin UVs. They identify the
+        // original outer-lip vertex, unlike a nearest point inside the mouth.
+        const uv=g.attributes.uv,copies=uv&&uvGrid.get(uvKey(uv.getX(i),uv.getY(i)));
+        if(copies?.length){let closest=Infinity;for(const j of copies){const d=(fw[j*3]-v.x)**2+(fw[j*3+1]-v.y)**2+(fw[j*3+2]-v.z)**2;if(d<closest){closest=d;bi=j;}}if(closest<.045*.045){near[i]=bi;neighbors[i]=[{j:bi,distance:0}];continue;}}
         for (const lowerOnly of (jawBeard ? [true, false] : [false])) {     // la barba della mandibola segue la pelle sotto il labbro
           for (const radius of [1,3]) {
           if(radius===3 && best<C*C)break;
@@ -853,7 +863,16 @@ transformed += uSwInv * uSwing * aSw;`);
           }
           if (bi >= 0) break;
         }
+
         near[i] = bi;
+        if(bi>=0){
+          const lower=mo&&mo.getY(bi)<-.002,samples=[];
+          for(let dx=-2;dx<=2;dx++)for(let dy=-2;dy<=2;dy++)for(let dz=-2;dz<=2;dz++)for(const j of grid.get(`${cx+dx},${cy+dy},${cz+dz}`)||[]){
+            if(mo&&((mo.getY(j)<-.002)!==!!lower))continue;
+            const distance=(fw[j*3]-v.x)**2+(fw[j*3+1]-v.y)**2+(fw[j*3+2]-v.z)**2;if(distance<.04*.04)samples.push({j,distance});
+          }
+          samples.sort((a,b)=>a.distance-b.distance);neighbors[i]=samples.slice(0,6);if(!neighbors[i].length)neighbors[i]=[{j:bi,distance:0}];
+        }
       }
       if (!near.some(j => j >= 0)) return;
       // pizzetto: la parte alta (vicina al labbro) con la bocca aperta scende di piu' (ci sarebbe finita davanti ai denti)
@@ -866,8 +885,8 @@ transformed += uSwInv * uSwing * aSw;`);
         const arr = new Float32Array(gp.count * 3), d = new THREE.Vector3(), isMouth = jawBeard && src === mo;
         for (let i = 0; i < gp.count; i++) {
           const j = near[i]; if (j < 0) continue;
-          d.fromBufferAttribute(src, j).applyMatrix3(FBr).applyMatrix3(inv);   // (dallo spazio della pelle a quello del guscio)
-          if (isMouth) d.multiplyScalar(1 + 0.25 * top[i]);
+          d.set(0,0,0);let sum=0;for(const sample of neighbors[i]){const w=1/(sample.distance+.000016);d.addScaledVector(new THREE.Vector3().fromBufferAttribute(src,sample.j),w);sum+=w;}d.divideScalar(sum||1).applyMatrix3(FBr).applyMatrix3(inv);   // (dallo spazio della pelle a quello del guscio)
+          // Preserve the skin deformation exactly; exaggeration stretches hairs across the lips.
           arr[i * 3] = d.x; arr[i * 3 + 1] = d.y; arr[i * 3 + 2] = d.z;
         }
         return new THREE.BufferAttribute(arr, 3);
@@ -919,7 +938,7 @@ transformed += uSwInv * uSwing * aSw;`);
   }
   isUp() { return !this.getupLayer || this.getupLayer.t >= this.getupLayer.dur - 0.15; }
   resetPose() {
-    this.armContacts = {}; this.feetPlant = null;
+    this.armContacts = {}; this.feetPlant = null;this.victoryBlend=null;this.celebrating=null;this.blockedRun=0;this.openSearchUntil=0;this.lastCoverage=null;
     this.dejected = false;
     for (const l of this.layers) l.out = true;
     this.down = false; this.downLoop = false; this.getupLayer = null; this.punch = null; this.combo = []; this.defending = null; this.reaction = null;
@@ -1030,6 +1049,7 @@ transformed += uSwInv * uSwing * aSw;`);
     if (this._animQ) for (const [b, q] of this._animQ) b.quaternion.copy(q);
     if(this._animHip)this.bones.pelvis.position.copy(this._animHip);
     this.mixer.update(dt);
+    if(this.victoryBlend){const B=this.victoryBlend;B.t+=dt;const w=THREE.MathUtils.smoothstep(B.t,0,B.duration);for(const [bone,q,pos] of B.pose){bone.quaternion.copy(q.clone().slerp(bone.quaternion,w));bone.position.copy(pos.clone().lerp(bone.position,w));}if(w>=1)this.victoryBlend=null;}
     if (this._gloveWait && --this._gloveWait === 0) this._gloveSetup();
     if (this._tatWait && --this._tatWait === 0) this._tattooSetup();
     this._updBraid(dt);
@@ -1046,6 +1066,7 @@ transformed += uSwInv * uSwing * aSw;`);
     this._contactPose(dt);
     this._plantFeet(dt);
     this._dejectFx(dt);
+    this._victoryPose(dt);
     this.lookAtEyes(dt);
   }
 
@@ -1126,13 +1147,16 @@ transformed += uSwInv * uSwing * aSw;`);
     this.bones.pelvis.position.lerp(p.hipPosition,recovery);
     const loaded=THREE.MathUtils.smoothstep(phase,0,p.motion.loadFraction),struck=THREE.MathUtils.smoothstep(phase,p.motion.loadFraction,1);
     const sign=spec.side==='l'?-1:1,curved=p.name.startsWith('hook')||p.name.startsWith('uppercut');
-    const yaw=sign*THREE.MathUtils.degToRad(p.name==='jab'?12:p.name==='cross'?28:30)*(curved?(-.25*loaded+1.25*struck):struck)*recovery;
+    const yaw=sign*THREE.MathUtils.degToRad(p.name==='jab'?18:p.name==='cross'?32:30)*(curved?(-.25*loaded+1.25*struck):struck)*recovery;
     const hip=this.bones.pelvis;
     hip.position.addScaledVector(p.hipDropLocal,loaded*recovery);
     hip.updateWorldMatrix(true,true);
     const world=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),yaw).multiply(hip.getWorldQuaternion(new THREE.Quaternion()));
     hip.quaternion.copy(hip.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(world));
-    // Smaller weight transfer for the jab; rear punches rotate through hips.
+    if(p.name==='cross')for(const [name,share] of [['spine_01',.4],['spine_02',.6]]){
+      const bone=this.bones[name];bone.updateWorldMatrix(true,true);const turn=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),THREE.MathUtils.degToRad(28)*share*struck*recovery).multiply(bone.getWorldQuaternion(new THREE.Quaternion()));bone.quaternion.copy(bone.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(turn));
+    }
+    // Rear hand rotates through hips AND torso, while the planted stance stays stable.
     this.root.updateMatrixWorld(true);
   }
   _punchLegs(){
@@ -1179,6 +1203,18 @@ transformed += uSwInv * uSwing * aSw;`);
       this._solvePunchArm(other,target,freePole,(p.freeLengths[0]+p.freeLengths[1])*.98);
     }
   }
+  _victoryPose(dt){
+    const C=this.celebrating;if(!C||this.down)return;C.t+=dt;
+    const w=THREE.MathUtils.smoothstep(C.t,.18,1.65);if(w<.001)return;
+    const head=this.headCenter(),forward=this.forward(),lateral=new THREE.Vector3(forward.z,0,-forward.x);
+    for(const side of ['l','r']){
+      const sign=side==='l'?1:-1,shoulder=this.bonePos('upperarm_'+side),elbow=this.bonePos('lowerarm_'+side),hand=this.bonePos('hand_'+side),length=shoulder.distanceTo(elbow)+elbow.distanceTo(hand);
+      const goal=C.one&&side!==C.side?this.bonePos('pelvis').add(new THREE.Vector3(0,.20,0)).addScaledVector(lateral,sign*.24).addScaledVector(forward,.14):head.clone().add(new THREE.Vector3(0,.28+.012*Math.sin(C.t*2.3),0)).addScaledVector(lateral,sign*.14).addScaledVector(forward,.02);
+      const start=this.root.localToWorld(C.hands[side].clone()),target=start.lerp(goal,w).addScaledVector(lateral,sign*.10*Math.sin(Math.PI*w));
+      const pole=this.root.localToWorld(C.elbows[side].clone()).sub(shoulder).lerp(lateral.clone().multiplyScalar(sign).addScaledVector(forward,.25),w);
+      this._solvePunchArm(side,target,pole,length*.995,0);
+    }
+  }
   _pronateStraight(){
     const p=this.punch;if(!this.enabled||!p?.motion||p.move||this.down||p.name.startsWith('hook')||p.name.startsWith('uppercut'))return;
     const side=p.side,palmLocal=this.glovePalmLocal[side];if(!palmLocal)return;
@@ -1215,21 +1251,22 @@ transformed += uSwInv * uSwing * aSw;`);
     const spec = PUNCH[name]; if (!spec || !player) return null;
     const H = player.head, toMe = _c.copy(this.root.getWorldPosition(_e)).sub(H).setY(0).normalize();
     const right = new THREE.Vector3(0, 1, 0).cross(toMe).normalize();      // tua destra / sinistra vista da lui
-    if (spec.zone === 'body') {
-      if(player.f){const [a,b]=player.f.torso();return a.clone().lerp(b,.55);}
-      return H.clone().add(new THREE.Vector3(0,-.43,0));
-    }
-    const C = [[0, 0, 'centro'], [0, -0.09, 'mento'], [0, 0.07, 'fronte'], [0.08, 0.01, 'tempia'], [-0.08, 0.01, 'tempia']];
-    let cands = C.map(([x, y]) => H.clone().addScaledVector(right, x).add(new THREE.Vector3(0, y, 0)));
-    if (name.startsWith('hook')) {                                          // il gancio arriva di lato: prende quella tempia
-      const s = name === 'hook_l' ? -1 : 1; cands = [H.clone().addScaledVector(right, 0.08 * s).add(new THREE.Vector3(0, 0.01, 0)), H.clone().add(new THREE.Vector3(0, -0.07, 0))];
+    let cands;
+    if(spec.zone==='body'){
+      const center=player.f?player.f.torso()[0].clone().lerp(player.f.torso()[1],.42):H.clone().add(new THREE.Vector3(0,-.40,0));
+      const floor=player.f?player.f.bonePos('pelvis').y+.20:H.y-.58;
+      cands=[center,center.clone().addScaledVector(right,.14),center.clone().addScaledVector(right,-.14),center.clone().add(new THREE.Vector3(0,.11,0))];for(const p of cands)p.y=Math.max(p.y,floor);
+    }else{
+      cands=[[0,0],[0,-.09],[0,.07],[.09,.01],[-.09,.01]].map(([x,y])=>H.clone().addScaledVector(right,x).add(new THREE.Vector3(0,y,0)));
+      if(name.startsWith('uppercut'))cands=cands.filter(p=>p.y<=H.y);
     }
     const skill = this.cfg.readGuard ?? 0.6;
-    if (Math.random() > skill) return cands[0];
+    if (Math.random() > skill && this.time>=(this.openSearchUntil||0)) return cands[0];
     const gl = Object.values(player.gloves).filter(g => g.mesh.visible);
     let best = cands[0], bs = -1;
     for (const p of cands) {
-      const sc = Math.min(...gl.map(g => g.center.distanceTo(p)), 0.4) + Math.random() * 0.02;
+      const route=this.bonePos('hand_'+spec.side).clone().lerp(p,.60);
+      const sc = Math.min(...gl.map(g=>distPointSeg(g.center,route,p)),.4)+Math.min(...gl.map(g=>g.center.distanceTo(p)),.4)*.35+Math.random()*.006;
       if (sc > bs) { bs = sc; best = p; }
     }
     return best;
@@ -1555,6 +1592,7 @@ transformed += uSwInv * uSwing * aSw;`);
     // 2) attacco
     switch (this.state) {
       case 'stalk':
+        if(!this.noAttack){const coverage=Math.min(...Object.values(player.gloves).filter(g=>g.mesh.visible).map(g=>g.center.distanceTo(player.head)),1);if((this.lastCoverage??1)<.27&&coverage>.33&&Math.random()<(c.readGuard??.6))this.nextAttack=Math.min(this.nextAttack,Math.max(.08,c.reactDelay?.[0]??.15));this.lastCoverage=coverage;}
         if (this.noAttack) break;                          // sparring a esercizi: attacca solo quando lo chiama l'allenatore
         this.nextAttack -= dt;
         {
@@ -1608,7 +1646,7 @@ transformed += uSwInv * uSwing * aSw;`);
         break;
       }
       case 'approach':
-        if ((Math.abs(dist - this.attackDist()) < 0.07 || this.stateT > (this.counter ? 0.35 : 1.2)) && !this.defending) {
+        if ((dist<=this.attackDist()+.025 && this.moveVel.length()<.22) && !this.defending) {
           this.counter = false;
           this.setState('attack'); this.nextPunch();
         }
@@ -1733,6 +1771,13 @@ transformed += uSwInv * uSwing * aSw;`);
   attackDist() {
     const a=this.aimPunch(),name=this.combo?.[0];
     const base=(a?a.dist-.03:this.cfg.attackDist)+(this.reachExtra||0);
+    if((name==='jab'||name==='cross')&&this.lastPlayer){
+      const spec=PUNCH[name],pivot=this.bonePos('pelvis'),shoulder=this.bonePos('upperarm_'+spec.side),elbow=this.bonePos('lowerarm_'+spec.side),wrist=this.bonePos('hand_'+spec.side),u=shoulder.distanceTo(elbow),l=elbow.distanceTo(wrist);
+      shoulder.sub(pivot).applyAxisAngle(new THREE.Vector3(0,1,0),THREE.MathUtils.degToRad(name==='jab'?-18:60)).add(pivot);
+      const delta=shoulder.clone().sub(this.root.getWorldPosition(new THREE.Vector3())),forward=this.forward(),lateral=new THREE.Vector3(forward.z,0,-forward.x),dy=this.lastPlayer.head.y-.04-shoulder.y;
+      const radius=Math.sqrt(u*u+l*l-2*u*l*Math.cos(THREE.MathUtils.degToRad(165)));
+      return delta.dot(forward)+Math.sqrt(Math.max(.01,radius*radius-dy*dy-delta.dot(lateral)**2))+.065;
+    }
     if(name?.startsWith('hook')&&this.lastPlayer){
       const spec=PUNCH[name],shoulder=this.bonePos('upperarm_'+spec.side),elbow=this.bonePos('lowerarm_'+spec.side),wrist=this.bonePos('hand_'+spec.side);
       const u=shoulder.distanceTo(elbow),l=elbow.distanceTo(wrist),radius=Math.sqrt(u*u+l*l+u*l)*.97;
@@ -1761,7 +1806,8 @@ transformed += uSwInv * uSwing * aSw;`);
   }
   // distanza minima fra i tuoi guantoni e la parte finale della traiettoria (sotto 0.16 m il colpo e' coperto)
   pathClearance(name, player) {
-    const { a, b } = this.punchPath(name, player);
+    const target=this.chooseAim(player,name),spec=PUNCH[name];
+    const b=target,a=name.startsWith('hook')?target.clone().addScaledVector(new THREE.Vector3(this.forward().z,0,-this.forward().x),spec.side==='l'?.25:-.25).addScaledVector(this.forward(),-.12):this.bonePos('hand_'+spec.side).clone().lerp(target,.55);
     let best = 9;
     for (const g of Object.values(player.gloves)) if (g.mesh.visible) best = Math.min(best, distPointSeg(g.center, a, b));
     return best;
@@ -1769,7 +1815,7 @@ transformed += uSwInv * uSwing * aSw;`);
   // se il prossimo colpo e' coperto, Mike (secondo il livello) lo cambia con uno che arriva dove sei scoperto
   readGuard(player) {
     const name = this.combo[0];
-    if (!name || !PUNCH[name] || !player || Math.random() >= (this.cfg.readGuard ?? 0.6)) return true;
+    if (!name || !PUNCH[name] || !player || Math.random() >= (this.time<(this.openSearchUntil||0)?1:(this.cfg.readGuard ?? 0.6))) return true;
     const CLEAR = 0.2;                                         // guantone del giocatore piu' vicino di 20 cm = colpo coperto
     if (this.pathClearance(name, player) >= CLEAR) return true;
     const open = Object.keys(PUNCH).filter(n => this.clips[n] && n !== name)
@@ -1803,6 +1849,7 @@ transformed += uSwInv * uSwing * aSw;`);
     const bodyHook=name.startsWith('hook_body');
     const hipDrop=THREE.MathUtils.clamp(shoulder.y-aim.y-radius*(bodyHook?.32:.55),bodyHook?.16:spec.zone==='body'?.04:0,bodyHook?.30:.23);
     const planningShoulder=shoulder.clone().add(new THREE.Vector3(0,-hipDrop,0));
+    if(name==='jab'||name==='cross'){const pivot=this.bonePos('pelvis');planningShoulder.sub(pivot).applyAxisAngle(new THREE.Vector3(0,1,0),THREE.MathUtils.degToRad(name==='jab'?-18:60)).add(pivot);}
     const motion=punchMotion(name,side,planningShoulder,hand,elbow,aim,this.forward(),lengths);
     const hip=this.bones.pelvis,hipDropLocal=new THREE.Vector3(0,-hipDrop,0).applyQuaternion(hip.parent.getWorldQuaternion(new THREE.Quaternion()).invert()).divide(hip.parent.getWorldScale(new THREE.Vector3()));
     const speed=3.8*this.cfg.punchSpeed*(.7+.3*(this.condition?.stamina??100)/100)*(1-.15*(this.fatigue||0));
@@ -1879,10 +1926,11 @@ transformed += uSwInv * uSwing * aSw;`);
     const data={name:p.name,zone:contact.zone,side:contact.side,counter:p.counter,point:contact.point.clone(),dir:center.clone().sub(previous).normalize(),speed,quality:contact.quality,power:impactPower(speed,1,this.condition?.stamina)};
     this.contactArm(spec.side,contact.point,contact.kind==='block');
     if(contact.kind==='block'){
+      this.blockedRun=(this.blockedRun||0)+1;if(this.blockedRun>=3){this.openSearchUntil=this.time+5;this.blockedRun=0;}
       this.openUntil=this.time+.55;this.emit('playerBlocked',data);
       if(player.deferReactions)player.pendingContacts.push(['block',data]);else player.f?.receiveContact('block',data);
     }else{
-      this.emit('mikeHit',data);if(player.deferReactions)player.pendingContacts.push(['hit',data]);else player.f?.receiveContact('hit',data);
+      this.blockedRun=0;this.emit('mikeHit',data);if(player.deferReactions)player.pendingContacts.push(['hit',data]);else player.f?.receiveContact('hit',data);
     }
   }
 

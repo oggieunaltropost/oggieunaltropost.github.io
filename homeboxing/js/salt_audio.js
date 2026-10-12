@@ -1,4 +1,4 @@
-import { audioBus } from './sfx.js?v=20261012215037';
+import { audioBus } from './sfx.js?v=20261013002357';
 
 // Individual padded footfalls with a dry granular crunch; independent HRTF sources.
 export class SaltAudio {
@@ -6,7 +6,7 @@ export class SaltAudio {
   load(ctx){
     if(this.loading)return this.loading;
     this.loading=Promise.all(Array.from({length:9},async(_,i)=>{
-      const r=await fetch(`assets/audio/llama_step_${i}.ogg?v=20261012215037`);if(!r.ok)throw Error('Llama footstep unavailable');
+      const r=await fetch(`assets/audio/llama_step_${i}.ogg?v=20261013002357`);if(!r.ok)throw Error('Llama footstep unavailable');
       return ctx.decodeAudioData(await r.arrayBuffer());
     })).then(buffers=>{if(!this.dead)this.buffers=buffers;}).catch(e=>console.warn('Passi lama:',e));
     return this.loading;

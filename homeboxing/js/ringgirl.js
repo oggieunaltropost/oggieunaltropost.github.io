@@ -33,11 +33,11 @@ export function fixHumanMaterial(o) {
 // cinque ragazze (blender/create_ringgirl.py var=0..4): stessa struttura e animazioni, cambiano pelle, capelli,
 // completo e colore del numero sul cartello. Una a caso per incontro, la stessa per tutto l'incontro.
 export const GIRLS = [
-  { glb: 'assets/ringgirl.glb?v=20261012215037', ink: '#c4161f', band: '#c4161f' },                          // mora, rosso e oro
-  { glb: 'assets/ringgirl_1.glb?v=20261012215037', ink: '#b8860b', band: '#111111' },                        // di colore, oro e nero
-  { glb: 'assets/ringgirl_2.glb?v=20261012215037', ink: '#c4161f', band: '#c4161f' },                        // cinese, bianco e rosso
-  { glb: 'assets/ringgirl_3.glb?v=20261012215037', ink: '#1d4fc4', band: '#1d4fc4', hair: '#e8c47c' },       // bionda, blu e argento
-  { glb: 'assets/ringgirl_4.glb?v=20261012215037', ink: '#8a2be2', band: '#d6407a' },                        // latina, viola e rosa
+  { glb: 'assets/ringgirl.glb?v=20261013002357', ink: '#c4161f', band: '#c4161f' },                          // mora, rosso e oro
+  { glb: 'assets/ringgirl_1.glb?v=20261013002357', ink: '#b8860b', band: '#111111' },                        // di colore, oro e nero
+  { glb: 'assets/ringgirl_2.glb?v=20261013002357', ink: '#c4161f', band: '#c4161f' },                        // cinese, bianco e rosso
+  { glb: 'assets/ringgirl_3.glb?v=20261013002357', ink: '#1d4fc4', band: '#1d4fc4', hair: '#e8c47c' },       // bionda, blu e argento
+  { glb: 'assets/ringgirl_4.glb?v=20261013002357', ink: '#8a2be2', band: '#d6407a' },                        // latina, viola e rosa
 ];
 // la coppa della premiazione: oro, due manici, base nera con la fascia dorata
 function makeCup() {
@@ -109,6 +109,17 @@ export class RingGirl {
     this.stand = this.mixer.clipAction(g.animations.find(a => a.name === 'ferma'));
     this.walk.play(); this.stand.play(); this.stand.setEffectiveWeight(0);
     this.headAnimated = g.animations.some(a => a.tracks.some(t => t.name === 'head.quaternion'));
+    this.model.updateWorldMatrix(true,true);
+    let floor=Infinity,top=-Infinity;
+    this.model.traverse(o=>{
+      if(!o.isSkinnedMesh||!(/body|base/i.test(o.name)||o.material?.name==='Pelle'))return;
+      const position=o.geometry.attributes.position,indices=o.geometry.attributes.skinIndex,weights=o.geometry.attributes.skinWeight;
+      for(let i=0;i<position.count;i++){
+        const v=new THREE.Vector3().fromBufferAttribute(position,i);o.applyBoneTransform(i,v);o.localToWorld(v);floor=Math.min(floor,v.y);
+        for(let k=0;k<4;k++)if(weights.getComponent(i,k)>.1&&o.skeleton.bones[indices.getComponent(i,k)]?.name==='head'){top=Math.max(top,v.y);break;}
+      }
+    });
+    const height=top-floor;if(Number.isFinite(height)&&height>1)this.model.scale.multiplyScalar(Math.max(1,1.76/height));
     this.ready = true;
     this.face = null;
     this.model.traverse(o => { if (o.isMesh && o.morphTargetDictionary && 'blink_l' in o.morphTargetDictionary) this.face = o; });

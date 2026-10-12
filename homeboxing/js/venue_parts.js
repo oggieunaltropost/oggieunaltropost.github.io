@@ -17,7 +17,7 @@ export function label(text,bg='#161b24',fg='#eee9db',width=1024,height=192){
 export function audience(parent,{rows=4,count=48,radius=9,rise=.55,warm=false}={}){
  const countAll=rows*count,matrix=new THREE.Object3D(),cells=new Float32Array(countAll*2),poses=new Float32Array(countAll),tints=new Float32Array(countAll);
  const texture=new THREE.Texture();let dead=false;
- const ready=new THREE.TextureLoader().loadAsync('assets/pubblico.webp?v=20261012215037').then(tx=>{if(dead){tx.dispose();return;}texture.copy(tx);texture.needsUpdate=true;texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=4;});
+ const ready=new THREE.TextureLoader().loadAsync('assets/pubblico.webp?v=20261013002357').then(tx=>{if(dead){tx.dispose();return;}texture.copy(tx);texture.needsUpdate=true;texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=4;});
  const geometry=new THREE.PlaneGeometry(1.15,2.3);geometry.translate(0,1.15-2.3*12/512,0);
  geometry.setAttribute('aCell',new THREE.InstancedBufferAttribute(cells,2));const poseAttribute=new THREE.InstancedBufferAttribute(poses,1);geometry.setAttribute('aPose',poseAttribute);geometry.setAttribute('aTint',new THREE.InstancedBufferAttribute(tints,1));
  const material=new THREE.MeshBasicMaterial({map:texture,alphaTest:.55,alphaToCoverage:true,side:THREE.DoubleSide});

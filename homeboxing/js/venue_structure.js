@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {beam,mergeParts} from './venue_parts.js?v=20261012215037';
+import {beam,mergeParts} from './venue_parts.js?v=20261013002357';
 function seatPanel(w,h,depth){
  const shape=new THREE.Shape(),x=-w/2,y=-h/2,r=.045;
  shape.moveTo(x+r,y);shape.lineTo(x+w-r,y);shape.quadraticCurveTo(x+w,y,x+w,y+r);shape.lineTo(x+w,y+h-r);shape.quadraticCurveTo(x+w,y+h,x+w-r,y+h);shape.lineTo(x+r,y+h);shape.quadraticCurveTo(x,y+h,x,y+h-r);shape.lineTo(x,y+r);shape.quadraticCurveTo(x,y,x+r,y);

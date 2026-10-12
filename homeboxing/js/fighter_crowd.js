@@ -10,7 +10,7 @@ export class FighterCrowd{
   this.people=[];this.outfitMaterials=new Set();this.time=0;this.forceRaised=false;this.dead=false;this.ready=this._load(seats,count);
  }
  async _load(seats,count){
-  const loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder),models=await Promise.all(IDS.map(async id=>{try{return {id,gltf:await loader.loadAsync(`assets/fighter_crowd/${id}.glb?v=20261012215037`)};}catch(error){console.warn('Pubblico',id,error);return null;}}));
+  const loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder),models=await Promise.all(IDS.map(async id=>{try{return {id,gltf:await loader.loadAsync(`assets/fighter_crowd/${id}.glb?v=20261013002357`)};}catch(error){console.warn('Pubblico',id,error);return null;}}));
   this.models=models.filter(Boolean);if(this.dead){this._disposeModels();return;}if(!this.models.length)return;
   const slots=[...seats];for(let i=slots.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[slots[i],slots[j]]=[slots[j],slots[i]];}
   for(const model of this.models)model.gltf.scene.traverse(o=>{if(o.isMesh){for(const mat of [].concat(o.material)){
