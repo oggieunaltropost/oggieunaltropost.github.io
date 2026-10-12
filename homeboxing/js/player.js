@@ -125,6 +125,10 @@ class Glove {
     scene.add(this.mesh);
     this.center = new THREE.Vector3();      // centro del pugno (sfera dei colpi)
     this.prev = new THREE.Vector3();
+    this.guardBack = new THREE.Vector3();
+    this.guardFront = new THREE.Vector3();
+    this.prevGuardBack = new THREE.Vector3();
+    this.prevGuardFront = new THREE.Vector3();
     this.vel = new THREE.Vector3();
     this.speed = 0;
     this.radius = 0.075;
@@ -155,6 +159,9 @@ class Glove {
   }
 
   // wrist = polso, fwd = verso le nocche, back = dorso della mano
+  showContact(point) {
+    this.visualContact=point.clone();this.contactT=.10;
+  }
   setPose(wrist, fwd, back) {
     const z = _a.copy(fwd).negate().normalize();
     const y = _b.copy(back).addScaledVector(z, -back.dot(z)).normalize();
@@ -163,12 +170,22 @@ class Glove {
     this.mesh.matrix.copy(_m);
     this.mesh.matrix.decompose(this.mesh.position, this.mesh.quaternion, this.mesh.scale);
     this.center.copy(wrist).addScaledVector(fwd.clone().normalize(), 0.095);
+    // Cover the actual leather shell, including its cuff, rather than only the knuckles.
+    const direction=fwd.clone().normalize();
+    this.guardBack.copy(wrist).addScaledVector(direction,-.065);
+    this.guardFront.copy(wrist).addScaledVector(direction,.12);
+    if(!this.mesh.visible){this.prevGuardBack.copy(this.guardBack);this.prevGuardFront.copy(this.guardFront);}
+    if(this.contactT>0&&this.visualContact){
+      const offset=this.visualContact.clone().sub(this.center);offset.clampLength(0,.06);
+      this.mesh.position.addScaledVector(offset,Math.min(1,this.contactT/.06));
+    }
     // Reacquiring a hand is a new pose, not a punch from its old position.
     if(!this.mesh.visible){this.prev.copy(this.center);this.vel.set(0,0,0);this.hist.length=this.hist2.length=0;this.wasFast=false;}
     this.active = true;
   }
 
   update(dt) {
+    this.contactT=Math.max(0,(this.contactT||0)-dt);
     // nei pugni veloci il tracciamento delle mani a volte si perde per qualche fotogramma:
     // per 0,12 s il guantone continua per la sua strada invece di "saltare" al bersaglio
     if (!this.active) {
@@ -205,7 +222,7 @@ class Glove {
 
   // segmento percorso in questo fotogramma (contro i colpi troppo veloci che "salterebbero" il bersaglio)
   segment() { return [this.prev, this.center]; }
-  endFrame() { this.prev.copy(this.center); this.active = false; }
+  endFrame() { this.prev.copy(this.center); this.prevGuardBack.copy(this.guardBack);this.prevGuardFront.copy(this.guardFront);this.active = false; }
 }
 
 export class Player {
@@ -254,6 +271,7 @@ export class Player {
     for (const g of Object.values(this.gloves)) {
       g.active = false; g.mesh.visible = false; g.vel.set(0,0,0); g.speed = 0;
       g.hist.length = g.hist2.length = 0; g.wasFast = false; g.lostT = .12;
+      g.contactT=0;g.visualContact=null;
     }
   }
 

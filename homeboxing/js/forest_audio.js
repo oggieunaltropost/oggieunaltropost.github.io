@@ -1,5 +1,5 @@
 // Lazy storm samples routed through the existing game's master bus.
-import { audioBus } from './sfx.js?v=20261012074748';
+import { audioBus } from './sfx.js?v=20261012215037';
 
 export class ForestAudio {
   constructor() { this.buffers = {}; this.loops = []; this.shots = new Set(); this.dead = false; this.pending = false; }
@@ -11,7 +11,7 @@ export class ForestAudio {
     if (!this.pending) {
       this.pending = true;
       for (const name of ['rain', 'wind', 'thunder_0', 'thunder_1', 'thunder_2']) {
-        fetch(`assets/foresta/${name}.ogg?v=20261012074748`).then(r => { if (!r.ok) throw Error(name); return r.arrayBuffer(); })
+        fetch(`assets/foresta/${name}.ogg?v=20261012215037`).then(r => { if (!r.ok) throw Error(name); return r.arrayBuffer(); })
           .then(a => ctx.decodeAudioData(a)).then(b => { if (!this.dead) this.buffers[name] = b; })
           .catch(e => console.warn('Forest sound unavailable:', name, e));
       }

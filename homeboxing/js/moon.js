@@ -3,16 +3,16 @@
 // Davanti, in 3D:
 //  - la regolite vicina con i suoi crateretti (colore preso pixel per pixel dalla foto al bordo: niente giunta)
 //    e una fila di impronte di scarponi che passa accanto al ring; un modulo lunare posato un po' piu' in la'
-//  - ogni tanto una cometa che compare, attraversa piano il cielo con la coda (sempre dalla parte opposta al Sole)
+//  - ogni tanto una stella con scia che attraversa il cielo, testa avanti e coda dietro il moto,
 //    e svanisce
 //  - ogni tanto un asteroide che si schianta lontano: scia che scende, lampo, polvere che vola ad archi lenti
 //    (poca gravita' e niente aria: traiettorie pulite) e ricade piano, anello di polvere; resta il cratere
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
 import * as THREE from 'three';
-import { contactShadow } from './contact_shadow.js?v=20261012074748';
-import { panoDepth } from './pano_depth.js?v=20261012074748';
-import { Astronaut } from './astronaut.js?v=20261012074748';
-import * as sfx from './sfx.js?v=20261012074748';
+import { contactShadow } from './contact_shadow.js?v=20261012215037';
+import { panoDepth } from './pano_depth.js?v=20261012215037';
+import { Astronaut } from './astronaut.js?v=20261012215037';
+import * as sfx from './sfx.js?v=20261012215037';
 
 const EYE = 1.65, R_FADE0 = 10, R_FADE1 = 16, G = 1.62;          // gravita' lunare
 const SUN = new THREE.Vector3(-0.4532, 0.4226, 0.7849).normalize();  // dalla foto (Blender (0.7849,-0.4532,0.4226))
@@ -46,7 +46,7 @@ export class Moon {
     const img = new Image();
     const tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     img.onload = () => { tex.needsUpdate = true; this.skyLoaded = true; this._tintGround(img); if (this.onSkyLoad) this.onSkyLoad(); };
-    img.src = 'assets/luna_panorama.jpg?v=20261012074748';
+    img.src = 'assets/luna_panorama.jpg?v=20261012215037';
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false, uniforms: { uPano: { value: tex } },
@@ -60,7 +60,7 @@ export class Moon {
     });
     const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 64, 32), m);
     sky.renderOrder = -10; sky.frustumCulled = false; this.group.add(sky);
-    this.group.add(panoDepth('assets/luna_profondita.png?v=20261012074748', tex, { eye: EYE, flat: 14, ratio: 2.6, sealedBack: true, grain: this.grainTex, grainMean: 0.19 }));   // continuous backing behind the detailed depth layer
+    this.group.add(panoDepth('assets/luna_profondita.png?v=20261012215037', tex, { eye: EYE, flat: 14, ratio: 2.6, sealedBack: true, grain: this.grainTex, grainMean: 0.19 }));   // continuous backing behind the detailed depth layer
   }
   // ---------------------------------------------------------------- regolite vicina, con i crateretti
   _h(x, z) {
@@ -205,25 +205,34 @@ export class Moon {
     this.comet = C; this.cometF = null; this.group.add(C);
   }
   _newComet() {
-    // arco nel cielo a 700 m: da un punto a un altro, alti 20-60 gradi, in 14-24 s
-    const D = 700, a0 = Math.random() * Math.PI * 2, a1 = a0 + (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.35);
-    const e0 = 0.35 + Math.random() * 0.5, e1 = e0 + (Math.random() - 0.5) * 0.4;
-    const dir = (a, e) => new THREE.Vector3(Math.cos(a) * Math.cos(e), Math.sin(e), Math.sin(a) * Math.cos(e)).multiplyScalar(D);
-    this.cometF = { p0: dir(a0, e0), p1: dir(a1, e1), t: 0, dur: 14 + Math.random() * 10 };
+    // One continuous fly-by, spanning the sky instead of stopping near its
+    // starting point. Both endpoints and the entire tail fit the camera range.
+    const a = Math.random() * Math.PI * 2, e = .4 + Math.random() * .4;
+    const middle = new THREE.Vector3(Math.cos(a)*Math.cos(e),Math.sin(e),Math.sin(a)*Math.cos(e)).multiplyScalar(650);
+    const direction = new THREE.Vector3(-Math.sin(a),-.06-Math.random()*.08,Math.cos(a)).normalize();
+    this.cometF = { p0: middle.clone().addScaledVector(direction,-620), p1: middle.clone().addScaledVector(direction,620), direction, t: 0, dur: 28 + Math.random() * 10 };
+    this.comet.position.copy(this.cometF.p0);
+    this.comet.children[0].material.opacity = 0;
+    for(const tail of this.tails)tail.material.opacity=0;
     this.comet.visible = true;
   }
   _updComet(dt, camL) {
     if (!this.cometF) { if ((this.nextComet -= dt) <= 0) this._newComet(); return; }
     const F = this.cometF; F.t += dt;
     const k = F.t / F.dur;
-    if (k >= 1) { this.cometF = null; this.comet.visible = false; this.nextComet = 25 + Math.random() * 35; return; }
-    const fade = ss(0, 0.2, k) * (1 - ss(0.75, 1, k));
+    if (k >= 1) {
+      this.comet.children[0].material.opacity=0;for(const tail of this.tails)tail.material.opacity=0;
+      this.cometF = null; this.comet.visible = false; this.nextComet = 25 + Math.random() * 35; return;
+    }
+    const entry = ss(0, .08, k);
+    const fade = entry * (1 - ss(.8, .96, k));
     this.comet.position.lerpVectors(F.p0, F.p1, k);
     this.comet.children[0].material.opacity = fade;
-    // coda dalla parte opposta al Sole: il velo punta lungo -SUN e gira attorno a quell'asse verso di te
-    const away = _v.copy(SUN).negate();
+    // The visible trail follows the flight direction, never pointing ahead of
+    // the head. It lingers briefly as the head recedes and fades out first.
+    const away = _v.copy(F.direction).negate();
     for (const t of this.tails) {
-      t.material.opacity = 0.6 * fade;
+      t.material.opacity = .6 * entry * (1 - ss(.84, 1, k));
       t.quaternion.setFromUnitVectors(_w.set(0, -1, 0), away);
       if (camL) {                                                      // (il velo si gira verso chi guarda)
         const toCam = _w.copy(camL).sub(this.comet.position).normalize();

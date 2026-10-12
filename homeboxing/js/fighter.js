@@ -1,4 +1,4 @@
-// Mike: modello animato + intelligenza artificiale (si muove, para, schiva, attacca).
+// Fighter: comportamento condiviso di tutti i pugili. Modello animato + intelligenza artificiale (si muove, para, schiva, attacca).
 // icone sui calzoncini (accanto al nome)
 function drawIcon(g, kind, cx, cy, w) {
   g.save(); g.translate(cx, cy);
@@ -22,6 +22,12 @@ function drawIcon(g, kind, cx, cy, w) {
 }
 // simboli per i calzoncini (disegnati in bianco su trasparente, centrati in (cx, cy), altezza ~ 120 * s)
 function legIcon(g, kind, cx, cy, s) {
+  if(kind==='diamond'||kind==='metronome'){
+    g.save();g.translate(cx,cy);g.scale(s,s);g.lineWidth=7;g.lineJoin='round';
+    if(kind==='diamond'){g.beginPath();g.moveTo(-78,-42);g.lineTo(-44,-78);g.lineTo(44,-78);g.lineTo(78,-42);g.lineTo(0,70);g.closePath();g.moveTo(-78,-42);g.lineTo(78,-42);g.moveTo(-44,-78);g.lineTo(-25,-42);g.lineTo(0,70);g.lineTo(25,-42);g.lineTo(44,-78);g.moveTo(-25,-42);g.lineTo(0,-78);g.lineTo(25,-42);g.stroke();}
+    else{g.beginPath();g.moveTo(-52,74);g.lineTo(-28,-75);g.lineTo(28,-75);g.lineTo(52,74);g.closePath();g.moveTo(-52,53);g.lineTo(52,53);g.moveTo(0,47);g.lineTo(46,-42);g.stroke();g.fillRect(24,-23,19,22);}
+    g.restore();return;
+  }
   g.save(); g.translate(cx, cy); g.scale(s, s); g.lineCap = 'round'; g.lineJoin = 'round';
   if (kind === 'glove') {                                           // guantone: corpo, pollice staccato da una riga, polsino
     g.rotate(-0.25);
@@ -100,8 +106,11 @@ function legIcon(g, kind, cx, cy, s) {
   g.restore();
 }
 import * as THREE from 'three';
-export { StyleLearner } from './style_learn.js?v=20261012074748';
+import { drawFlag } from './roster.js?v=20261012215037';
+import { punchMotion } from './punch_motion.js?v=20261012215037';
+export { StyleLearner } from './style_learn.js?v=20261012215037';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { firstContact, fighterShapes, playerShapes, PUNCH_LIMITS, impactPower, conditioning, exert } from './combat.js?v=20261012215037';
 const _lq = new THREE.Quaternion(), _lr = new THREE.Quaternion(), _qI = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ld = new THREE.Vector3();
 
 // Caratteristiche dell'avversario: per i prossimi pugili bastera' cambiare questi numeri.
@@ -114,6 +123,9 @@ export const MIKE = {
 // Combinazioni della boxe. Numeri: 1 jab, 2 diretto, 3 gancio sinistro, 4 gancio destro,
 // 5 montante sinistro, 6 montante destro; "b" = al corpo. Dentro ci possono stare schivate e abbassate.
 const C = {
+  '1-1-2b-3':['jab','jab','body_r','hook_l'],
+  '2-3b-6':['cross','hook_body_l','uppercut_r'],
+  '4b': ['hook_body_r'], '5b-2':['uppercut_body_l','cross'], '6b-3':['uppercut_body_r','hook_l'], '3b-6b':['hook_body_l','uppercut_body_r'],
   // (2026-10-05: per i nuovi pugili) '3': ['hook_l'], '4': ['hook_r'], '1-3-4': ['jab', 'hook_l', 'hook_r'], '2-1-2': ['cross', 'jab', 'cross'], '1-1-2-schivata-2': ['jab', 'jab', 'cross', 'slip_r', 'cross'], '5': ['uppercut_l'], '6': ['uppercut_r'], '2-5': ['cross', 'uppercut_l'], '1-2-5': ['jab', 'cross', 'uppercut_l'], '3-6': ['hook_l', 'uppercut_r'], '1-schivata-6': ['jab', 'slip_r', 'uppercut_r'], '2b-3': ['body_r', 'hook_l'], '3b-4b': ['body_l', 'body_r'], '2-3b-2': ['cross', 'body_l', 'cross'], '1-2-3b-3': ['jab', 'cross', 'body_l', 'hook_l'], '4b-3': ['body_r', 'hook_l'], '1-2-1-2': ['jab', 'cross', 'jab', 'cross'], '2-3-2-3': ['cross', 'hook_l', 'cross', 'hook_l'], '1-1-2-3': ['jab', 'jab', 'cross', 'hook_l'], '1-2-1-2-3': ['jab', 'cross', 'jab', 'cross', 'hook_l'],
   '1': ['jab'], '2': ['cross'], '1-1': ['jab', 'jab'], '1-2': ['jab', 'cross'], '1-1-2': ['jab', 'jab', 'cross'],
   '1-2-3': ['jab', 'cross', 'hook_l'], '1-2-3-2': ['jab', 'cross', 'hook_l', 'cross'], '3-2': ['hook_l', 'cross'],
@@ -138,7 +150,7 @@ const C = {
 };
 const combos = (...names) => names.map(n => C[n]);
 // se tieni la guardia alta, Mike lavora al corpo e con montanti e ganci che entrano di lato
-const BODY_COMBOS = combos('2b', '1-2b', '3b-3', '2-3b', '1-3b-3', '2b-3-2', '3b-4', '6-3b-3', '5-2', '3-4');
+const BODY_COMBOS = combos('2b', '1-2b', '3b-3', '2-3b', '1-3b-3', '2b-3-2', '3b-4', '6-3b-3', '5b-2', '6b-3','4b','3b-6b');
 // contrattacchi: [tipo del tuo pugno][difesa usata] -> risposte possibili
 const COUNTER_TABLE = {
   jab: { slip: combos('2', '2-3', '6-3'), duck: combos('6-3', '2b-3-2'), block: combos('1-2', '2') },
@@ -193,6 +205,8 @@ export const LEVELS = {
 
 // finestre "attive" dei pugni, in fotogrammi a 30 fps (quando il guantone puo' colpire)
 const PUNCH = {
+  hook_body_l:{side:'l',from:7,to:12,zone:'body'},hook_body_r:{side:'r',from:8,to:13,zone:'body'},
+  uppercut_body_l:{side:'l',from:4,to:8,zone:'body'},uppercut_body_r:{side:'r',from:4,to:9,zone:'body'},
   jab: { side: 'l', from: 2, to: 6, zone: 'head' },
   cross: { side: 'r', from: 3, to: 8, zone: 'head' },
   hook_l: { side: 'l', from: 7, to: 12, zone: 'head' },
@@ -229,15 +243,15 @@ function distSegSeg(a0, a1, b0, b1) {
   return best;
 }
 
-export async function loadMikeGLTF(url, onProgress) {
+export async function loadFighterGLTF(url, onProgress) {
   return new GLTFLoader().loadAsync(url, e => onProgress && e.total && onProgress(e.loaded / e.total));
 }
 
-export class Mike {
+export class Fighter {
   constructor(gltf, scene, level = 'normale', cfg = null) {
     this.cfg0 = cfg || {};                                 // aspetto del personaggio (fighters.js)
     this.setLevel(level);
-    this.root = new THREE.Group(); this.root.name = 'Mike';
+    this.root = new THREE.Group(); this.root.name = this.cfg0.name || 'Fighter';
     this.model = gltf.scene;
     this.root.add(this.model);
     scene.add(this.root);
@@ -267,12 +281,26 @@ export class Mike {
     if (this.cfg0.skinTint) this.model.traverse(o => { if (o.isMesh && o.material.name === 'Pelle') o.material.color.setHex(this.cfg0.skinTint); });
     const bone = n => this.model.getObjectByName(n);
     this.bones = {};
-    for (const n of ['head', 'neck_01', 'spine_01', 'spine_02', 'spine_03', 'hand_l', 'hand_r', 'lowerarm_l', 'lowerarm_r', 'upperarm_l', 'upperarm_r', 'pelvis'])
+    for (const n of ['head', 'neck_01', 'spine_01', 'spine_02', 'spine_03', 'hand_l', 'hand_r', 'lowerarm_l', 'lowerarm_r', 'upperarm_l', 'upperarm_r', 'pelvis','thigh_l','thigh_r','calf_l','calf_r','foot_l','foot_r'])
       this.bones[n] = bone(n);
 
+    this.model.updateWorldMatrix(true,true);
+    this.glovePalmLocal={};this.gloveAxisLocal={};
+    for(const side of ['l','r']){
+      const hand=this.bones['hand_'+side],index=bone('index_01_'+side),pinky=bone('pinky_01_'+side),thumb=bone('thumb_03_'+side);
+      if(!hand||!index||!pinky||!thumb)continue;
+      const wrist=hand.getWorldPosition(new THREE.Vector3()),axis=wrist.clone().sub(this.bonePos('lowerarm_'+side)).normalize();
+      const lateral=pinky.getWorldPosition(new THREE.Vector3()).sub(index.getWorldPosition(new THREE.Vector3()));lateral.addScaledVector(axis,-lateral.dot(axis)).normalize();
+      const palm=lateral.cross(axis).normalize();if(palm.dot(thumb.getWorldPosition(new THREE.Vector3()).sub(wrist))<0)palm.negate();
+      this.gloveAxisLocal[side]=axis.clone().applyQuaternion(hand.getWorldQuaternion(new THREE.Quaternion()).invert());
+      this.glovePalmLocal[side]=palm.applyQuaternion(hand.getWorldQuaternion(new THREE.Quaternion()).invert());
+    }
     this.mixer = new THREE.AnimationMixer(this.model);
     this.clips = {};
     for (const c of gltf.animations) this.clips[c.name] = c;
+    for(const [name,base] of Object.entries({hook_body_l:'hook_l',hook_body_r:'hook_r',uppercut_body_l:'uppercut_l',uppercut_body_r:'uppercut_r'})){
+      if(this.clips[base]){this.clips[name]=this.clips[base].clone();this.clips[name].name=name;}
+    }
     this.idle = this.mixer.clipAction(this.clips.idle);
     this.idle.play();
     this.idleLow = this.mixer.clipAction(this.clips.idle_low);
@@ -299,6 +327,8 @@ export class Mike {
     this.defending = null;       // {type, until, glove, punchId, hit}
     this.seen = { left: -1, right: -1 };
     this.stun = 0;
+    this.condition = conditioning({dmg:0});
+    this.armContacts = {};
     this.strafe = Math.random() * 10;
     this.enabled = false;        // si muove e combatte solo durante il round
     this.events = [];
@@ -354,6 +384,17 @@ export class Mike {
     }
     this.idle.setEffectiveWeight(1);
     this.mixer.update(0);
+    this.root.updateMatrixWorld(true);
+    // Range for compact punches comes from their bent arm, not the old clips
+    // which reached forward by straightening the elbow.
+    const local=p=>this.root.worldToLocal(p),head=local(this.headCenter());
+    for(const [name,spec] of Object.entries(PUNCH))if(name.startsWith('hook')||name.startsWith('uppercut')){
+      const sh=local(this.bonePos('upperarm_'+spec.side)),el=local(this.bonePos('lowerarm_'+spec.side)),hand=local(this.bonePos('hand_'+spec.side));
+      const a=sh.distanceTo(el),b=el.distanceTo(hand),radius=Math.sqrt(a*a+b*b-2*a*b*Math.cos(THREE.MathUtils.degToRad(98)));
+      const y=head.y-(spec.zone==='body'?.43:.08),horizontal=Math.sqrt(Math.max(.04,radius*radius-(y-sh.y)**2));
+      const z=sh.z+Math.sqrt(Math.max(.04,horizontal*horizontal-sh.x*sh.x))+.07;
+      Object.assign(res[name],{x:0,y,z,dist:Math.max(.46,z),yaw:0});
+    }
     // velocita' di riferimento: la media dei colpi di questo pugile (il suo ritmo resta quello)
     const v = Object.values(res).map(r => r.speed).filter(x => x > 0);
     this.refSpeed = v.reduce((a, b) => a + b, 0) / Math.max(1, v.length);
@@ -513,6 +554,15 @@ export class Mike {
     ptex.colorSpace = THREE.NoColorSpace; ptex.wrapS = ptex.wrapT = THREE.RepeatWrapping; ptex.anisotropy = 4;
     const box = new THREE.Vector4(bb.min.x, bb.min.y, W, Hh), pc = new THREE.Vector3((bb.max.x + bb.min.x) / 2, (bb.max.z + bb.min.z) / 2, pat ? 1 : 0);
     const m = sh.material = sh.material.clone();
+    let nationalPatch=null;
+    if(this.cfg0.flagPatch){
+      const canvas=document.createElement('canvas');canvas.width=256;canvas.height=168;
+      const context=canvas.getContext('2d');drawFlag(context,this.cfg0.flagPatch,256,168);
+      context.strokeStyle='#e5dfd0';context.lineWidth=9;context.strokeRect(4.5,4.5,247,159);
+      context.strokeStyle='rgba(255,255,255,.12)';context.lineWidth=1;
+      for(let row=2;row<168;row+=3){context.beginPath();context.moveTo(0,row);context.lineTo(256,row);context.stroke();}
+      nationalPatch=new THREE.CanvasTexture(canvas);nationalPatch.colorSpace=THREE.NoColorSpace;nationalPatch.anisotropy=4;
+    }
     m.onBeforeCompile = shd => {
       shd.uniforms.uMkL = { value: tex.left }; shd.uniforms.uMkR = { value: tex.right }; shd.uniforms.uBox = { value: box };
       shd.uniforms.uColL = { value: cols.left }; shd.uniforms.uColR = { value: cols.right };
@@ -532,7 +582,15 @@ void main() {`).replace('#include <map_fragment>', `#include <map_fragment>
             vec2 uv = q;
             float aL = smoothstep(0.1, 0.6, texture2D(uMkL, uv).a), aR = smoothstep(0.1, 0.6, texture2D(uMkR, uv).a);
             diffuseColor.rgb = mix(mix(diffuseColor.rgb, uColL, aL), uColR, aR); } }`);
+      if(nationalPatch){
+        shd.uniforms.uNationalPatch={value:nationalPatch};
+        shd.fragmentShader=shd.fragmentShader.replace('uniform sampler2D uMkL;', 'uniform sampler2D uNationalPatch; uniform sampler2D uMkL;');
+        shd.fragmentShader=shd.fragmentShader.replace('diffuseColor.rgb = mix(mix(diffuseColor.rgb, uColL, aL), uColR, aR);',`diffuseColor.rgb = mix(mix(diffuseColor.rgb, uColL, aL), uColR, aR);
+          vec2 flagUV=(q-vec2(.70,.74))/vec2(.14,.13);
+          if(flagUV.x>0.0&&flagUV.x<1.0&&flagUV.y>0.0&&flagUV.y<1.0){vec3 badge=texture2D(uNationalPatch,flagUV).rgb;diffuseColor.rgb=pow(badge,vec3(2.2));}`);
+      }
     };
+    m.customProgramCacheKey=()=>nationalPatch?'shorts-national-patch-v1':'shorts-marks-v1';
     m.needsUpdate = true;
   }
 
@@ -549,6 +607,8 @@ void main() {`).replace('#include <map_fragment>', `#include <map_fragment>
       const G = G0.left || G0.right ? G0[o.name.endsWith('_l') ? 'left' : 'right'] : G0; if (!G) return;
       const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
       g.fillStyle = '#fff'; g.font = '900 220px system-ui, "Arial Black", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; if (G.text) g.fillText(G.text, 128, 138);
+      if(G.shape==='triangle'){g.beginPath();g.moveTo(128,30);g.lineTo(232,216);g.lineTo(24,216);g.closePath();g.fill();}
+      if(G.shape==='circle'){g.beginPath();g.arc(128,128,100,0,Math.PI*2);g.fill();}
       const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.NoColorSpace; tex.generateMipmaps = false; tex.minFilter = THREE.LinearFilter; tex.anisotropy = 1;
       const col = new THREE.Color(G.color || '#ffffff'), strC = new THREE.Color(G.stripes ? G.stripes.color : '#ffffff'), strF = G.stripes ? G.stripes.freq : 0;
       o.skeleton.update();
@@ -771,13 +831,14 @@ transformed += uSwInv * uSwing * aSw;`);
     this.model.traverse(o => {
       if (!o.isSkinnedMesh || o === F || o.morphTargetDictionary || !/capelli|eyebrow|pizzett|barba|beard/i.test((o.material && o.material.name || '') + o.name)) return;
       const isGoatee = this.cfg0.goatee && /pizzett/i.test((o.material?.name||'')+o.name);
+      const jawBeard = isGoatee || (this.cfg0.id === 'reza' && /barba/i.test(o.name));
       const g = o.geometry, gp = g.attributes.position, inv = new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().copy(o.bindMatrix).invert());
       const near = new Int32Array(gp.count).fill(-1);
       for (let i = 0; i < gp.count; i++) {
         v.fromBufferAttribute(gp, i).applyMatrix4(o.bindMatrix);
         const cx = Math.floor(v.x / C), cy = Math.floor(v.y / C), cz = Math.floor(v.z / C);
         let best = 0.04 * 0.04, bi = -1;
-        for (const lowerOnly of (isGoatee ? [true, false] : [false])) {     // il pizzetto segue la mandibola; sopracciglia e capelli seguono la loro pelle
+        for (const lowerOnly of (jawBeard ? [true, false] : [false])) {     // la barba della mandibola segue la pelle sotto il labbro
           for (const radius of [1,3]) {
           if(radius===3 && best<C*C)break;
           for (let dx = -radius; dx <= radius; dx++) for (let dy = -radius; dy <= radius; dy++) for (let dz = -radius; dz <= radius; dz++) {
@@ -797,12 +858,12 @@ transformed += uSwInv * uSwing * aSw;`);
       if (!near.some(j => j >= 0)) return;
       // pizzetto: la parte alta (vicina al labbro) con la bocca aperta scende di piu' (ci sarebbe finita davanti ai denti)
       const top = new Float32Array(gp.count); let y0 = 1e9, y1 = -1e9;
-      if (isGoatee) {
+      if (jawBeard) {
         for (let i = 0; i < gp.count; i++) { v.fromBufferAttribute(gp, i).applyMatrix4(o.bindMatrix); top[i] = v.y; y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y); }
         for (let i = 0; i < gp.count; i++) top[i] = THREE.MathUtils.clamp((top[i] - y0) / Math.max(1e-4, y1 - y0) * 1.3, 0, 1);
       }
       g.morphAttributes.position = fm.map(src => {
-        const arr = new Float32Array(gp.count * 3), d = new THREE.Vector3(), isMouth = isGoatee && src === mo;
+        const arr = new Float32Array(gp.count * 3), d = new THREE.Vector3(), isMouth = jawBeard && src === mo;
         for (let i = 0; i < gp.count; i++) {
           const j = near[i]; if (j < 0) continue;
           d.fromBufferAttribute(src, j).applyMatrix3(FBr).applyMatrix3(inv);   // (dallo spazio della pelle a quello del guscio)
@@ -858,6 +919,7 @@ transformed += uSwInv * uSwing * aSw;`);
   }
   isUp() { return !this.getupLayer || this.getupLayer.t >= this.getupLayer.dur - 0.15; }
   resetPose() {
+    this.armContacts = {}; this.feetPlant = null;
     this.dejected = false;
     for (const l of this.layers) l.out = true;
     this.down = false; this.downLoop = false; this.getupLayer = null; this.punch = null; this.combo = []; this.defending = null; this.reaction = null;
@@ -920,6 +982,7 @@ transformed += uSwInv * uSwing * aSw;`);
   current() { return this.layers.find(l => !l.out) || null; }
 
   animate(dt) {
+    this.previousCollisionShapes=fighterShapes(this).map(s=>({center:s.center.clone(),end:s.end?.clone()}));
     if (this.down && !this.downLoop) this._downLoop();
     let total = 0;
     for (const l of this.layers) {
@@ -930,8 +993,10 @@ transformed += uSwInv * uSwing * aSw;`);
         if (l.t > l.dur - 0.14 && !l.hold) w = Math.min(w, Math.max(0, (l.dur - l.t) / 0.14));
         l.w = w;
       }
-      l.action.setEffectiveWeight(l.w);
-      total += l.w;
+      // Procedural punches use the clip only as a clock. Its authored return
+      // must never reappear after the corrected arm has reached the guard.
+      l.action.setEffectiveWeight(l.procedural?0:l.w);
+      total += l.procedural?0:l.w;
     }
     this.layers = this.layers.filter(l => {
       const keep = l.w > 0.001 || (!l.out && l.t < 0.07) || (l.hold && !l.out);
@@ -963,25 +1028,197 @@ transformed += uSwInv * uSwing * aSw;`);
     // sotto (busto verso la tua testa, braccio, fiatone) si sommavano a ogni fotogramma (capriola all'indietro).
     // Si riparte sempre dalla posa dell'animazione
     if (this._animQ) for (const [b, q] of this._animQ) b.quaternion.copy(q);
+    if(this._animHip)this.bones.pelvis.position.copy(this._animHip);
     this.mixer.update(dt);
     if (this._gloveWait && --this._gloveWait === 0) this._gloveSetup();
     if (this._tatWait && --this._tatWait === 0) this._tattooSetup();
     this._updBraid(dt);
-    this._animQ = ['spine_01', 'spine_02', 'spine_03', 'upperarm_l', 'upperarm_r', 'lowerarm_l', 'lowerarm_r', 'neck_01'].filter(n => this.bones[n]).map(n => [this.bones[n], this.bones[n].quaternion.clone()]);
+    this._animQ = ['pelvis', 'spine_01', 'spine_02', 'spine_03', 'upperarm_l', 'upperarm_r', 'lowerarm_l', 'lowerarm_r', 'hand_l', 'hand_r', 'neck_01','thigh_l','thigh_r','calf_l','calf_r','foot_l','foot_r'].filter(n => this.bones[n]).map(n => [this.bones[n], this.bones[n].quaternion.clone()]);
+    this._animHip=this.bones.pelvis.position.clone();
     this.updateFace(dt);
     this.root.updateMatrixWorld(true);
+    this._punchBody();
     this._reachBend(dt);
+    this._guardForward(free);
+    this._punchPose(dt);
+    this._pronateStraight();
+    this._punchLegs();
+    this._contactPose(dt);
+    this._plantFeet(dt);
     this._dejectFx(dt);
     this.lookAtEyes(dt);
   }
 
   // punto da colpire, scelto al lancio: centro del viso, mento, fronte o una tempia, quello piu' lontano dai tuoi guantoni
+  _guardForward(weight) {
+    const amount=this.cfg0.guardForward||0,spread=this.cfg0.guardSpread||0;
+    if((!amount&&!spread)||weight<=.001||this.down||this.dejected||this.goal)return;
+    const right=new THREE.Vector3(1,0,0).applyQuaternion(this.root.getWorldQuaternion(new THREE.Quaternion()));
+    for(const side of ['l','r']){
+      const lower=this.bones['lowerarm_'+side],hand=this.bones['hand_'+side];
+      // Rotate only the forearm: shoulder and elbow positions are unchanged.
+      this._rotateToward(lower,hand,this.bonePos('hand_'+side).addScaledVector(this.forward(),amount).addScaledVector(right,side==='l'?spread:-spread),weight);
+    }
+  }
+  _rotateToward(bone,child,target,weight=1,maxAngle=.65) {
+    if(!bone?.parent||!child)return;
+    const origin=bone.getWorldPosition(new THREE.Vector3()),from=child.getWorldPosition(new THREE.Vector3()).sub(origin),to=target.clone().sub(origin);
+    if(from.lengthSq()<1e-8||to.lengthSq()<1e-8)return;
+    const delta=new THREE.Quaternion().setFromUnitVectors(from.normalize(),to.normalize());
+    const angle=delta.angleTo(new THREE.Quaternion());
+    const limited=new THREE.Quaternion().slerp(delta,Math.min(weight,maxAngle/Math.max(.001,angle)));
+    bone.quaternion.copy(bone.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(limited.multiply(bone.getWorldQuaternion(new THREE.Quaternion()))));
+    bone.updateMatrixWorld(true);
+  }
+  _limbTo(upper,lower,end,target,weight=1,limit=.22) {
+    const u=this.bones[upper],l=this.bones[lower],e=this.bones[end];if(!u||!l||!e)return;
+    const a=u.getWorldPosition(new THREE.Vector3()),b=l.getWorldPosition(new THREE.Vector3()),c=e.getWorldPosition(new THREE.Vector3());
+    const correction=target.clone().sub(c).clampLength(0,limit),goal=c.clone().addScaledVector(correction,weight),axis=goal.clone().sub(a);
+    const l1=a.distanceTo(b),l2=b.distanceTo(c),distance=THREE.MathUtils.clamp(axis.length(),Math.abs(l1-l2)+.005,(l1+l2)*.98);axis.normalize();goal.copy(a).addScaledVector(axis,distance);
+    const pole=b.clone().sub(a);pole.addScaledVector(axis,-pole.dot(axis));
+    if(pole.lengthSq()<1e-6)pole.copy(new THREE.Vector3(0,1,0).cross(axis));pole.normalize();
+    const along=(l1*l1-l2*l2+distance*distance)/(2*distance),height=Math.sqrt(Math.max(0,l1*l1-along*along));
+    const elbow=a.clone().addScaledVector(axis,along).addScaledVector(pole,height);
+    this._rotateToward(u,l,elbow);this._rotateToward(l,e,goal);
+  }
+  contactArm(side,point,blocked=false) {
+    this.armContacts[side]={point:point.clone(),age:0,blocked};
+    const p=this.punch;if(p&&!p.move){
+      p.resolved=true;p.contactEnded=true;
+      if(p.motion){
+        // Contact ends the outward stroke, not the whole arm animation. Return
+        // from the contact point at the selected speed before releasing guard.
+        const offset=this.glove(side).center.sub(this.bonePos('hand_'+side));
+        p.returnFrom=point.clone().sub(offset);p.returnPole=this.bonePos('lowerarm_'+side).sub(this.bonePos('upperarm_'+side));p.returnStart=p.layer.t;
+      }else{p.layer.ts=Math.max(p.layer.ts,1.2);p.layer.action.timeScale=p.layer.ts;p.layer.out=true;p.layer.fade=blocked?.10:.12;}
+    }
+    this._contactPose(0);
+  }
+  _contactPose(dt) {
+    for(const [side,c] of Object.entries(this.armContacts)){
+      c.age+=dt;if(c.age>.16||this.down){delete this.armContacts[side];continue;}
+      const glove=this.glove(side),hand=this.bonePos('hand_'+side),offset=glove.center.clone().sub(hand);
+      this._limbTo('upperarm_'+side,'lowerarm_'+side,'hand_'+side,c.point.clone().sub(offset),Math.max(0,1-c.age/.16),.16);
+    }
+  }
+  _solvePunchArm(side,target,pole,maxReach,minAngle=0) {
+    this._solveChain('upperarm_'+side,'lowerarm_'+side,'hand_'+side,target,pole,maxReach,minAngle);
+  }
+  _solveChain(upper,lower,end,target,pole,maxReach,minAngle=0) {
+    const u=this.bones[upper],l=this.bones[lower],h=this.bones[end];
+    const shoulder=this.bonePos(upper),elbow=this.bonePos(lower),hand=this.bonePos(end);
+    const a=shoulder.distanceTo(elbow),b=elbow.distanceTo(hand),axis=target.clone().sub(shoulder);
+    const minReach=Math.max(Math.abs(a-b)+.01,Math.sqrt(a*a+b*b-2*a*b*Math.cos(THREE.MathUtils.degToRad(minAngle))));
+    const distance=THREE.MathUtils.clamp(axis.length(),minReach,maxReach);axis.normalize();
+    const goal=shoulder.clone().addScaledVector(axis,distance);
+    pole=pole.clone().addScaledVector(axis,-pole.dot(axis));
+    if(pole.lengthSq()<1e-8)pole.set(axis.z,0,-axis.x);pole.normalize();
+    const along=(a*a-b*b+distance*distance)/(2*distance),height=Math.sqrt(Math.max(0,a*a-along*along));
+    const joint=shoulder.clone().addScaledVector(axis,along).addScaledVector(pole,height);
+    this._rotateToward(u,l,joint,1,Math.PI);this._rotateToward(l,h,goal,1,Math.PI);
+  }
+  _punchBody() {
+    const p=this.punch;if(!p?.motion||!this.enabled||this.down||p.layer.out)return;
+    const spec=PUNCH[p.name],phase=p.layer.t/((spec.from+spec.to)/2/30);
+    const returnStart=p.returnStart??(spec.from+spec.to)/2/30;
+    const recovery=1-THREE.MathUtils.smoothstep(p.layer.t,returnStart,p.layer.dur*.68);
+    for(const [name,q] of p.bodyGuard){const b=this.bones[name],idle=b.quaternion.clone();b.quaternion.copy(q).slerp(idle,1-recovery);}
+    this.bones.pelvis.position.lerp(p.hipPosition,recovery);
+    const loaded=THREE.MathUtils.smoothstep(phase,0,p.motion.loadFraction),struck=THREE.MathUtils.smoothstep(phase,p.motion.loadFraction,1);
+    const sign=spec.side==='l'?-1:1,curved=p.name.startsWith('hook')||p.name.startsWith('uppercut');
+    const yaw=sign*THREE.MathUtils.degToRad(p.name==='jab'?12:p.name==='cross'?28:30)*(curved?(-.25*loaded+1.25*struck):struck)*recovery;
+    const hip=this.bones.pelvis;
+    hip.position.addScaledVector(p.hipDropLocal,loaded*recovery);
+    hip.updateWorldMatrix(true,true);
+    const world=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),yaw).multiply(hip.getWorldQuaternion(new THREE.Quaternion()));
+    hip.quaternion.copy(hip.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(world));
+    // Smaller weight transfer for the jab; rear punches rotate through hips.
+    this.root.updateMatrixWorld(true);
+  }
+  _punchLegs(){
+    const p=this.punch;if(!p?.motion||!p.feetGuard||p.hipDrop<.025||p.layer.out||this.down||!this.enabled)return;
+    const peak=(PUNCH[p.name].from+PUNCH[p.name].to)/2/30,phase=p.layer.t/peak,recovery=1-THREE.MathUtils.smoothstep(p.layer.t,p.returnStart??peak,p.layer.dur*.68),weight=THREE.MathUtils.smoothstep(phase,0,p.motion.loadFraction)*recovery;
+    for(const side of ['l','r']){
+      const hip=this.bonePos('thigh_'+side),knee=this.bonePos('calf_'+side),foot=this.bonePos('foot_'+side);
+      const lengths=[hip.distanceTo(knee),knee.distanceTo(foot)];
+      const pole=knee.clone().sub(hip).normalize().lerp(this.forward(),weight);
+      this._solveChain('thigh_'+side,'calf_'+side,'foot_'+side,foot.clone().lerp(p.feetGuard[side],weight),pole,(lengths[0]+lengths[1])*.999);
+    }
+  }
+  _punchPose(dt) {
+    const p=this.punch;if(!this.enabled||!p?.motion||p.move||this.down)return;
+    // A miss resolves scoring, not the pose: retain the safe elbow through recovery.
+    const spec=PUNCH[p.name],m=p.motion,peak=(spec.from+spec.to)/2/30;
+    const phase=p.layer.t/peak,end=p.layer.dur*.68;
+    const liveGuard=this.bonePos('hand_'+spec.side),livePole=this.bonePos('lowerarm_'+spec.side).sub(this.bonePos('upperarm_'+spec.side));
+    let target,pole;
+    if(phase<=1&&!p.returnFrom){target=m.sample(phase);pole=m.pole(phase,target,this.bonePos('upperarm_'+spec.side));}
+    else {
+      const t=THREE.MathUtils.smoothstep(p.layer.t,p.returnStart??peak,end);
+      target=(p.returnFrom||m.endpoint).clone().lerp(liveGuard,t);
+      pole=(p.returnPole||m.pole(1,target,this.bonePos('upperarm_'+spec.side))).clone().lerp(livePole,t);
+    }
+    const recovery=1-THREE.MathUtils.smoothstep(p.layer.t,p.returnStart??peak,end);
+    const max=phase<=1?THREE.MathUtils.lerp((p.armLengths[0]+p.armLengths[1])*.98,m.maxReach,THREE.MathUtils.smoothstep(phase,0,m.loadFraction)):THREE.MathUtils.lerp(m.maxReach,(p.armLengths[0]+p.armLengths[1])*.98,1-recovery);
+    const compact=p.name.startsWith('hook')||p.name.startsWith('uppercut');
+    const angle=compact?m.minArmAngle*THREE.MathUtils.smoothstep(phase,0,m.loadFraction)*recovery:0;
+    this._solvePunchArm(spec.side,target,pole,max,angle);
+    // Open a small lane beside the guard for a straight punch, then return.
+    const other=spec.side==='l'?'r':'l';
+    const freeIdle=this.bonePos('hand_'+other),freeTarget=p.freeGuard.clone().add(this.bonePos('upperarm_'+other).sub(p.freeShoulder)).lerp(freeIdle,1-recovery);
+    if(!compact){const open=THREE.MathUtils.smoothstep(phase,0,.32)*recovery;freeTarget.addScaledVector(p.freeLane,open);}
+    const glove=this.glove(spec.side),offset=this.glove(other).center.clone().sub(freeIdle),near=freeTarget.clone().add(offset).sub(glove.center),clear=.18*this.root.getWorldScale(new THREE.Vector3()).y;
+    if(near.length()<clear){const away=p.freeLane.clone().normalize();if(away.lengthSq()<.01)away.copy(this.forward()).cross(new THREE.Vector3(0,1,0)).multiplyScalar(other==='l'?1:-1);freeTarget.addScaledVector(away,clear-near.length());}
+    const freePole=p.freePole.clone().lerp(this.bonePos('lowerarm_'+other).sub(this.bonePos('upperarm_'+other)),1-recovery);
+    this._solvePunchArm(other,freeTarget,freePole,(p.freeLengths[0]+p.freeLengths[1])*.98);
+    for(let i=0;i<3;i++){
+      const freeCenter=this.glove(other).center,delta=freeCenter.clone().sub(glove.center),distance=delta.length();
+      if(distance>=clear-.002)break;
+      const correction=(distance>1e-5?delta.normalize():p.freeLane.clone().normalize()).multiplyScalar(clear-distance);
+      const target=this.bonePos('hand_'+other).add(correction);
+      this._solvePunchArm(other,target,freePole,(p.freeLengths[0]+p.freeLengths[1])*.98);
+    }
+  }
+  _pronateStraight(){
+    const p=this.punch;if(!this.enabled||!p?.motion||p.move||this.down||p.name.startsWith('hook')||p.name.startsWith('uppercut'))return;
+    const side=p.side,palmLocal=this.glovePalmLocal[side];if(!palmLocal)return;
+    const spec=PUNCH[p.name],peak=(spec.from+spec.to)/2/30,phase=p.layer.t/peak;
+    const weight=THREE.MathUtils.smoothstep(phase,.12,.90)*(1-THREE.MathUtils.smoothstep(p.layer.t,p.returnStart??peak,p.layer.dur*.68));
+    const lower=this.bones['lowerarm_'+side],hand=this.bones['hand_'+side],axis=this.bonePos('hand_'+side).sub(this.bonePos('lowerarm_'+side)).normalize();
+    const handWorld=hand.getWorldQuaternion(new THREE.Quaternion()),fistAxis=this.gloveAxisLocal[side].clone().applyQuaternion(handWorld).normalize();
+    const aligned=handWorld.clone().premultiply(new THREE.Quaternion().setFromUnitVectors(fistAxis,axis));handWorld.slerp(aligned,weight);
+    hand.quaternion.copy(hand.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(handWorld));hand.updateWorldMatrix(false,true);
+    const palm=palmLocal.clone().applyQuaternion(hand.getWorldQuaternion(new THREE.Quaternion()));palm.addScaledVector(axis,-palm.dot(axis)).normalize();
+    const down=new THREE.Vector3(0,-1,0);down.addScaledVector(axis,-down.dot(axis));if(down.lengthSq()<.01)return;down.normalize();
+    const angle=Math.atan2(axis.dot(palm.clone().cross(down)),palm.dot(down))*weight;
+    // Twist about the forearm itself: the elbow and wrist positions stay fixed.
+    const world=lower.getWorldQuaternion(new THREE.Quaternion()).premultiply(new THREE.Quaternion().setFromAxisAngle(axis,angle));
+    lower.quaternion.copy(lower.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(world));lower.updateWorldMatrix(false,true);
+  }
+  _plantFeet(dt) {
+    if(!this.bones.foot_l||!this.bones.foot_r)return;
+    if(this.down||this.goal||this.dejected||!this.enabled){this.feetPlant=null;return;}
+    const l=this.bonePos('foot_l'),r=this.bonePos('foot_r'),side=l.y<=r.y?'l':'r',foot=side==='l'?l:r;
+    // Stay within the same ring bounds as the body; preserve ankle height.
+    if(this.bounds)for(const [sd,pos] of [['l',l],['r',r]]){
+      const bounded=pos.clone();this.bounds(bounded);bounded.y=pos.y;
+      if(bounded.distanceToSquared(pos)>.0001)this._limbTo('thigh_'+sd,'calf_'+sd,'foot_'+sd,bounded,1,.08);
+    }
+    const walking=this.vel.length()>.06;
+    const plant=this.feetPlant;
+    if(!plant||plant.side!==side||plant.age>(walking?.22:.45)||plant.point.distanceTo(foot)>.09)this.feetPlant={side,point:foot.clone(),age:0};
+    const contact=this.feetPlant;contact.age+=dt;
+    this._limbTo('thigh_'+side,'calf_'+side,'foot_'+side,contact.point,.65,.055);
+  }
   // (i ganci prendono la tempia dal lato da cui arrivano). Ai livelli bassi sbaglia spesso e mira al centro.
   chooseAim(player, name) {
     const spec = PUNCH[name]; if (!spec || !player) return null;
     const H = player.head, toMe = _c.copy(this.root.getWorldPosition(_e)).sub(H).setY(0).normalize();
     const right = new THREE.Vector3(0, 1, 0).cross(toMe).normalize();      // tua destra / sinistra vista da lui
-    if (spec.zone === 'body') return null;
+    if (spec.zone === 'body') {
+      if(player.f){const [a,b]=player.f.torso();return a.clone().lerp(b,.55);}
+      return H.clone().add(new THREE.Vector3(0,-.43,0));
+    }
     const C = [[0, 0, 'centro'], [0, -0.09, 'mento'], [0, 0.07, 'fronte'], [0.08, 0.01, 'tempia'], [-0.08, 0.01, 'tempia']];
     let cands = C.map(([x, y]) => H.clone().addScaledVector(right, x).add(new THREE.Vector3(0, y, 0)));
     if (name.startsWith('hook')) {                                          // il gancio arriva di lato: prende quella tempia
@@ -1034,18 +1271,19 @@ transformed += uSwInv * uSwing * aSw;`);
     }
   }
   _reachBend(dt) {
+    if(this.punch?.motion&&this.enabled&&!this.down)return;
     const P = this.lastPlayer, ap = this.enabled && !this.down ? this.aimPunch() : null;
     const name = this.punch ? this.punch.name : (this.combo.length ? this.combo[0] : null), sp = name && PUNCH[name];
     let target = 0, armT = 0;
-    if (P && ap && sp && sp.zone === 'head') {
+    if (P && ap && sp) {
       const rp = this.root.getWorldPosition(_e), sc = this.root.getWorldScale(_d).y;
-      const aimY = this.aimPt && this.punch && this.lockFor === this.punch ? this.aimPt.y : P.head.y - 0.03;
+      const aimY = this.aimPt && this.punch && this.lockFor === this.punch ? this.aimPt.y : P.head.y - (sp.zone==='body'?.45:.03);
       const d = rp.y + ap.y * sc - aimY;                                // quanto il pugno passerebbe sopra (+) o sotto (-) il punto scelto
       const L = Math.max(0.4, Math.hypot(ap.dist, ap.y - 1.0) * sc);   // dal giro vita al pugno
-      target = THREE.MathUtils.clamp(Math.asin(THREE.MathUtils.clamp(d / L, -1, 1)), -0.2, 0.45);
+      target = THREE.MathUtils.clamp(Math.asin(THREE.MathUtils.clamp(d / L, -1, 1)), -0.12, 0.32);
       if (d < 0) {                                                     // sei piu' alto: quello che manca lo fa il braccio
         const rest = -d - L * Math.sin(0.2);
-        if (rest > 0) armT = THREE.MathUtils.clamp(Math.asin(Math.min(1, rest / (0.55 * sc))), 0, 0.8);
+        if (rest > 0) armT = THREE.MathUtils.clamp(Math.asin(Math.min(1, rest / (0.55 * sc))), 0, 0.55);
       }
     }
     const punching = this.enabled && !this.down && this.punch && !this.punch.move && this.state === 'attack';   // (a fine incontro o a terra: niente)
@@ -1169,6 +1407,7 @@ transformed += uSwInv * uSwing * aSw;`);
   // --------------------------------------------------------------- un fotogramma
   update(dt, player) {
     this.time += dt;
+    this.frameDt=dt;
     this.stateT += dt;
     if (this.stun > 0) this.stun -= dt;
     const head = player.head;
@@ -1176,7 +1415,7 @@ transformed += uSwInv * uSwing * aSw;`);
     if (this.goal) { this.updateGoal(dt); this.animate(dt); return; }   // va all'angolo
 
     // guarda sempre l'avversario
-    const toP = _a.set(head.x - this.root.position.x, 0, head.z - this.root.position.z);
+    const toP = new THREE.Vector3(head.x - this.root.position.x, 0, head.z - this.root.position.z);
     const dist = toP.length();
     const aimP = this.enabled ? this.aimPunch() : null;
     const want = Math.atan2(toP.x, toP.z) - (aimP ? aimP.yaw : 0);
@@ -1189,10 +1428,12 @@ transformed += uSwInv * uSwing * aSw;`);
       if (this.lockFor !== this.punch) {
         this.lockFor = this.punch;
         // dove colpire: il punto piu' scoperto (lontano dai tuoi guantoni), girandosi quel poco che serve
-        this.aimPt = this.chooseAim(player, this.punch.name);
+        this.aimPt = this.punch.aim || this.chooseAim(player, this.punch.name);
         let dyA = dy;
         if (this.aimPt) { const rp = this.root.getWorldPosition(_e); dyA = Math.atan2(this.aimPt.x - rp.x, this.aimPt.z - rp.z) - (aimP ? aimP.yaw : 0) - this.root.rotation.y; dyA = Math.atan2(Math.sin(dyA), Math.cos(dyA)); }
-        this.lockYaw = this.root.rotation.y + Math.max(-0.35, Math.min(0.35, dyA));
+        // Procedural paths already aim in world space. Turning by the old
+        // clip's impact offset again creates a second, abrupt movement.
+        this.lockYaw = this.punch.motion?this.root.rotation.y:this.root.rotation.y + Math.max(-0.35, Math.min(0.35, dyA));
         this.lockDir = new THREE.Vector3(Math.sin(this.lockYaw + (aimP ? aimP.yaw : 0)), 0, Math.cos(this.lockYaw + (aimP ? aimP.yaw : 0)));
       }
       const dl = Math.atan2(Math.sin(this.lockYaw - this.root.rotation.y), Math.cos(this.lockYaw - this.root.rotation.y));
@@ -1205,13 +1446,12 @@ transformed += uSwInv * uSwing * aSw;`);
     }
 
     if (this.enabled) {
-      this.checkPlayerPunches(player);
       this.think(dt, player, dist);
       this.move(dt, dist, punching && this.lockDir ? this.lockDir : toP.clone().normalize());   // (colpendo: passo nella direzione di partenza)
     } else if (this.holdDist && !this.down) this.move(dt, dist, toP.clone().normalize());   // si allontana (angolo neutro)
     else this.vel.set(0, 0, 0);
     this.animate(dt);
-    if (this.enabled) this.resolveMyPunch(player, dist);
+    if (this.enabled && !player.f) { this.checkPlayerPunches(player); this.resolveMyPunch(player, dist); }
   }
 
   // sta tirando un pugno (partito e non ancora rientrato in guardia)
@@ -1276,7 +1516,7 @@ transformed += uSwInv * uSwing * aSw;`);
       const bailed = !!(this.punch && !this.punch.move && PUNCH[this.punch.name]);
       if (this.punch) { this.punch = null; this.combo = []; this.setState('retreat'); }
       if (type === 'back') this.backOff = 0.3;                       // indietro di un passo
-      else this.play(type, c.defenseSpeed);
+      else this.play(type, Math.min(2.4,c.defenseSpeed*(.85+.15*Math.min(1,g.speed/5))));
       this.defending = { kind, start: this.time, type, until: this.time + 0.55 / Math.max(1, c.defenseSpeed * 0.75), glove: g.side,
         punchId: this.reaction.punchId, hit: false, bailed };
       this.reaction = null;
@@ -1286,6 +1526,8 @@ transformed += uSwInv * uSwing * aSw;`);
       const hc = this.headCenter();
       const rel = _b.subVectors(hc, g.center);
       const coming = g.mesh.visible && g.speed > 0.8 && g.vel.dot(rel) / rel.length() > 0.3 && rel.length() < 0.75;
+      const d=this.defending;d.closest=Math.min(d.closest??Infinity,rel.length());
+      if(d.closest<.42&&rel.length()>d.closest+.035&&g.vel.dot(rel)<0)d.avoided=true;
       if (coming) {
         this.defending.until = Math.max(this.defending.until, this.time + 0.12);
         const h = HOLD[this.defending.type], l = this.current();
@@ -1293,7 +1535,7 @@ transformed += uSwInv * uSwing * aSw;`);
       }
     }
     if (this.defending && this.time > this.defending.until) {
-      const ok = !this.defending.hit;
+      const ok = !this.defending.hit && this.defending.avoided;
       if (ok && this.defending.type !== 'block') this.emit('mikeDodged');
       this.defending_last = this.defending;
       this.defending = null;
@@ -1374,14 +1616,8 @@ transformed += uSwInv * uSwing * aSw;`);
       case 'attack':
         // pugno interrotto da un'altra animazione (parata, colpo preso): prima restava "in attacco" per sempre,
         // con la direzione bloccata (non si girava piu' verso di te) e senza tornare in guardia
-        if (this.punch && (this.punch.layer.out || this.stateT > 3 / Math.max(0.05, c.punchSpeed))) { this.punch = null; this.combo = []; this.setState('retreat'); break; }
-        // sparring in difesa: dopo l'impatto il resto (seguito e rientro in guardia) accelera fino a durare quanto
-        // l'andata: niente pausa col braccio fuori e niente salti (prima si saltava un pezzo e il braccio "scattava")
-        if ((this.quickRecover || this.cfg.punchSpeed < 0.6) && this.punch && !this.punch.move && !this.punch.fast && PUNCH[this.punch.name]) {
-          const sp = PUNCH[this.punch.name], L = this.punch.layer, imp = (sp.from + sp.to) / 2 / 30;
-          if (L.t >= imp) { this.punch.fast = true; L.ts = L.ts * Math.max(1, (L.dur - imp) / imp); L.action.timeScale = L.ts; }
-        }
-        if (this.punch && this.punch.layer.t > this.punch.layer.dur * (this.punch.move ? 0.5 : 0.72)) {
+        if (this.punch && ((this.punch.layer.out&&!this.punch.contactEnded) || this.stateT > 3 / Math.max(0.05, c.punchSpeed))) { this.punch = null; this.combo = []; this.setState('retreat'); break; }
+        if (this.punch && (this.punch.contactEnded&&this.punch.layer.w<=.02 || this.punch.layer.t > this.punch.layer.dur * (this.punch.move ? 0.5 : 0.72))) {
           if (this.combo.length && this.stun <= 0) this.nextPunch();
           else { this.punch = null; this.setState('retreat'); }
         } else if (!this.punch) this.setState('retreat');
@@ -1494,7 +1730,19 @@ transformed += uSwInv * uSwing * aSw;`);
     this.setState('approach');
     this.counter = true;
   }
-  attackDist() { const a = this.aimPunch(); return (a ? a.dist - 0.03 : this.cfg.attackDist) + (this.reachExtra || 0); }   // reachExtra: sparring in difesa, tira da un po' piu' lontano
+  attackDist() {
+    const a=this.aimPunch(),name=this.combo?.[0];
+    const base=(a?a.dist-.03:this.cfg.attackDist)+(this.reachExtra||0);
+    if(name?.startsWith('hook')&&this.lastPlayer){
+      const spec=PUNCH[name],shoulder=this.bonePos('upperarm_'+spec.side),elbow=this.bonePos('lowerarm_'+spec.side),wrist=this.bonePos('hand_'+spec.side);
+      const u=shoulder.distanceTo(elbow),l=elbow.distanceTo(wrist),radius=Math.sqrt(u*u+l*l+u*l)*.97;
+      const targetY=this.lastPlayer.head.y-(spec.zone==='body'?.45:.05),drop=spec.zone==='body'?THREE.MathUtils.clamp(shoulder.y-targetY-.18,.16,.30):0;
+      const dy=targetY-shoulder.y+drop,max=Math.sqrt(Math.max(0,radius*radius-dy*dy))+.075;
+      const current=Math.hypot(this.lastPlayer.head.x-this.root.position.x,this.lastPlayer.head.z-this.root.position.z);
+      return THREE.MathUtils.clamp(current,Math.min(base,max*.70),Math.max(base,max));
+    }
+    return base;
+  }   // reachExtra: sparring in difesa, tira da un po' piu' lontano
 
   // ---- mira ai punti scoperti: da dove arriva ogni colpo e se un tuo guantone e' sulla traiettoria
   punchPath(name, player) {
@@ -1545,17 +1793,44 @@ transformed += uSwInv * uSwing * aSw;`);
       this.punch = { name, layer, resolved: true, move: true };
       return;
     }
-    let ts = this.cfg.punchSpeed * (1 - 0.2 * (this.fatigue || 0));
-    // stessa velocita' del guantone per tutti i colpi: il jab non e' piu' un lampo e il gancio ci mette di piu'
-    // solo perche' fa piu' strada (prima ogni animazione aveva la sua velocita')
-    const im = this.impact && this.impact[name];
-    if (im && im.speed > 0 && this.refSpeed) ts *= THREE.MathUtils.clamp(this.refSpeed / im.speed, 0.4, 2.5);
-    const layer = this.play(name, ts);
-    this.punch = { name, layer, resolved: false, inRange: false, counter: !!this.counterCombo };
-    this.emit('mikeThrows', { name });
+    const spec=PUNCH[name],side=spec.side,other=side==='l'?'r':'l';
+    const shoulder=this.bonePos('upperarm_'+side),elbow=this.bonePos('lowerarm_'+side),hand=this.bonePos('hand_'+side);
+    const aim=this.chooseAim(player,name);
+    // Uppercuts finish at the chin, never at the forehead or above the head.
+    if(name.startsWith('uppercut')&&spec.zone==='head')aim.y=Math.min(aim.y,player.head.y-.07);
+    const lengths=[shoulder.distanceTo(elbow),elbow.distanceTo(hand)];
+    const radius=Math.hypot(...lengths);
+    const bodyHook=name.startsWith('hook_body');
+    const hipDrop=THREE.MathUtils.clamp(shoulder.y-aim.y-radius*(bodyHook?.32:.55),bodyHook?.16:spec.zone==='body'?.04:0,bodyHook?.30:.23);
+    const planningShoulder=shoulder.clone().add(new THREE.Vector3(0,-hipDrop,0));
+    const motion=punchMotion(name,side,planningShoulder,hand,elbow,aim,this.forward(),lengths);
+    const hip=this.bones.pelvis,hipDropLocal=new THREE.Vector3(0,-hipDrop,0).applyQuaternion(hip.parent.getWorldQuaternion(new THREE.Quaternion()).invert()).divide(hip.parent.getWorldScale(new THREE.Vector3()));
+    const speed=3.8*this.cfg.punchSpeed*(.7+.3*(this.condition?.stamina??100)/100)*(1-.15*(this.fatigue||0));
+    const peak=(spec.from+spec.to)/2/30;
+    const ts=peak/Math.max(.025,motion.outboundTime(speed));
+    const layer=this.play(name,ts);
+    layer.procedural=true;
+    const freeShoulder=this.bonePos('upperarm_'+other),freeElbow=this.bonePos('lowerarm_'+other),freeGuard=this.bonePos('hand_'+other);
+    this.punch={name,layer,resolved:false,inRange:false,counter:!!this.counterCombo,side,aim,motion,
+      bodyGuard:['pelvis','spine_01','spine_02','spine_03','neck_01'].filter(n=>this.bones[n]).map(n=>[n,this.bones[n].quaternion.clone()]),hipPosition:hip.position.clone(),hipDropLocal,hipDrop,
+      startShoulder:shoulder,startPole:elbow.clone().sub(shoulder),armLengths:lengths,
+      freeGuard,freeShoulder,freePole:freeElbow.clone().sub(freeShoulder),freeLengths:[freeShoulder.distanceTo(freeElbow),freeElbow.distanceTo(freeGuard)],
+      freeLane:new THREE.Vector3(this.forward().z,0,-this.forward().x).multiplyScalar(other==='l'?.12:-.12).add(new THREE.Vector3(0,-.06,0)),
+      feetGuard:{l:this.bonePos('foot_l'),r:this.bonePos('foot_r')}};
+    this.punch.prevCenter=this.glove(side).center.clone();this.punch.strokeStart=this.punch.prevCenter.clone();
+    exert(this.condition,name==='jab'?1.5:name.startsWith('hook')?3:2.3);
+    this.emit('mikeThrows', { name,point:this.glove(PUNCH[name].side).center.clone() });
   }
 
   move(dt, dist, dir) {
+    // A launched punch plants the feet through its return to guard, including
+    // the visible animation tail after the AI has already chosen to retreat.
+    const planted=(this.state==='attack'&&this.punch&&!this.punch.move)||this.layers.some(l=>PUNCH[l.name]&&(!l.out||l.w>.02));
+    if(planted){
+      this.vel.set(0,0,0);this.moveVel.set(0,0,0);this.prevPos.copy(this.root.position);
+      for(const l of Object.values(this.loco)){l.w=0;l.action.setEffectiveWeight(0);}
+      return;
+    }
     if (this.stun > 0) { this.vel.set(0, 0, 0); if (this.moveVel) this.moveVel.set(0, 0, 0); return; }
     const c = this.cfg;
     let desired = this.holdDist || (this.state === 'approach' || this.state === 'attack' ? this.attackDist() : c.stalkDist);
@@ -1566,132 +1841,88 @@ transformed += uSwInv * uSwing * aSw;`);
       desired += this.fw.off; fwSide = this.fw.side;
     }
     let radial = Math.max(-c.moveSpeed, Math.min(c.moveSpeed * (this.counter ? 1.6 : 1), (dist - desired) * 4));
-    // pugno partito: il passo resta quello deciso al lancio (se indietreggi non ti insegue: la schivata indietro
-    // funziona); ti segue di nuovo quando il colpo e' finito
-    const pp = this.state === 'attack' && this.punch && !this.punch.move && !this.punch.resolved ? this.punch : null;
-    if (pp) { if (pp.radial === undefined) pp.radial = radial; radial = Math.min(radial, pp.radial); }
     if (this.state === 'retreat') radial = Math.min(radial, -0.2);
     if (this.backOff > 0) { radial = -1.1; this.backOff -= 1.1 * dt; }   // passo indietro (schiva al corpo), con i passi
     const side = _c.set(dir.z, 0, -dir.x);       // perpendicolare: gira intorno
-    const strafe = (this.state === 'stalk' ? Math.sin(this.time * 0.8 + this.strafe) * 0.3 : 0) + fwSide;
+    const stepEnvelope=this.fw?Math.sin(Math.PI*THREE.MathUtils.clamp(this.fw.t/3.4,0,1)):1;
+    const strafe = (this.state === 'stalk' ? Math.sin(this.time * 0.8 + this.strafe) * 0.06 : 0) + fwSide*stepEnvelope;
     // velocita' con un minimo di inerzia (un pugile non parte e non si ferma di colpo)
     const target = _b.copy(dir).multiplyScalar(radial).addScaledVector(side, strafe);
     this.moveVel.lerp(target, Math.min(1, dt * 6));
     this.prevPos.copy(this.root.position);
     this.root.position.addScaledVector(this.moveVel, dt);
+    const separation=this.root.position.clone().sub(this.lastPlayer.head).setY(0),gap=separation.length();
+    if(gap<.46&&gap>.001)this.root.position.addScaledVector(separation.normalize(),Math.min(.04,.46-gap));
     if (this.bounds) this.bounds(this.root.position);
     if (dt > 0) this.vel.subVectors(this.root.position, this.prevPos).divideScalar(dt);   // velocita' vera (con le corde)
   }
 
-  // i miei pugni: hanno colpito, sono stati parati o sono andati a vuoto?
+  // All contacts are resolved against the visible, animated pose.
   resolveMyPunch(player, dist) {
-    const p = this.punch;
-    if (!p || p.resolved) return;
-    const spec = PUNCH[p.name], f = p.layer.t * 30;
-    if (f < spec.from) return;
-    if (f > spec.to) {
-      p.resolved = true;
-      if (dist < 0.9) { this.openUntil = this.time + 0.7; this.emit('playerDodged'); }
-      return;
-    }
-    p.inRange = true;
-    const { tip, center } = this.glove(spec.side);
-    // il tratto percorso dalla punta in questo fotogramma: un guantone tuo sulla traiettoria la ferma
-    const prevTip = p.prevTip || tip;
-    p.prevTip = tip.clone();
-    for (const g of Object.values(player.gloves)) {
-      // contatto vero fra i due guantoni (raggi ~6-7 cm): un guantone basso non ferma un colpo che gli passa sopra
-      if (g.mesh.visible && (distPointSeg(g.center, prevTip, tip) < 0.13 || g.center.distanceTo(center) < 0.12)) {
-        p.resolved = true; this.openUntil = this.time + 0.7; this.emit('playerBlocked', { side: g.side }); return;
-      }
-    }
-    // la tua guardia alta (tutti e due i guantoni davanti al viso) ferma i colpi dritti e i montanti;
-    // i ganci, che arrivano di lato, passano a volte
-    const guardUp = Object.values(player.gloves).every(g => g.mesh.visible && g.center.distanceTo(player.head) < 0.32);
-    if (p.hookThrough === undefined) p.hookThrough = Math.random() < 0.45;
-    if (guardUp && spec.zone === 'head' && (!p.name.startsWith('hook') || !p.hookThrough) &&
-        (tip.distanceTo(player.head) < 0.3 || center.distanceTo(player.head) < 0.28)) {
-      p.resolved = true; this.openUntil = this.time + 0.7; this.emit('playerBlocked', { side: 'left' }); return;
-    }
-    if (spec.zone === 'body') {
-      // il tuo corpo: dal petto alla pancia, sotto la testa
-      const top = player.head.clone().add(new THREE.Vector3(0, -0.28, 0)), bot = player.head.clone().add(new THREE.Vector3(0, -0.62, 0));
-      if (distPointSeg(tip, top, bot) < 0.2 || distPointSeg(center, top, bot) < 0.18) {
-        p.resolved = true; this.emit('mikeHit', { name: p.name, zone: 'body', counter: p.counter, point: tip.clone(), dir: tip.distanceTo(prevTip) > 1e-4 ? tip.clone().sub(prevTip).normalize() : this.forward() });   // (dove: lividi negli incontri tra pugili)
-      }
-    } else if (tip.distanceTo(player.head) < 0.17 || center.distanceTo(player.head) < 0.15) {
-      p.resolved = true; this.emit('mikeHit', { name: p.name, zone: 'head', counter: p.counter, point: tip.clone(), dir: tip.distanceTo(prevTip) > 1e-4 ? tip.clone().sub(prevTip).normalize() : this.forward() });   // (dove: lividi negli incontri tra pugili)
+    const p=this.punch;if(!p||p.move||p.resolved||!this.enabled)return;
+    const spec=PUNCH[p.name],frame=p.layer.t*30,{center}=this.glove(spec.side);
+    const previousFrame=p.prevFrame??0;p.prevFrame=frame;
+    const strikeFrom=p.motion?p.motion.loadFraction*(spec.from+spec.to)/2:spec.from;
+    const strikeTo=p.motion?(spec.from+spec.to)/2:spec.to;
+    const previous=p.prevCenter||center;p.prevCenter=center.clone();
+    p.peakSpeed=Math.max(p.peakSpeed||0,Math.min(11,previous.distanceTo(center)/Math.max(.001,this.frameDt||.016)));
+    if(!p.swingSound&&p.peakSpeed>1.2&&frame>=spec.from*.5){p.swingSound=true;this.emit('mikeSwing',{point:center.clone(),speed:p.peakSpeed});}
+    if(frame>strikeTo&&previousFrame>=strikeTo){p.resolved=true;this.openUntil=this.time+.55;if(dist<1.2)this.emit('playerDodged');return;}
+    // An extended guard can meet the fist before the old scoring window starts.
+    // Check the outgoing stroke from its first motion; never score a wind-up hit.
+    const shapes=playerShapes(player);
+    const contact=firstContact(previous,center,frame<strikeFrom?shapes.filter(s=>s.kind==='block'):shapes);
+    if(!contact||frame<strikeFrom&&center.distanceTo(p.aim)>=previous.distanceTo(p.aim))return;
+    p.resolved=true;
+    const measured=previous.distanceTo(center)/Math.max(.001,this.frameDt||.016);
+    const speed=Math.min(11,Math.max(measured,p.peakSpeed||0));
+    const data={name:p.name,zone:contact.zone,side:contact.side,counter:p.counter,point:contact.point.clone(),dir:center.clone().sub(previous).normalize(),speed,quality:contact.quality,power:impactPower(speed,1,this.condition?.stamina)};
+    this.contactArm(spec.side,contact.point,contact.kind==='block');
+    if(contact.kind==='block'){
+      this.openUntil=this.time+.55;this.emit('playerBlocked',data);
+      if(player.deferReactions)player.pendingContacts.push(['block',data]);else player.f?.receiveContact('block',data);
+    }else{
+      this.emit('mikeHit',data);if(player.deferReactions)player.pendingContacts.push(['hit',data]);else player.f?.receiveContact('hit',data);
     }
   }
 
-  // i tuoi pugni
+  receiveContact(kind,event) {
+    if(kind==='block'){exert(this.condition,.6);if(this.defending)this.defending.avoided=true;return;}
+    this.reaction=null;if(this.defending)this.defending.hit=true;
+    this.stun=Math.max(this.stun,.12+.22*(event.quality||1));
+    const interrupted=this.punch&&!this.punch.move;
+    if(interrupted&&event.quality>.55){this.punch=null;this.combo=[];this.setState('retreat');}
+    this.play(event.zone==='head'?'hit_head':'hit_body',1.15);
+    this.pain=event.zone==='head'?1.1:.8;
+  }
+
+  // Player and sparring share the same thresholds and physical collision rules.
   checkPlayerPunches(player) {
-    const hc = this.headCenter();
-    const [t0, t1] = this.torso();
-    const towardMike = this.forward().negate();
-    const gl = { l: this.glove('l'), r: this.glove('r') };
-    for (const g of Object.values(player.gloves)) {
-      if (!g.mesh.visible || g.cooldown > 0 || g.peakSpeed() < (this.lightHits ? 1.4 : 1.8)) continue;   // (in allenamento valgono anche i colpi leggeri)
-      // niente doppi colpi: conta solo un guantone che IN QUESTO MOMENTO va veloce verso il bersaglio (testa o
-      // busto) e che ci si e' avvicinato di almeno 12 cm. Un pugno gia' arrivato, che si ritira, un mezzo
-      // movimento o la testa di Mike che dopo il colpo torna contro il guantone fermo non valgono
-      const tgt = g.center.y > hc.y - 0.25 ? hc : _e.copy(t0).add(t1).multiplyScalar(0.5);
-      const toT = _d.copy(tgt).sub(g.center).normalize();
-      const minNow = this.lightHits ? 0.9 : 1.2;
-      if (g.speed < minNow || g.vel.dot(toT) < 0.5 * g.speed) continue;   // (ganci: arrivano di lato ma si avvicinano)
-      if (g.travel(toT) < 0.12) continue;
-      const [a, b] = g.segment();
-      let ev = null;
-      // colpo basso: il pugno arriva sotto la cintura (vale solo finche' Mike ha almeno meta' energia)
-      const belt = this.bonePos('pelvis').y + 0.10;          // bordo alto dei calzoncini
-      const groin = this.bonePos('pelvis').addScaledVector(this.forward(), 0.13).add(new THREE.Vector3(0, -0.13, 0));
-      if (this.lowBlowAllowed && g.center.y < belt && distPointSeg(groin, a, b) < g.radius + 0.14) {
-        g.cooldown = 0.6; g.contactPoint.copy(g.center); g.hist.length = 0;   // (storia azzerata: per contarne un altro serve un pugno nuovo)
-        this.emit('lowBlow', { side: g.side });
+    const hc=this.headCenter(),torso=this.torso(),shapes=fighterShapes(this);
+    for(const g of Object.values(player.gloves)){
+      if(!g.mesh.visible||g.cooldown>0||g.coasting||g.peakSpeed()<PUNCH_LIMITS.peak)continue;
+      const target=g.center.y>hc.y-.25?hc:torso[0].clone().add(torso[1]).multiplyScalar(.5);
+      const toward=target.clone().sub(g.center).normalize();
+      if(g.speed<PUNCH_LIMITS.current||g.vel.dot(toward)<.35*g.speed||g.travel(toward)<PUNCH_LIMITS.travel)continue;
+      const [a,b]=g.segment(),speed=g.peakSpeed();
+      const belt=this.bonePos('pelvis').y+.10;
+      if(g.center.y<belt){
+        const groin=this.bonePos('pelvis').addScaledVector(this.forward(),.13).add(new THREE.Vector3(0,-.13,0));
+        if(this.lowBlowAllowed&&firstContact(a,b,[{kind:'low',center:groin,radius:.10}]))this.emit('lowBlow',{side:g.side});
+        g.cooldown=.35;g.contactPoint.copy(g.center);g.hist.length=0;continue;
+      }
+      const contact=firstContact(a,b,shapes);
+      if(!contact){
+        if(this.defending&&this.defending.punchId===g.punchId&&g.vel.dot(hc.clone().sub(g.center))<=0)this.defending.avoided=true;
         continue;
       }
-      // sotto la cintura non si fanno mai punti (anche quando non scatta la penalita')
-      if (g.center.y < belt) { g.cooldown = 0.3; continue; }
-      // in parata i guantoni coprono bene; nella guardia normale lasciano spazi
-      const blocking = this.defending && this.defending.type === 'block';
-      const blockLow = this.defending && this.defending.type === 'block_low';
-      const guard = blocking ? this.cfg.blockReach : blockLow ? -0.06 : this.cfg.guardReach * (1 - this.low) - 0.06 * this.low;
-      for (const s of ['l', 'r']) {
-        if (distPointSeg(gl[s].center, a, b) < g.radius + guard) { ev = { type: 'mikeBlocked' }; break; }
-      }
-      if (!ev && blockLow && distSegSeg(a, b, t0, t1) < g.radius + 0.2) ev = { type: 'mikeBlocked' };
-      if (!ev && distPointSeg(hc, a, b) < g.radius + 0.115) ev = { type: 'playerHit', zone: 'head' };
-      if (!ev && distSegSeg(a, b, t0, t1) < g.radius + 0.16) ev = { type: 'playerHit', zone: 'body' };
-      if (!ev) continue;
-      // ai livelli alti la difesa funziona: se si stava gia' difendendo il colpo va quasi sempre a vuoto,
-      // e a Impossibile lo evita all'ultimo anche senza essersi preparato
-      if (ev.type === 'playerHit' && this.stun <= 0 && !this.down) {
-        const d = this.defending;
-        if (d && Math.random() < (this.cfg.evade ?? 0)) ev = { type: d.type.startsWith('block') ? 'mikeBlocked' : 'mikeDodged' };
-        else if (!d && !this.committed() && Math.random() < (this.cfg.reflex ?? 0)) {
-          const mv = ev.zone === 'body' ? 'block_low' : pick(['slip_l', 'slip_r', 'duck', 'block']);
-          this.play(mv, this.cfg.defenseSpeed);
-          ev = { type: mv.startsWith('block') ? 'mikeBlocked' : 'mikeDodged' };
-        }
-      }
-      g.cooldown = 0.45; g.contactPoint.copy(g.center); g.hist.length = 0;
-      ev.side = g.side; ev.speed = g.peakSpeed();
-      const lp = this.root.worldToLocal(g.center.clone()), lh = this.root.worldToLocal(hc.clone());
-      ev.why = `t+${this.defending ? (this.time - this.defending.start).toFixed(2) : '-'} hx${lh.x.toFixed(2)} gx${lp.x.toFixed(2)} gy${(lp.y - lh.y).toFixed(2)} ${this.state}${this.defending ? '/' + this.defending.type : ''}${this.time < this.openUntil ? '/aperto' : ''}${this.punch ? '/pugno' : ''}`;
-      // dove ha colpito, nel sistema di Mike (per i lividi): x>0 = sua sinistra, y rispetto al centro della testa
-      ev.lx = lp.x; ev.ly = lp.y - lh.y;
-      ev.point = g.center.clone(); ev.dir = g.vel.clone().normalize();
-      // preso mentre tirava o subito dopo aver mancato: e' un contrattacco tuo, fa piu' male
-      if (ev.type === 'playerHit') ev.counter = this.committed() || this.time < this.openUntil;
-      this.emit(ev.type, ev);
-      if (ev.type === 'playerHit') {
-        if (this.defending) this.defending.hit = true;
-        this.reaction = null;
-        this.stun = 0.35;
-        if (this.punch && Math.random() < 0.6) { this.punch = null; this.combo = []; this.setState('retreat'); }
-        this.play(ev.zone === 'head' ? 'hit_head' : 'hit_body', 1.1);
-        this.pain = ev.zone === 'head' ? 1.1 : 0.8;          // smorfia
-      }
+      const local=this.root.worldToLocal(contact.point.clone()),headLocal=this.root.worldToLocal(hc.clone());
+      const event={side:g.side,speed,quality:contact.quality,zone:contact.zone,lx:local.x,ly:local.y-headLocal.y,point:contact.point.clone(),dir:g.vel.clone().normalize(),counter:this.committed()||this.time<this.openUntil};
+      g.cooldown=.30;g.contactPoint.copy(g.center);g.hist.length=0;
+      g.showContact?.(contact.point);
+      if(contact.kind==='block'){this.emit('mikeBlocked',event);this.receiveContact('block',event);}
+      else {this.emit('playerHit',event);this.receiveContact('hit',event);}
     }
   }
 }
+

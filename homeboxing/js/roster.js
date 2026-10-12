@@ -1,10 +1,12 @@
 // Scheda dei lottatori (menu iniziale, "Lottatori"): per ogni pugile paese con la bandiera, soprannome, altezza,
 // peso, stile e quattro caratteristiche da 1 a 10. Le bandiere sono disegnate (semplificate) su una tela.
 import * as THREE from 'three';
-import { lang } from './i18n.js?v=20261012074748';
+import { lang } from './i18n.js?v=20261012215037';
 
 // paese (codice bandiera), nomi, misure, soprannome e stile (it / en), caratteristiche: potenza, velocita', difesa, resistenza
 export const ROSTER = {
+  kim: {flag:'kp',it:'Corea del Nord',en:'North Korea',h:178,kg:76,age:27,nick:['Il Metronomo','The Metronome'],style:['Guardia compatta, doppi jab e risposte precise','Compact guard, double jabs and precise counters'],s:[6,8,9,8]},
+  reza:{flag:'ir',it:'Iran',en:'Iran',h:189,kg:94,age:32,nick:['Il Diamante','The Diamond'],style:['Jab pesante, finte e potenti contrattacchi','Heavy jab, feints and powerful counters'],s:[9,6,8,7]},
   bruce:  { flag: 'hk', it: 'Hong Kong', en: 'Hong Kong', h: 170, kg: 64, nick: ['Il Drago', 'The Dragon'], style: ['Saltella, finte e colpi a sorpresa', 'Bouncing, feints and surprise shots'], s: [6, 9, 7, 7] },
   mike:   { flag: 'us', it: 'Stati Uniti', en: 'United States', h: 180, kg: 95, nick: ['Il Campione', 'The Champ'], style: ['Pugile completo, il riferimento', 'All-rounder, the benchmark'], s: [7, 6, 6, 7] },
   eddy:   { flag: 'gb', it: 'Regno Unito', en: 'United Kingdom', h: 185, kg: 78, nick: ['Il Punk', 'The Punk'], style: ['Agile, raffiche e schivate', 'Agile, flurries and slips'], s: [5, 8, 7, 6] },
@@ -66,6 +68,8 @@ function unionJack(g, x, y, w, h) {
 }
 export function drawFlag(g, code, W, H) {
   const F = {
+    kp: () => {g.fillStyle='#024fa2';g.fillRect(0,0,W,H);g.fillStyle='#fff';g.fillRect(0,H*.17,W,H*.66);g.fillStyle='#ed1c27';g.fillRect(0,H*.22,W,H*.56);g.fillStyle='#fff';g.beginPath();g.arc(W*.30,H*.5,H*.22,0,Math.PI*2);g.fill();star(g,W*.30,H*.5,H*.20,'#ed1c27');},
+    ir: () => {stripesH(g,W,H,['#239f40','#fff','#da0000']);g.strokeStyle='#da0000';g.lineWidth=H*.018;const cx=W*.5,cy=H*.5;g.beginPath();g.moveTo(cx,cy-H*.12);g.lineTo(cx,cy+H*.12);g.moveTo(cx-H*.04,cy-H*.10);g.bezierCurveTo(cx-H*.15,cy-H*.06,cx-H*.12,cy+H*.10,cx,cy+H*.12);g.moveTo(cx+H*.04,cy-H*.10);g.bezierCurveTo(cx+H*.15,cy-H*.06,cx+H*.12,cy+H*.10,cx,cy+H*.12);g.stroke();},
     it: () => stripesV(g, W, H, ['#009246', '#fff', '#ce2b37']),
     ie: () => stripesV(g, W, H, ['#169b62', '#fff', '#ff883e']),
     mx: () => { stripesV(g, W, H, ['#006847', '#fff', '#ce1126']); g.fillStyle = '#8c5a2b'; g.beginPath(); g.arc(W / 2, H / 2, H * 0.15, 0, 7); g.fill(); },
@@ -141,7 +145,7 @@ export function drawFlag(g, code, W, H) {
 // non ha un font con le bandiere, quindi si carica questo. Ogni bandiera si ritaglia una volta sola e si tiene in cache.
 export const COUNTRY_CODES = ('AF AL DZ AD AO AG AR AM AU AT AZ BS BH BD BB BY BE BZ BJ BT BO BA BW BR BN BG BF BI CV KH CM CA CF TD CL CN CO KM CG CD CR CI HR CU CY CZ DK DJ DM DO EC EG SV GQ ER EE SZ ET FJ FI FR GA GM GE DE GH GR GD GT GN GW GY HT HN HU IS IN ID IR IQ IE IL IT JM JP JO KZ KE KI KP KR KW KG LA LV LB LS LR LY LI LT LU MG MW MY MV ML MT MH MR MU MX FM MD MC MN ME MA MZ MM NA NR NP NL NZ NI NE NG MK NO OM PK PW PA PG PY PE PH PL PT QA RO RU RW KN LC VC WS SM ST SA SN RS SC SL SG SK SI SB SO ZA SS ES LK SD SR SE CH SY TW TJ TZ TH TL TG TO TT TN TR TM TV UG UA AE GB US UY UZ VU VA VE VN YE ZM ZW XK PS HK MO PR').split(' ');
 let flagFontOk = false;
-export const flagFontReady = (typeof FontFace !== 'undefined' ? new FontFace('TwemojiFlags', `url(${new URL('../assets/fonts/twemoji-flags.ttf?v=20261012074748', import.meta.url).href})`).load()
+export const flagFontReady = (typeof FontFace !== 'undefined' ? new FontFace('TwemojiFlags', `url(${new URL('../assets/fonts/twemoji-flags.ttf?v=20261012215037', import.meta.url).href})`).load()
   .then(f => { document.fonts.add(f); flagFontOk = true; }).catch(() => {}) : Promise.resolve());
 const flagBmp = {};
 function emojiFlag(code) {

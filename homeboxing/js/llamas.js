@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
-import { contactShadow } from './contact_shadow.js?v=20261012074748';
+import { contactShadow } from './contact_shadow.js?v=20261012215037';
 
 const SPEED=.38;
 const wrap=a=>Math.atan2(Math.sin(a),Math.cos(a));
@@ -9,7 +9,7 @@ export class Llamas {
   constructor(parent,ringHalf=1.85){
     this.group=new THREE.Group();this.group.name='due lama';parent.add(this.group);
     this.ringHalf=ringHalf;this.dead=false;this.loaded=false;this.time=0;this.nextSocial=22;this.social=null;this.socialCount=0;
-    this.ready=new GLTFLoader().loadAsync('assets/sale/llama.glb?v=20261012074748').then(g=>{
+    this.ready=new GLTFLoader().loadAsync('assets/sale/llama.glb?v=20261012215037').then(g=>{
       if(this.dead){this._release(g.scene);return;}
       const originalMaterials=new Set();g.scene.traverse(o=>{if(o.isMesh)originalMaterials.add(o.material);});
       this.animals=[[-7,-8],[5,-10]].map(([x,z],i)=>{

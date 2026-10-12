@@ -1,8 +1,8 @@
 // La Foresta: Blender geometry, GPU rain and impacts, wet canvas and storm audio.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { ForestAudio } from './forest_audio.js?v=20261012074748';
-import { Deer } from './deer.js?v=20261012074748';
+import { ForestAudio } from './forest_audio.js?v=20261012215037';
+import { Deer } from './deer.js?v=20261012215037';
 
 export const FOREST_FOG = 0x97a3a8;
 
@@ -18,7 +18,7 @@ export class Forest {
     this.deer = new Deer(this.group,this.ringHalf);
     this.deer.onPosition = p => this.audio.moveDeer(p);
     this.deer.onStep = (p,weight) => this.audio.deerStep(p,weight);
-    this.ready = new GLTFLoader().loadAsync('assets/foresta/forest.glb?v=20261012074748').then(gltf => {
+    this.ready = new GLTFLoader().loadAsync('assets/foresta/forest.glb?v=20261012215037').then(gltf => {
       if (this.dead) { this._release(gltf.scene); return; }
       gltf.scene.traverse(o => {
         if (!o.isMesh) return;
@@ -57,7 +57,7 @@ export class Forest {
   }
   _sky() {
     this.timeUniform = { value: 0 }; this.flashUniform = { value: 0 };
-    const tex = new THREE.TextureLoader().load('assets/foresta/storm_sky.jpg?v=20261012074748');
+    const tex = new THREE.TextureLoader().load('assets/foresta/storm_sky.jpg?v=20261012215037');
     tex.colorSpace = THREE.SRGBColorSpace;
     const mat = new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false,
       uniforms: { uSky: { value: tex }, uFlash: this.flashUniform, uFogColor: { value: new THREE.Color(FOREST_FOG) } },
@@ -74,8 +74,8 @@ export class Forest {
   }
   _ground() {
     const loader = new THREE.TextureLoader();
-    const map = loader.load('assets/foresta/ground.jpg?v=20261012074748'); map.colorSpace = THREE.SRGBColorSpace;
-    const rough = loader.load('assets/foresta/ground_rough.jpg?v=20261012074748');
+    const map = loader.load('assets/foresta/ground.jpg?v=20261012215037'); map.colorSpace = THREE.SRGBColorSpace;
+    const rough = loader.load('assets/foresta/ground_rough.jpg?v=20261012215037');
     for (const t of [map,rough]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(22,22); t.anisotropy = 4; }
     const ground = new THREE.Mesh(new THREE.CircleGeometry(44,80), new THREE.MeshStandardMaterial({map,roughness:.96}));
     // Keep roughness texture owned by the ground so the shared freeGPU releases it.

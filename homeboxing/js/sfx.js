@@ -1,4 +1,4 @@
-// Suoni sintetizzati con WebAudio: niente file da scaricare.
+// WebAudio: sampled boxing/stage foley and synthesized interface cues.
 let ctx = null, master = null, noiseBuf = null;
 // Stage-specific ambience shares the game context and master gain.
 export function audioBus() { return ctx ? { ctx, master } : null; }
@@ -70,7 +70,7 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261012074748';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261012215037';
 // Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
@@ -92,7 +92,7 @@ let vbuf = {}, vLang = 'it';
 let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261012074748`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261012215037`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
@@ -154,22 +154,10 @@ export function firework() {
   for (let i = 0; i < 10; i++) noise(t + 0.15 + Math.random() * 0.6, 0.04, 4000, 2, 0.12, 'bandpass');
 }
 
-// colpo pieno: tonfo sordo + schiocco del cuoio
-//  mio (vai a segno tu): schiocco secco e brillante del guantone sulla pelle, tonfo piu' corto
-//  suo (ti colpisce):    piu' cupo e ovattato, lo senti "dentro la testa", con un rimbombo basso
-export function punchHit(strength = 1, mine = true) {
-  if (!ctx) return; const t = ctx.currentTime;
-  if (mine) {
-    tone(t, 0.14, 150, 0.8 * strength, 'sine', 55);
-    noise(t, 0.07, 2600, 0.8, 0.75 * strength);
-    noise(t, 0.05, 3400, 1.4, 0.35 * strength, 'bandpass');         // schiocco del cuoio
-    noise(t, 0.18, 500, 0.5, 0.3 * strength);
-  } else {
-    tone(t, 0.26, 95, 1.0 * strength, 'sine', 32);
-    tone(t + 0.01, 0.35, 55, 0.5 * strength, 'sine', 28);           // rimbombo
-    noise(t, 0.12, 900, 0.7, 0.75 * strength);                      // ovattato: niente alti
-    noise(t, 0.3, 300, 0.5, 0.45 * strength);
-  }
+// Foley asciutto: viso piu' secco, corpo ovattato. I colpi ricevuti al viso
+// restano centrati nell'ascolto; niente bassi sintetici o secondo impatto al KO.
+export function punchHit(strength = 1, mine = true, zone = 'head', point = null, cam = null) {
+  boxingSample(zone==='body'?'body':'head',strength,point,cam,!mine&&zone==='head');
 }
 
 // parata: colpo su guantone, piu' secco e meno profondo
@@ -200,16 +188,13 @@ export function menuBlip() {
   tone(t, 0.07, 1046, 0.16, 'square'); tone(t + 0.075, 0.1, 1568, 0.14, 'square');
   tone(t, 0.07, 2093, 0.04, 'sine'); tone(t + 0.075, 0.1, 3136, 0.035, 'sine');
 }
-export function punchBlock() {
-  if (!ctx) return; const t = ctx.currentTime;
-  noise(t, 0.07, 2600, 1.2, 0.6, 'bandpass');
-  tone(t, 0.08, 220, 0.35, 'triangle', 120);
+export function punchBlock(strength = 1, point = null, cam = null) {
+  boxingSample('block',strength,point,cam);
 }
 
 // spostamento d'aria di un pugno che va a vuoto
-export function whoosh() {
-  if (!ctx) return; const t = ctx.currentTime;
-  noise(t, 0.22, 500, 1.5, 0.25, 'bandpass', 2400);
+export function whoosh(strength = .6, point = null, cam = null) {
+  boxingSample('air',strength,point,cam);
 }
 
 // campana del ring
@@ -246,7 +231,7 @@ export function bell(times = 1) {
 }
 
 // Pubblico del palazzetto: suoni veri generati con AudioGen (tools/gen_crowd_audio.py, tools/make_audio.py)
-const SAMPLES = ['brusio', 'tifo', 'boato_0', 'boato_1', 'boato_2', 'boato_3', 'ooh_0', 'ooh_1', 'ooh_2', 'applauso_0', 'applauso_1',
+const SAMPLES = [...['head','body','block','air'].flatMap(kind=>[0,1,2,3].map(i=>`boxing_${kind}_${i}`)), 'brusio', 'tifo', 'boato_0', 'boato_1', 'boato_2', 'boato_3', 'ooh_0', 'ooh_1', 'ooh_2', 'applauso_0', 'applauso_1',
   'mare', 'onda_0', 'onda_1', 'onda_2', 'gabbiano_0', 'gabbiano_1', 'elicottero', 'vento',
   'sacco_0', 'sacco_1', 'sacco_2', 'sacco_3', 'catena_0', 'catena_1', 'catena_2',
   'pera_0', 'pera_1', 'pera_2', 'pera_3', 'pera_4', 'pera_5', 'pera_6', 'pera_7', 'aquila_0', 'aquila_1',
@@ -256,10 +241,34 @@ const SAMPLES = ['brusio', 'tifo', 'boato_0', 'boato_1', 'boato_2', 'boato_3', '
   ...['kick','bounce'].flatMap(kind=>[0,1,2].map(i=>`football_${kind}_${i}`)),
   ...['burst','crackle'].flatMap(kind=>[0,1,2].map(i=>`fireworks_${kind}_${i}`)), 'fireworks_launch_0','fireworks_launch_1','fireworks_whistle_0','fireworks_whistle_1'];
 const buf = {};
+const lastBoxingSample={};
+let boxingBus=null;
+function boxingSample(kind,strength,point,cam,atHead=false){
+ if(!ctx||ctx.state!=='running')return false;
+ const available=[0,1,2,3].filter(i=>buf[`boxing_${kind}_${i}`]&&i!==lastBoxingSample[kind]);
+ if(!available.length)return false;
+ const index=available[Math.floor(Math.random()*available.length)];lastBoxingSample[kind]=index;
+ const buffer=buf[`boxing_${kind}_${index}`],power=Math.max(0,Math.min(1.5,strength));
+ if(power===0)return true;
+ if(!boxingBus){
+   boxingBus=ctx.createDynamicsCompressor();boxingBus.threshold.value=-8;boxingBus.knee.value=3;boxingBus.ratio.value=4;
+   boxingBus.attack.value=.002;boxingBus.release.value=.07;boxingBus.connect(master);
+ }
+ // Equal-energy source samples; each surface has its own level. Air is subtle.
+ const gain=({head:.92,body:.96,block:.76,air:.10})[kind]*Math.pow(power,.7),rate=1+(Math.random()-.5)*.025;
+ const source=ctx.createBufferSource(),volume=ctx.createGain();source.buffer=buffer;source.playbackRate.value=rate;volume.gain.value=gain;source.connect(volume);
+ let pan=null;
+ if(point&&cam&&!atHead){
+   setListener(cam);pan=ctx.createPanner();pan.panningModel='HRTF';pan.distanceModel='inverse';pan.refDistance=1.4;pan.rolloffFactor=.7;pan.maxDistance=25;
+   pan.positionX.value=point.x;pan.positionY.value=point.y;pan.positionZ.value=point.z;volume.connect(pan);pan.connect(boxingBus);
+ }else volume.connect(boxingBus);
+ source.start();source.onended=()=>{source.disconnect();volume.disconnect();pan?.disconnect();};
+ return true;
+}
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261012074748`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261012215037`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
   loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (snowWanted && !snowW) snowAmbient(true); if (lavaWanted && !lavaW) lavaAmbient(true); if (underWanted && !underW) underAmbient(true); if (spaceWanted && !spaceW) spaceAmbient(true); if (windWanted && (!wind || wind.synth)) { if (wind) { wind.s.stop(); wind = null; } windAmbient(true); } });   // vento vero appena caricato
   return loading;
@@ -414,7 +423,7 @@ export function gasPuff(pos, cam, dur = 0.7, gain = 1) {
 // aereo da traino (stage Stadio): motore a pistoni a 2200 giri, elica a 74 Hz, un po' di vento; la posizione e' nel mondo e
 // `rate` e' l'effetto Doppler (1 = fermo, >1 si avvicina)
 let planeSrc = null, planeBuf = null;
-export function planeBuzz(pos, cam, rate = 1) {
+export function planeBuzz(pos, cam, rate = 1, visibility = 1) {
   if (!ctx || ctx.state !== 'running') return;
   if (!planeSrc) {
     if (!planeBuf) planeBuf = synthBuffer(2, (d, sr) => {
@@ -435,6 +444,7 @@ export function planeBuzz(pos, cam, rate = 1) {
     planeSrc = { s, p, g, lp };
   }
   setListener(cam);
+  planeSrc.g.gain.setTargetAtTime(.5*Math.max(0,Math.min(1,visibility)),ctx.currentTime,.8);
   const cp = cam.getWorldPosition(new cam.position.constructor()), dist = cp.distanceTo(pos);
   planeSrc.lp.frequency.setTargetAtTime(700 + 6000 * Math.exp(-dist / 160), ctx.currentTime, 0.2);   // lontano = piu' ovattato
   planeSrc.s.playbackRate.setTargetAtTime(Math.max(0.8, Math.min(1.25, rate)), ctx.currentTime, 0.15);
@@ -475,10 +485,22 @@ function spot(pos, ref = 1.0) {
   if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);
   p.connect(master); return p;
 }
+// Short spatial CO2 valve hiss, kept behind the combat impacts.
+export function smokeJet(pos,cam){
+  if(!ctx||ctx.state!=='running'||!noiseBuf)return;
+  setListener(cam);const s=ctx.createBufferSource();s.buffer=noiseBuf;s.loop=true;
+  const high=ctx.createBiquadFilter();high.type='highpass';high.frequency.value=650;
+  const low=ctx.createBiquadFilter();low.type='lowpass';low.frequency.value=5200;
+  const gain=ctx.createGain(),p=spot(pos,4),t=ctx.currentTime;
+  gain.gain.setValueAtTime(0,t);gain.gain.linearRampToValueAtTime(.22,t+.04);gain.gain.setValueAtTime(.18,t+.55);gain.gain.exponentialRampToValueAtTime(.001,t+1);
+  s.connect(high);high.connect(low);low.connect(gain);gain.connect(p);s.start(t,Math.random());s.stop(t+1.05);
+  s.onended=()=>{s.disconnect();high.disconnect();low.disconnect();gain.disconnect();p.disconnect();};
+}
 function playAt(b, pos, gain, rate = 1, delay = 0) {
   const s = ctx.createBufferSource(); s.buffer = b; s.playbackRate.value = rate;
   const g = ctx.createGain(); g.gain.value = gain;
-  s.connect(g); g.connect(spot(pos)); s.start(ctx.currentTime + delay);
+  const p=spot(pos);s.connect(g);g.connect(p);s.start(ctx.currentTime+delay);
+  s.onended=()=>{s.disconnect();g.disconnect();p.disconnect();};
 }
 // colpo sul sacco: power 0..1.5 (0,3 = tocco, 1 = colpo pieno). Campione vero + tonfo grave + schiocco del cuoio, poi
 // la catena che tintinna (piu' forte se il colpo e' forte)

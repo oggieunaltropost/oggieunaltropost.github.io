@@ -2,6 +2,7 @@
 // testa e i suoi guantoni veri, cosi' usano la stessa intelligenza (parate, schivate, combinazioni) che usano
 // contro di te. Tu guardi senza guantoni e puoi saltare al risultato.
 import * as THREE from 'three';
+import { conditioning, recoverCombat, applyImpact } from './combat.js?v=20261012215037';
 
 const _v = new THREE.Vector3();
 
@@ -21,7 +22,7 @@ class GloveProxy {
     // conta come pugno solo se sta davvero tirando: i guantoni che si muovono veloci per parare o schivare
     // facevano reagire l'altro, che reagiva a sua volta... (difese a catena, movimenti a scatti)
     const P = this.f.punch;
-    if (!(P && !P.move && this.f.state === 'attack')) this.vel.set(0, 0, 0);
+    if (!(P && !P.move && !P.resolved && P.side===this.s && this.f.state === 'attack')) this.vel.set(0, 0, 0);
     this.speed = this.vel.length();
     this.hist.push({ p: this.center.clone(), s: this.speed, t: this.t });
     while (this.hist.length && this.t - this.hist[0].t > 0.25) this.hist.shift();
@@ -36,7 +37,7 @@ class GloveProxy {
 }
 
 class FighterAsPlayer {
-  constructor(f) { this.f = f; this.head = new THREE.Vector3(); this.gloves = { left: new GloveProxy(f, 'l'), right: new GloveProxy(f, 'r') }; }
+  constructor(f) { this.f = f; this.deferReactions=true;this.pendingContacts=[];this.head = new THREE.Vector3(); this.gloves = { left: new GloveProxy(f, 'l'), right: new GloveProxy(f, 'r') }; }
   update(dt) { this.head.copy(this.f.headCenter()); for (const g of Object.values(this.gloves)) g.update(dt); }
 }
 
@@ -50,7 +51,9 @@ export class CpuMatch {
     this.done = false; this.winner = null; this.endT = 0;
     this.hooks = hooks; this.rounds = hooks.rounds || 1; this.round = 1; this.rest = 0;
     this.kdN = [0, 0]; this.kdLvl = [0, 0]; this.kd = null; this.pen = [0, 0]; this.foul = null;                // atterramenti (come negli incontri veri: ci si puo' rialzare)
+    this.condition=[conditioning({dmg:0}),conditioning({dmg:0})];
     for (const f of this.f) { f.resetPose(); f.enabled = delay <= 0; f.events.length = 0; }
+    for(let i=0;i<2;i++){this.f[i].condition=this.condition[i];this.view[i].update(0);}
   }
   update(dt) {
     if (this.done) {                                  // finito: i pugili continuano ad animarsi (esultanza, a terra...)
@@ -62,19 +65,27 @@ export class CpuMatch {
       this.delay -= dt;
       if (this.delay <= 0) { for (const f of this.f) f.enabled = true; if (this.hooks.onStart) this.hooks.onStart(); }
     }
-    for (const v of this.view) v.update(dt);
     for (let i = 0; i < 2; i++) this.f[i].update(dt, this.view[i]);
+    for (const v of this.view) v.update(dt);
+    if(!this.kd&&!this.foul&&this.rest<=0&&!this.endT&&this.delay<=0){
+      for(let i=0;i<2;i++)this.f[i].resolveMyPunch(this.view[i],this.f[i].root.position.distanceTo(this.f[1-i].root.position));
+      for(const view of this.view){for(const [kind,event] of view.pendingContacts)view.f.receiveContact(kind,event);view.pendingContacts.length=0;}
+    }
     // conta solo i pugni che vanno a segno di ciascuno (i "mikeHit": il suo colpo ha preso l'altro)
     for (let i = 0; i < 2; i++) {
       for (const e of this.f[i].events) {
+        if(!this.endT&&!this.kd&&this.rest<=0&&!this.foul){
+          if(e.type==='playerBlocked')this.hooks.onBlock?.(e);
+          if(e.type==='mikeSwing')this.hooks.onSwing?.(e);
+        }
         // il pugile i e' stato colpito (lo "vede" lui, dove e con che forza): lividi, sudore e sangue come nei tuoi incontri
         if (e.type !== 'mikeHit' || this.endT || this.kd || this.rest > 0 || this.foul) continue;
-        const o = 1 - i, power = 0.8 + Math.random() * 0.5;
+        const o = 1 - i, power = (e.power??1)*({facile:.65,normale:.95,difficile:1.3,impossibile:1.8}[this.f[i].levelName]??.95)*(this.f[i].cfg0.mods?.power??1)*(this.f[o].cfg.toughness??1)*(e.counter?1.5:1);
         // rarissimo: un colpo al corpo finisce sotto la cintura. Come nei tuoi incontri: niente punti, chi lo prende si
         // piega, l'incontro si ferma, penalita' a chi l'ha tirato (alla terza squalifica)
-        if (e.zone === 'body' && this.dmg[o] <= 50 && Math.random() < 0.03) {   // (come nei tuoi: solo se ha ancora meta' energia)
+        if (e.zone === 'body' && e.point?.y < this.f[o].bonePos('pelvis').y+.1 && this.dmg[o] <= 50) {
           const n = ++this.pen[i], dq = n >= 3;
-          this.dmg[o] = Math.min(99, this.dmg[o] + 10);
+          this.dmg[o] = this.condition[o].dmg = Math.min(99, this.dmg[o] + 10);
           this.f[o].lowBlowed(); this.f[i].enabled = false;
           this.foul = { t: 0, o, i, dq };
           if (this.hooks.onLowBlow) this.hooks.onLowBlow(n, dq);
@@ -84,12 +95,13 @@ export class CpuMatch {
         // sudore e sangue come nei tuoi incontri
         if (this.hooks.onMark && e.point) {
           const T = this.f[o], lp = T.root.worldToLocal(e.point.clone()), lh = T.root.worldToLocal(T.headCenter());
-          this.hooks.onMark(o, { zone: e.zone, lx: lp.x, ly: lp.y - lh.y, point: e.point, dir: e.dir, speed: 3.5 + power * 2 });
+          this.hooks.onMark(o, { zone: e.zone, lx: lp.x, ly: lp.y - lh.y, point: e.point, dir: e.dir, speed: e.speed??5 });
         }
         this.pts[i] += e.zone === 'head' ? 2 : 1; this.hits[i]++;
-        this.dmg[o] = Math.min(100, this.dmg[o] + (e.zone === 'head' ? 3.5 + 6 * power : 2 + 3.5 * power) * (e.counter ? 1.5 : 1));   // (contrattacco: di piu')
-        if (this.hooks.onHit) this.hooks.onHit(e.zone, power);
-        if (this.dmg[o] >= 100 && !this.kd) this._knockdown(o);
+        const impact=applyImpact(this.condition[o],e.zone,power,e.quality??1);this.dmg[o]=this.condition[o].dmg;
+        this.f[o].stun=Math.max(this.f[o].stun,impact.stun);
+        if (this.hooks.onHit) this.hooks.onHit(e.zone, power, e);
+        if (impact.down && !this.kd) this._knockdown(o);
       }
       this.f[i].events.length = 0;
     }
@@ -109,28 +121,29 @@ export class CpuMatch {
     if (this.endT) { this.endT -= dt; if (this.endT <= 0) this.finish(); return; }
     if (this.delay > 0) return;
     if (this.rest > 0) {                              // riposo tra i round: fermi, poi la campana del round dopo
-      this.rest -= dt;
+      this.rest = Math.max(0, this.rest - dt);
       if (this.rest <= 0) {
         this.round++; this.time = this.secs;
-        for (const f of this.f) { f.resetPose(); f.enabled = true; }
+        for (const f of this.f) { f.applyRound(this.round);f.resetPose(); f.enabled = true; }
         if (this.hooks.onRound) this.hooks.onRound(this.round, this.round === this.rounds);
       }
       return;
     }
     this.time -= dt;
     // come negli incontri tuoi: l'energia risale piano e la stanchezza degli atterramenti si smaltisce col tempo
-    for (let i = 0; i < 2; i++) { this.dmg[i] = Math.max(0, this.dmg[i] - dt * 0.5); this.kdLvl[i] = Math.max(0, this.kdLvl[i] - dt / 90); }
+    for (let i = 0; i < 2; i++) { recoverCombat(this.condition[i],dt);this.dmg[i]=this.condition[i].dmg; this.kdLvl[i] = Math.max(0, this.kdLvl[i] - dt / 90); }
     if (this.time <= 0) {
       if (this.round >= this.rounds) { this.finish(); return; }
       this.time = 0; this.rest = this.hooks.rest || 30;    // fine round: campana e riposo
       for (const f of this.f) { f.enabled = false; f.resetPose(); }   // (all'angolo li manda il gioco: onRoundEnd)
-      for (let i = 0; i < 2; i++) { this.dmg[i] = Math.max(0, this.dmg[i] - 25); this.kdLvl[i] = Math.max(0, this.kdLvl[i] - 0.5); }   // all'angolo ci si riprende
+      for (let i = 0; i < 2; i++) { this.dmg[i] = this.condition[i].dmg = Math.max(0, this.dmg[i] - 25); this.condition[i].stamina=100;this.condition[i].shock=0;this.kdLvl[i] = Math.max(0, this.kdLvl[i] - 0.5); }
       if (this.hooks.onRoundEnd) this.hooks.onRoundEnd(this.round);
     }
   }
   // atterrato: stesse regole tue. Energia che si recupera: 75, 50, 25 (con la regola dei 3 atterramenti il terzo e'
   // KO tecnico); senza la regola si continua con 15, 8, poi niente: si resta giu' e si conta fino a 10
   _knockdown(o) {
+    this.condition[o].shock=0;this.condition[o].stamina=Math.max(25,this.condition[o].stamina-15);
     const n = ++this.kdN[o], R = this.hooks.refills || [75, 50, 25];
     this.kdLvl[o] += 1; const lvl = Math.max(1, Math.round(this.kdLvl[o]));      // (atterramenti lontani nel tempo pesano meno)
     const refill = this.hooks.oneKO ? 0 : R[lvl - 1] ?? (this.hooks.threeKO !== false ? 0 : [15, 8][lvl - 4] ?? 0);
@@ -152,6 +165,7 @@ export class CpuMatch {
       this.winner = 1 - K.o; this.how = 'KO'; this.endT = 4; this.kd = null; if (this.hooks.onKO) this.hooks.onKO();
     } else if (K.up && K.count >= 8 && (!this.f[K.o].isUp || this.f[K.o].isUp())) {   // conteggio obbligatorio fino a 8
       this.dmg[K.o] = 100 - K.refill;
+      this.condition[K.o].dmg=this.dmg[K.o];
       for (const f of this.f) { f.enabled = true; f.resetPose && f.resetPose(); }
       this.kd = null; if (this.hooks.onResume) this.hooks.onResume();
     }

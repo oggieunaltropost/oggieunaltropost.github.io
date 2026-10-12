@@ -1,7 +1,7 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261012074748';
-import { drawFlagAny } from './roster.js?v=20261012074748';
+import { t as tr } from './i18n.js?v=20261012215037';
+import { drawFlagAny } from './roster.js?v=20261012215037';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
 // ogni raggio: { o, d, hit, sel (grilletto / pizzico tenuto), click (appena premuto) }
@@ -171,6 +171,9 @@ export class Scoreboard {
       const e = Math.max(0, 1 - (p.dmg || 0) / 100);
       g.fillStyle = '#2a2f3a'; g.fillRect(x - 200, 338, 400, 20);
       g.fillStyle = e > 0.5 ? '#3cc46b' : e > 0.25 ? '#f0b429' : '#e5484d'; g.fillRect(x - 200, 338, 400 * e, 20);
+      // Thin blue bar: available breath, distinct from accumulated damage.
+      g.fillStyle='#202d3b';g.fillRect(x-200,363,400,6);
+      g.fillStyle='#69b8ed';g.fillRect(x-200,363,400*Math.max(0,Math.min(1,(p.stamina??100)/100)),6);
       g.font = '500 28px system-ui, sans-serif'; g.fillStyle = '#c9ced8';
       g.fillText(tr('stats', { h: p.hits, b: p.blocks, d: p.dodges }), x, 392);
       const extra = [p.kd ? tr('down_times', { n: p.kd, v: tr(p.kd === 1 ? 'once' : 'times') }) : '', p.penalties ? tr('penalties', { n: p.penalties }) : ''].filter(Boolean).join(' · ');
@@ -489,7 +492,7 @@ export class MenuPanel {
   }
   setTitle(text) { if (text !== this.titleText) { this.titleText = text; this._paint(this.title, text, this.title.userData.color); } }
   hitRay(origin,direction) {
-    if(!this.group.visible)return null;
+    if(!this.group.visible||this.spec.pushOnly)return null;
     this.group.updateWorldMatrix(true,false);
     const p=rayLocal(this.group,origin,direction,.035);if(!p)return null;
     return this.buttons.find(b=>b.g.visible&&!b.disabled&&!b.displayOnly&&Math.abs(p.x-b.g.position.x)<b.w*b.g.scale.x/2&&Math.abs(p.y-b.g.position.y)<b.bh*b.g.scale.y/2)?.id||null;
@@ -514,6 +517,20 @@ export class MenuPanel {
     for (const c of this.carousels) { if(c.hidden)continue; const id = this._updateCarousel(c, dt, gloves, aimed); if (id) return id; }
     for (const b of this.buttons) {
       if (b.disabled || b.displayOnly || !b.g.visible || b.car) continue;       // (non ancora disponibile o nascosto; le voci a scorrimento non si "premono")
+      if(this.spec.pushOnly||b.pushOnly){
+        b.pushHands ||= new Map();let pressed=false,near=false;
+        for(const [i,g] of gloves.entries()){
+          if(!g.mesh.visible){b.pushHands.delete(i);continue;}
+          const p=this.group.worldToLocal(g.center.clone()),inside=Math.abs(p.x-b.g.position.x)<b.w/2&&Math.abs(p.y-b.g.position.y)<b.bh/2,z=p.z-b.g.position.z,old=b.pushHands.get(i);
+          if(!inside){b.pushHands.delete(i);continue;}
+          near=true;const armed=z>.10||old?.armed;
+          if(armed&&old&&old.z>.035&&z<=.035&&z>-.09){pressed=true;b.pushHands.set(i,{z,armed:false});}
+          else b.pushHands.set(i,{z,armed:!!armed});
+        }
+        b.fill.visible=false;b.base.scale.z=near?.7:1;
+        if(pressed)return b.id;
+        continue;
+      }
       const p = b.g.getWorldPosition(new THREE.Vector3());
       const on = aimed.has(b) || gloves.some(g => g.mesh.visible && g.center.distanceTo(p) < Math.max(0.09, b.w / 2));
       const hold = b.hold || this.hold;             // (b.hold: pulsanti da tenere premuti a lungo, es. Esci dal gioco)

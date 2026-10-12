@@ -49,7 +49,7 @@ export class CityLife {
   constructor(group, panoU, night = false) {
     this.group = group; this.t = 0; this.night = night;
     this.haze = night ? new THREE.Color(0.03, 0.025, 0.025) : _haze;
-    this.depth = new DepthPano('assets/citta_profondita.png?v=20261012074748', panoU);   // (la citta' e' la stessa: profondita' uguale)
+    this.depth = new DepthPano('assets/citta_profondita.png?v=20261012215037', panoU);   // (la citta' e' la stessa: profondita' uguale)
     this._cars(); this._boats(); this._ships(); this._birds(); this._plane();
     if (night) for (const b of this.birds) b.B.visible = false;
   }

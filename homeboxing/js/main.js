@@ -2,42 +2,45 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261012074748';
-import { Mike, LEVELS, loadMikeGLTF, StyleLearner } from './mike.js?v=20261012074748';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261012074748';
-import { Player, SimInput } from './player.js?v=20261012074748';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261012074748';
-import { Room } from './room.js?v=20261012074748';
-import { Arena } from './arena.js?v=20261012074748';
-import { Beach } from './beach.js?v=20261012074748';
-import { Rooftop } from './rooftop.js?v=20261012074748';
-import { Desert } from './desert.js?v=20261012074748';
-import { SaltDesert } from './salt_desert.js?v=20261012074748';
-import { Snow } from './snow.js?v=20261012074748';
-import { Forest, FOREST_FOG } from './forest.js?v=20261012074748';
-import { Volcano } from './volcano.js?v=20261012074748';
-import { Sea, WATER } from './sea.js?v=20261012074748';
-import { Moon } from './moon.js?v=20261012074748';
-import { Stadium } from './stadium.js?v=20261012074748';
-import { FighterCard, ROSTER, COUNTRY_CODES, countryName, drawFlagAny, flagFontReady } from './roster.js?v=20261012074748';
-import { Gym } from './gym.js?v=20261012074748';
-import { BagTraining } from './training.js?v=20261012074748';
-import { RopeTraining } from './rope.js?v=20261012074748';
-import { SpeedBagTraining } from './speedbag.js?v=20261012074748';
-import { SlipLineTraining } from './slipline.js?v=20261012074748';
-import { RingSkirt } from './ring_skirt.js?v=20261012074748';
-import { panoPending } from './pano_depth.js?v=20261012074748';
-import { DoubleEndTraining } from './doubleend.js?v=20261012074748';
-import { Sparring } from './sparring.js?v=20261012074748';
-import { RingGirl } from './ringgirl.js?v=20261012074748';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261012074748';
-import * as sfx from './sfx.js?v=20261012074748';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261012074748';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261012074748';
-import { Tournament, BracketView } from './tournament.js?v=20261012074748';
-import { CpuMatch } from './cpu_match.js?v=20261012074748';
-import { TowerView } from './tower.js?v=20261012074748';
-import { createMatchPreferences } from './match_preferences.js?v=20261012074748';
+import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261012215037';
+import { Fighter, LEVELS, loadFighterGLTF, StyleLearner } from './fighter.js?v=20261012215037';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261012215037';
+import { Player, SimInput } from './player.js?v=20261012215037';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261012215037';
+import { Room } from './room.js?v=20261012215037';
+import { Arena } from './arena.js?v=20261012215037';
+import { Beach } from './beach.js?v=20261012215037';
+import { Rooftop } from './rooftop.js?v=20261012215037';
+import { Desert } from './desert.js?v=20261012215037';
+import { SaltDesert } from './salt_desert.js?v=20261012215037';
+import { MmaCage } from './mma_cage.js?v=20261012215037';
+import { Circus } from './circus.js?v=20261012215037';
+import { Snow } from './snow.js?v=20261012215037';
+import { Forest, FOREST_FOG } from './forest.js?v=20261012215037';
+import { Volcano } from './volcano.js?v=20261012215037';
+import { Sea, WATER } from './sea.js?v=20261012215037';
+import { Moon } from './moon.js?v=20261012215037';
+import { Stadium } from './stadium.js?v=20261012215037';
+import { FighterCard, ROSTER, COUNTRY_CODES, countryName, drawFlagAny, flagFontReady } from './roster.js?v=20261012215037';
+import { Gym } from './gym.js?v=20261012215037';
+import { BagTraining } from './training.js?v=20261012215037';
+import { RopeTraining } from './rope.js?v=20261012215037';
+import { SpeedBagTraining } from './speedbag.js?v=20261012215037';
+import { SlipLineTraining } from './slipline.js?v=20261012215037';
+import { RingSkirt } from './ring_skirt.js?v=20261012215037';
+import { panoPending } from './pano_depth.js?v=20261012215037';
+import { DoubleEndTraining } from './doubleend.js?v=20261012215037';
+import { Sparring } from './sparring.js?v=20261012215037';
+import { RingGirl } from './ringgirl.js?v=20261012215037';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261012215037';
+import { conditioning, exert, recoverCombat, impactPower, applyImpact } from './combat.js?v=20261012215037';
+import * as sfx from './sfx.js?v=20261012215037';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261012215037';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261012215037';
+import { Tournament, BracketView } from './tournament.js?v=20261012215037';
+import { CpuMatch } from './cpu_match.js?v=20261012215037';
+import { TowerView } from './tower.js?v=20261012215037';
+import { createMatchPreferences } from './match_preferences.js?v=20261012215037';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -106,7 +109,7 @@ const board = new Scoreboard();
 arena.add(board.mesh);
 const PLAYER_Z = 0.8;                 // dove sta il giocatore rispetto al centro del ring (se c'e' spazio)
 let ringSize = 0, ringObj = null, playerZ = PLAYER_Z;
-let forestEnv = null, saltEnv = null;
+let forestEnv = null, saltEnv = null, cageEnv = null, circusEnv = null;
 let snowEnv = null, volcEnv = null, seaEnv = null, moonEnv = null, desertEnv = null, stadiumEnv = null, stadiumNEnv = null, ringSkirt = null, ringDrop = 0;   // (seaEnv: sotto il mare; la sfera dipende dalla misura del ring)               // stage neve (creato in applyMode; qui perche' setRing lo usa subito)
 // Tabellone: parte al suo posto (dietro all'avversario, in alto a destra). Si sposta SOLO se esce dal campo
 // visivo: allora gira piano attorno a te (stessa distanza e altezza) finche' rientra un po' dentro la vista, e li' resta.
@@ -164,6 +167,8 @@ function setRing(size, pz) {
     if (snowEnv) snowEnv.setRing(size);
     if (forestEnv) forestEnv.setRing(size);
     if (saltEnv) saltEnv.setRing(size);
+    if (cageEnv) cageEnv.setRing(size);
+    if (circusEnv) circusEnv.setRing(size);
     if (stadiumEnv) stadiumEnv.setRing(size); if (stadiumNEnv) stadiumNEnv.setRing(size);
     if (moonEnv) moonEnv.setRing(size); if (volcEnv) volcEnv.setRing(size); if (desertEnv) desertEnv.setRing(size);
     if (ringSkirt) ringSkirt.set(size, ringDrop);
@@ -204,7 +209,7 @@ if (!LEVELS[level]) level = 'normale';
 // dove si gioca: 'stanza' = realta' mista nella tua stanza, 'arena' = palazzetto virtuale con il pubblico,
 // 'spiaggia' = ring sulla sabbia in riva al mare
 const SEA_READY = true;                            // stage 'mare' (si puo' nascondere dal menu mettendo false)
-const MODES = ['stanza', 'arena', 'spiaggia', 'grattacielo', 'notte', 'deserto', 'sale', 'neve', 'foresta', 'vulcano', 'mare', 'luna', 'stadio', 'stadionotte', 'palestra'];
+const MODES = ['stanza', 'arena', 'spiaggia', 'grattacielo', 'notte', 'deserto', 'sale', 'neve', 'foresta', 'vulcano', 'mare', 'luna', 'stadio', 'stadionotte', 'palestra', 'gabbia', 'circo'];
 let mode = 'palestra';
 
 // stage scelto nel menu: uno dei tre oppure 'random' (estratto a ogni incontro tra gli stage virtuali)
@@ -245,6 +250,8 @@ function freeStage(e) {
   freeGPU(e.group);
 }
 function freeOtherStages() {
+  if (mode !== 'gabbia' && cageEnv) { freeStage(cageEnv); cageEnv=null; }
+  if (mode !== 'circo' && circusEnv) { freeStage(circusEnv); circusEnv=null; }
   if (mode !== 'sale' && saltEnv) { freeStage(saltEnv); saltEnv = null; }
   if (mode !== 'foresta' && forestEnv) { freeStage(forestEnv); forestEnv = null; }
   if (mode !== 'deserto' && desertEnv) { freeStage(desertEnv); desertEnv = null; }
@@ -260,6 +267,10 @@ function freeOtherStages() {
 }
 function applyMode() {
   freeOtherStages();
+  const inCage=mode==='gabbia',inCircus=mode==='circo';
+  if(inCage&&!cageEnv){cageEnv=new MmaCage(ringSize||RING_SIZE);arena.add(cageEnv.group);}
+  if(inCircus&&!circusEnv){circusEnv=new Circus(ringSize||RING_SIZE);arena.add(circusEnv.group);}
+  if(cageEnv)cageEnv.group.visible=inCage;if(circusEnv)circusEnv.group.visible=inCircus;
   const inArena = mode === 'arena', onBeach = mode === 'spiaggia', onRoof = mode === 'grattacielo';
   if (onRoof && !roofEnv) { roofEnv = new Rooftop(RING_SIZE); arena.add(roofEnv.group); }
   if (roofEnv) roofEnv.group.visible = onRoof;
@@ -306,7 +317,12 @@ function applyMode() {
   for (const e of [moonEnv, volcEnv, snowEnv, desertEnv, saltEnv]) if (e) e.group.position.y = e.group.visible ? -drop : 0;
   if (!ringSkirt) { ringSkirt = new RingSkirt(); arena.add(ringSkirt.group); }
   ringSkirt.set(ringSize || RING_SIZE, drop); ringDrop = drop;
-  if (onSalt) {
+  if(inCage||inCircus){
+    scene.environment=roomEnv;scene.environmentRotation.set(0,0,0);scene.environmentIntensity=inCircus?.45:.35;
+    hemi.color.set(inCircus?0xffdbaf:0xc7daee);hemi.groundColor.set(inCircus?0x65452d:0x232833);hemi.intensity=.55;
+    key.color.set(inCircus?0xffe0aa:0xf0f4ff);key.intensity=2.4;key.position.set(-1.4,5,1.2);fill.intensity=.65;
+    scene.background=new THREE.Color(inCircus?0x231419:0x080a10);scene.fog=new THREE.Fog(inCircus?0x231419:0x080a10,16,38);camera.far=65;
+  } else if (onSalt) {
     scene.environment = roomEnv; scene.environmentRotation.set(0, 0, 0);
     hemi.color.set(0xc1d9ff); hemi.groundColor.set(0xf1ecdf); hemi.intensity = .75;
     scene.environmentIntensity = .5; key.intensity = 2.4; fill.intensity = .35;
@@ -455,7 +471,7 @@ function applyMode() {
     camera.far = 60;
   }
   camera.updateProjectionMatrix();
-  sfx.crowdAmbient(inArena);
+  sfx.crowdAmbient(inArena || inCage || inCircus);
   sfx.seaAmbient(onBeach);
   sfx.windAmbient(onRoof || onNight || onDesert || onSalt || onStadium || onStadiumN);
   sfx.snowAmbient(onSnow);
@@ -494,9 +510,9 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261012074748`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261012215037`); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const stageImages = {};
-const stageImg = n => { if(stageImages[n])return stageImages[n]; const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261012074748`); t.colorSpace = THREE.SRGBColorSpace; return (stageImages[n]=t); };
+const stageImg = n => { if(stageImages[n])return stageImages[n]; const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261012215037`); t.colorSpace = THREE.SRGBColorSpace; return (stageImages[n]=t); };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -641,7 +657,7 @@ const stageRow = y => ({ label: t('stage'), tk: 'stage', y, h: 0.2, carousel: tr
   { id: 's:stanza', tk: 'm_stanza', w: 0.22, img: roomPreview() }, { id: 's:arena', tk: 'm_arena', w: 0.22, img: stageImg('arena') },
   { id: 's:spiaggia', tk: 'm_spiaggia', w: 0.22, img: stageImg('spiaggia') },
   { id: 's:grattacielo', tk: 'm_grattacielo', w: 0.22, img: stageImg('grattacielo') }, { id: 's:notte', tk: 'm_notte', w: 0.22, img: stageImg('notte') },
-  { id: 's:deserto', tk: 'm_deserto', w: 0.22, img: stageImg('deserto') }, { id: 's:sale', tk: 'm_sale', w: 0.22, img: stageImg('sale') }, { id: 's:neve', tk: 'm_neve', w: 0.22, img: stageImg('neve') }, { id: 's:foresta', tk: 'm_foresta', w: 0.22, img: stageImg('foresta') }, { id: 's:vulcano', tk: 'm_vulcano', w: 0.22, img: stageImg('vulcano') }, ...(SEA_READY ? [{ id: 's:mare', tk: 'm_mare', w: 0.22, img: stageImg('mare') }] : []), { id: 's:luna', tk: 'm_luna', w: 0.22, img: stageImg('luna') }, { id: 's:stadio', tk: 'm_stadio', w: 0.22, img: stageImg('stadio') }, { id: 's:stadionotte', tk: 'm_stadionotte', w: 0.22, img: stageImg('stadionotte') }, { id: 's:palestra', tk: 'm_palestra', w: 0.22, img: stageImg('palestra') }, { id: 's:random', tk: 'm_random', w: 0.22, img: randomPreview() }] });
+  { id: 's:deserto', tk: 'm_deserto', w: 0.22, img: stageImg('deserto') }, { id: 's:sale', tk: 'm_sale', w: 0.22, img: stageImg('sale') }, { id: 's:neve', tk: 'm_neve', w: 0.22, img: stageImg('neve') }, { id: 's:foresta', tk: 'm_foresta', w: 0.22, img: stageImg('foresta') }, { id: 's:vulcano', tk: 'm_vulcano', w: 0.22, img: stageImg('vulcano') }, ...(SEA_READY ? [{ id: 's:mare', tk: 'm_mare', w: 0.22, img: stageImg('mare') }] : []), { id: 's:luna', tk: 'm_luna', w: 0.22, img: stageImg('luna') }, { id: 's:stadio', tk: 'm_stadio', w: 0.22, img: stageImg('stadio') }, { id: 's:stadionotte', tk: 'm_stadionotte', w: 0.22, img: stageImg('stadionotte') }, { id: 's:palestra', tk: 'm_palestra', w: 0.22, img: stageImg('palestra') }, { id: 's:gabbia', tk: 'm_gabbia', w: 0.22, img: stageImg('gabbia') }, { id: 's:circo', tk: 'm_circo', w: 0.22, img: stageImg('circo') }, { id: 's:random', tk: 'm_random', w: 0.22, img: randomPreview() }] });
 // la tua bandiera (si sceglie nelle opzioni, tra tutti i paesi): sul tabellone sta nella barra del tuo nome. 'none' = rettangolo nero con "?"
 let playerFlag = 'none';
 try { playerFlag = localStorage.getItem('hb-pflag') || 'none'; } catch (e) {}
@@ -705,8 +721,8 @@ const OPP_BTNS = [{ id: 'f:random', tk: 'f_random', w: 0.22, img: randomPreview(
   {id:'f:random_end',tk:'f_random',w:.22,img:randomPreview()}];
 const OPP_ROWS = 1, OPP_EXTRA = 0;      // (una riga a scorrimento)
 const matchSummaryRows = () => [
-  {y:.18,h:.25,cx:-.235,colW:.4,label:t('stage'),tk:'stage',buttons:[{id:'summary_stage',text:' ',w:.4,img:stageImg('palestra'),displayOnly:true,color:0x202a39}]},
-  {y:.18,h:.25,cx:.235,colW:.4,label:t('opponent'),summaryDetail:true,buttons:[{id:'summary_detail',text:' ',w:.4,img:fighterImg('mike'),displayOnly:true,color:0x202a39}]},
+  {y:.18,h:.25,cx:-.235,colW:.4,label:t('stage'),tk:'stage',buttons:[{id:'summary_stage',text:' ',w:.4,img:stageImg('palestra'),color:0x202a39}]},
+  {y:.18,h:.25,cx:.235,colW:.4,label:t('opponent'),summaryDetail:true,buttons:[{id:'summary_detail',text:' ',w:.4,img:fighterImg('mike'),color:0x202a39}]},
   {y:-.065,h:.035,buttons:[],label:' ',summaryLine:0},
   {y:-.145,h:.035,buttons:[],label:' ',summaryLine:1},
   {y:-.205,h:.035,buttons:[],label:' ',summaryLine:2},
@@ -780,23 +796,25 @@ const sparMenu = new MenuPanel({ title: t('sp_title'), titleTk: 'sp_title', titl
   { y: -0.33, h: 0.1, buttons: [{ id: 'back_train', tk: 'back', w: 0.3, color: 0x3a4254 }] },     // indietro: all'allenamento
 ]) }, 0.6);
 // Difesa: tutto casuale, oppure scegli i colpi che il partner ti tira (uno alla volta, niente combinazioni)
-const DEF_IDS = ['jab', 'cross', 'hook_l', 'hook_r', 'upper_l', 'upper_r', 'body'];
+const DEF_IDS = ['jab', 'cross', 'hook_l', 'hook_r', 'upper_l', 'upper_r', 'body_l','body_r'];
 let defSel = new Set(['jab', 'cross']);
-try { const v = JSON.parse(localStorage.getItem('hb-def-kinds') || 'null'); if (Array.isArray(v) && v.length) defSel = new Set(v.filter(k => DEF_IDS.includes(k))); } catch (e) {}
+try { const v = JSON.parse(localStorage.getItem('hb-def-kinds') || 'null'); if (Array.isArray(v)) defSel = new Set(v.flatMap(k=>k==='body'?['body_l','body_r']:[k]).filter(k => DEF_IDS.includes(k))); } catch (e) {}
 let defType = 'entrambi';                          // cosa alleni: para, schiva o entrambi
 try { const v = localStorage.getItem('hb-def-type'); if (['para', 'schiva', 'entrambi'].includes(v)) defType = v; } catch (e) {}
 let defGuard = true;                               // dopo ogni colpo devi tornare in guardia? (si puo' togliere)
 try { defGuard = localStorage.getItem('hb-def-guard') !== 'no'; } catch (e) {}
-const defMenu = new MenuPanel({ title: t('sp_difesa'), titleTk: 'sp_difesa', titleH: 0.1, width: 1.0, height: 1.32, draggable: true, rows: withText([
+let defCombos=false;try{defCombos=localStorage.getItem('hb-def-combos')==='yes';}catch(e){}
+const defMenu = new MenuPanel({ title: t('sp_difesa'), titleTk: 'sp_difesa', titleH: 0.1, width: 1.0, height: 1.48, draggable: true, rows: withText([
   { label: t('dm_type'), tk: 'dm_type', y: 0.33, h: 0.1, buttons: [{ id: 'dt:para', tk: 'dt_para', w: 0.22, color: 0x5a3a8a }, { id: 'dt:schiva', tk: 'dt_schiva', w: 0.22, color: 0x5a3a8a }, { id: 'dt:entrambi', tk: 'dt_entrambi', w: 0.22, color: 0x5a3a8a }] },
   { y: 0.16, h: 0.11, buttons: [{ id: 'dm:casuale', tk: 'dm_random', w: 0.6, color: 0x2e7a3a }] },
   { label: t('dm_pick'), tk: 'dm_pick', y: -0.05, h: 0.11, buttons: DEF_IDS.slice(0, 4).map(k => ({ id: 'dk:' + k, tk: 'dk_' + k, w: 0.21, color: 0x1f4f6f })) },
   { y: -0.2, h: 0.11, buttons: DEF_IDS.slice(4).map(k => ({ id: 'dk:' + k, tk: 'dk_' + k, w: 0.21, color: 0x1f4f6f })) },
   { label: t('dm_guard'), tk: 'dm_guard', y: -0.36, h: 0.1, buttons: [{ id: 'dg:si', tk: 'yes', w: 0.2, color: 0x5a3a8a }, { id: 'dg:no', tk: 'no', w: 0.2, color: 0x5a3a8a }] },
-  { y: -0.53, h: 0.11, buttons: [{ id: 'back_spar', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'dm:start', tk: 'dm_start', w: 0.42, color: 0x9a1418 }] },
+  { label:t('sp_combo'),tk:'sp_combo',y:-.51,h:.09,buttons:[{id:'dc:yes',tk:'yes',w:.2,color:0x5a3a8a},{id:'dc:no',tk:'no',w:.2,color:0x5a3a8a}] },
+  { y: -0.65, h: 0.11, buttons: [{ id: 'back_spar', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'dm:start', tk: 'dm_start', w: 0.42, color: 0x9a1418 }] },
 ]) });
 defMenu.hold = 0.6;
-const defSelect = () => defMenu.select([...[...defSel].map(k => 'dk:' + k), 'dt:' + defType, defGuard ? 'dg:si' : 'dg:no']);
+const defSelect = () => defMenu.select([...[...defSel].map(k => 'dk:' + k), 'dt:' + defType, defGuard ? 'dg:si' : 'dg:no',defCombos?'dc:yes':'dc:no']);
 let lastTrainMenu = null;                          // per "Cambia allenamento": il menu da cui eri partito
 let galleryBefore=null, galleryStage='palestra';
 const galleryRow=stageRow(.025);
@@ -1133,7 +1151,7 @@ const trophyMenu = new MenuPanel({ title: t('tr_prize'), titleTk: 'tr_prize', ti
   { y: -0.04, h: 0.06, buttons: [{ id: 'tcont', tk: 'tr_continue', w: 0.29, color: 0x1f8a4c }] },
 ]) });
 scene.add(trophyMenu.group);
-const fighter = () => ({ points: 0, hits: 0, blocks: 0, dodges: 0, dmg: 0, kd: 0, kdRound: 0, penalties: 0 });
+const fighter = () => conditioning({ points: 0, hits: 0, blocks: 0, dodges: 0, dmg: 0, kd: 0, kdRound: 0, penalties: 0 });
 const game = {
   round: 1, time: roundSecs, phase: 'ready', phaseT: 0, paused: false,
   player: fighter(), mike: fighter(), message: '', kd: null, result: null, foul: null, fill: null,
@@ -1153,6 +1171,8 @@ function newMatch() {
   if (stadiumEnv && stadiumEnv.player) { stadiumEnv.player.cheer(false); stadiumEnv.player.watch(false); }   // il calciatore dello stadio riprende a giocare
   game.round = 1; game.result = null; game.kd = null; game.foul = null; game.fill = null;
   game.player = fighter(); game.mike = fighter();
+  if(mike)mike.condition=game.mike;
+  player.combatPunchIds={left:-1,right:-1};
   if (bruises) bruises.reset();
   if (mike) { mike.resetPose(); mike.holdDist = null; mike.learner = new StyleLearner(); }   // (ogni incontro impara da capo)
   getUp.stop(); setPeople(true); resetBoard();
@@ -1174,12 +1194,15 @@ game.phase = 'menu';            // finche' non scegli "Inizia incontro" non part
 // un colpo a segno: danno; a energia zero si va giu'
 // un contrattacco (preso mentre l'altro attacca o ha appena mancato) toglie di piu'
 const COUNTER_X = 1.5;
-function landed(who, zone, power) {
+function landed(who, zone, power, quality=1) {
   const f = game[who];
-  f.dmg = Math.min(100, f.dmg + (zone === 'head' ? 3.5 + 6 * power : 2 + 3.5 * power));
+  const impact=applyImpact(f,zone,power,quality);
+  if(who==='mike')mike.stun=Math.max(mike.stun,impact.stun);
   if (game.kd || game.phase !== 'fight' || game.foul) return;
-  if (f.dmg >= 100) knockdown(who, power);
+  cheerVenueCrowd(Math.min(1.5,impact.damage/10));
+  if (impact.down) knockdown(who, power);
 }
+function cheerVenueCrowd(strength=1){for(const env of [cageEnv,circusEnv])if(env?.group.visible)env.spectators.cheer(strength);}
 
 // il calciatore dello stadio: sta fermo a guardare il ring (ko, attesa del verdetto) o esulta (a verdetto dato)
 const stadiumFb = (fn, ...a) => { if (stadiumEnv && stadiumEnv.group.visible && stadiumEnv.player) stadiumEnv.player[fn](...a, ...(a[0] ? [stadiumEnv.group.worldToLocal(player.head.clone())] : [])); };
@@ -1187,11 +1210,12 @@ function knockdown(who, power) {
   stadiumFb('watch', true);
   const f = game[who];
   f.kd++; f.kdRound++;
+  f.shock=0;f.stamina=Math.max(25,f.stamina-15);
   // stanchezza da atterramenti: sale di 1 a ogni atterramento e cala col tempo (pause tra i round, minuti di combattimento)
   f.kdLvl = (f.kdLvl || 0) + 1;
   const lvl = Math.max(1, Math.round(f.kdLvl));
   mike.enabled = false;
-  sfx.punchHit(1.4, who === 'mike');               // atterrato lui: il tuo colpo; atterrato tu: il suo
+  // L'impatto e' gia' stato riprodotto al contatto: niente secondo pugno al KO.
   sfx.voiceNow('knockdown');
   if (arenaEnv) arenaEnv.cheer(2);
   if (mode === 'arena') sfx.cheer('boato', 1);
@@ -1293,7 +1317,7 @@ function endMatch(winner, how) {
 function lowBlow() {
   const p = ++game.player.penalties;
   game.mike.dmg = Math.min(99, game.mike.dmg + 10);
-  sfx.punchHit(0.8);
+  sfx.punchHit(0.8,true,'body',mike.bonePos('pelvis'),camera);
   mike.lowBlowed();
   if (arenaEnv) arenaEnv.cheer(0.4);
   if (mode === 'arena') sfx.cheer('ooh', 1);
@@ -1334,7 +1358,7 @@ function handleEvents() {
         const pts = e.zone === 'head' ? 2 : 1;
         game.player.points += pts; game.player.hits++;
         game.message = e.counter ? t('you_counter') : t(e.zone === 'head' ? 'you_head' : 'you_body');
-        sfx.punchHit(Math.min(1.3, 0.6 + e.speed / 6));
+        sfx.punchHit(Math.min(1.3, 0.6 + e.speed / 6)*(e.quality??1),true,e.zone,e.point,camera);
         if (mode === 'arena') { if (e.speed > 4 || e.zone === 'head') sfx.cheer('boato', Math.min(1, 0.4 + e.speed / 10)); }
         else sfx.crowd(0.08);
         if (arenaEnv) arenaEnv.cheer(Math.min(1.5, e.speed / 4) * (e.zone === 'head' ? 1 : 0.6));
@@ -1348,33 +1372,33 @@ function handleEvents() {
           sweat.burst(e.point, e.dir, Math.min(1.5, e.speed / 4), blood);
         }
         player.pulse(e.side, 1.0, 70);
-        landed('mike', e.zone, Math.min(1.5, e.speed / 5) * (mike.cfg.toughness ?? 1) * (e.counter ? COUNTER_X : 1));   // ai livelli alti incassa meno
+        landed('mike', e.zone, impactPower(e.speed,1,game.player.stamina) * (mike.cfg.toughness ?? 1) * (e.counter ? COUNTER_X : 1),e.quality??1);
         break;
       }
       case 'mikeBlocked':
         game.mike.blocks++; game.message = t('mike_blocks');
         if (mode === 'arena' && Math.random() < 0.35) sfx.cheer('ooh', 0.6);
-        sfx.punchBlock(); player.pulse(e.side, 0.4, 40);
+        sfx.punchBlock(Math.min(1.3,.5+(e.speed??3)/7),e.point,camera); player.pulse(e.side, 0.4, 40);
         break;
       case 'mikeDodged':
         game.mike.dodges++; game.message = t('mike_dodges');
         if (mode === 'arena' && Math.random() < 0.5) sfx.cheer('ooh', 0.7);
         break;
-      case 'mikeThrows':
-        sfx.whoosh();
+      case 'mikeSwing':
+        sfx.whoosh(.45,e.point,camera);
         break;
       case 'mikeHit':
         game.mike.points += e.zone === 'body' ? 1 : 2; game.mike.hits++;
         game.message = e.counter ? t('mike_counter') : t(e.zone === 'body' ? 'mike_body' : 'mike_head');
-        sfx.punchHit(e.zone === 'body' ? 0.9 : 1.2, false); flash.hit(e.zone === 'body' ? 0.5 : 1);
+        sfx.punchHit(Math.min(1.3,.5+(e.speed??4)/7)*(e.quality??1),false,e.zone,e.point,camera); flash.hit(e.zone === 'body' ? 0.5 : 1);
         if (arenaEnv) arenaEnv.cheer(0.6);
         if (mode === 'arena' && e.zone === 'head') sfx.cheer('boato', 0.6);
         player.pulse('left', 0.7, 90); player.pulse('right', 0.7, 90);
-        landed('player', e.zone, powerNow() * ((mike.cfg0.mods && mike.cfg0.mods.power) || 1) * (0.85 + Math.random() * 0.3) * (e.counter ? COUNTER_X : 1));
+        landed('player', e.zone, (e.power??1) * powerNow() * ((mike.cfg0.mods && mike.cfg0.mods.power) || 1) * (e.counter ? COUNTER_X : 1),e.quality??1);
         break;
       case 'playerBlocked':
         game.player.blocks++; game.message = t('blocked');
-        sfx.punchBlock(); player.pulse(e.side, 0.6, 50);
+        sfx.punchBlock(Math.min(1.3,.5+(e.speed??3)/7),e.point,camera); player.pulse(e.side, 0.6, 50);
         break;
       case 'playerDodged':
         game.player.dodges++; game.message = t('dodged');
@@ -1445,7 +1469,7 @@ function updateGame(dt) {
       game.time = Math.max(0, game.time - dt);
       // ultimi 10 secondi: solo l'annuncio a voce "Ten seconds!" (niente numeri a schermo)
       if (game.time <= 10 && game.lastCount !== 10 && roundSecs > 15) { game.lastCount = 10; sfx.announce('ten_seconds'); }
-      if (!game.fill) for (const k of ['player', 'mike']) game[k].dmg = Math.max(0, game[k].dmg - dt * 0.5);   // si riprende un po'
+      if (!game.fill) for (const k of ['player', 'mike']) recoverCombat(game[k],dt);
       for (const k of ['player', 'mike']) game[k].kdLvl = Math.max(0, (game[k].kdLvl || 0) - dt / 90);      // e smaltisce gli atterramenti
       flash.setBase(game.player.dmg > 55 ? (game.player.dmg - 55) / 45 * 0.35 : 0);         // vista che si annebbia
       if (game.time === 0) {
@@ -1457,6 +1481,7 @@ function updateGame(dt) {
       }
     }
   } else if (game.phase === 'rest') {
+    for(const k of ['player','mike'])recoverCombat(game[k],dt,true);
     const left = Math.ceil(REST_S - game.phaseT);
     game.message = t('rest', { r: game.round + 1, s: left });
     nextMenu.setTitle(t('next_title', { n: game.round + 1, s: left }));
@@ -1498,6 +1523,7 @@ renderer.setAnimationLoop((t, frame) => { if (window.pauseLoop) return; const no
 // ---------------------------------------------------------------- presentazione dei pugili (speaker)
 // "Signore e signori, benvenuti… nell'angolo rosso, lo sfidante! … nell'angolo blu… MIKE!", poi il primo round.
 function startPresentation() {
+  if (cageEnv) cageEnv.setMatch(pending && ((pending.cm && tour) || pending.arcade) ? cpuNames() : [t('bn_you'), FIGHTERS[fighterId].name]);
   if (arenaEnv) arenaEnv.setBanners([[t('bn_red'), t('bn_you')], [t('bn_go'), null], ['HOME BOXING', t(tour ? 'bn_tour' : surv ? 'bn_surv' : 'bn_champ')], ['KO!', null]]);
   const rk = tour ? (tour.stage() === 0 ? 'tour_r64' : 'tour_r' + (tour.stage() - 1)) : '';
   const head = tour ? (tour.round === 0 ? ['tour_intro', rk] : [rk]) : ['intro_1'];
@@ -1620,21 +1646,21 @@ const loader = (() => {
 })();
 // lo stage scelto non e' ancora pronto (foto e modelli): finche' non lo e' si resta al buio
 function stageBusy() {
-  const envs = [[saltEnv, 'sale'], [forestEnv, 'foresta'], [desertEnv, 'deserto'], [roofEnv, 'grattacielo'], [nightEnv, 'notte'], [snowEnv, 'neve'], [volcEnv, 'vulcano'], [seaEnv, 'mare'], [moonEnv, 'luna'], [stadiumEnv, 'stadio'], [stadiumNEnv, 'stadionotte'], [beachEnv, 'spiaggia']];
+  const envs = [[cageEnv, 'gabbia'], [circusEnv, 'circo'], [saltEnv, 'sale'], [forestEnv, 'foresta'], [desertEnv, 'deserto'], [roofEnv, 'grattacielo'], [nightEnv, 'notte'], [snowEnv, 'neve'], [volcEnv, 'vulcano'], [seaEnv, 'mare'], [moonEnv, 'luna'], [stadiumEnv, 'stadio'], [stadiumNEnv, 'stadionotte'], [beachEnv, 'spiaggia']];
   for (const [e, m] of envs) if (mode === m && e && !e.skyLoaded) return true;
   if (panoPending > 0 && mode !== 'stanza' && mode !== 'arena') return true;   // lo sfondo 3D e' ancora in costruzione
   return mode === 'palestra' && gymEnv && !gymEnv.loaded;
 }
 // lo stage st deve ancora caricare foto e modelli (mai aperto prima)?
 function stageCold(st) {
-  const e = { sale: saltEnv, foresta: forestEnv, deserto: desertEnv, grattacielo: roofEnv, notte: nightEnv, neve: snowEnv, vulcano: volcEnv, mare: seaEnv, luna: moonEnv, stadio: stadiumEnv, stadionotte: stadiumNEnv, spiaggia: beachEnv }[st];
+  const e = { gabbia:cageEnv, circo:circusEnv, sale: saltEnv, foresta: forestEnv, deserto: desertEnv, grattacielo: roofEnv, notte: nightEnv, neve: snowEnv, vulcano: volcEnv, mare: seaEnv, luna: moonEnv, stadio: stadiumEnv, stadionotte: stadiumNEnv, spiaggia: beachEnv }[st];
   if (st === 'palestra') return !gymEnv || !gymEnv.loaded;
-  return st in { sale: 1, foresta: 1, deserto: 1, grattacielo: 1, notte: 1, neve: 1, vulcano: 1, mare: 1, luna: 1, stadio: 1, stadionotte: 1, spiaggia: 1 } && (!e || !e.skyLoaded);
+  return st in { gabbia:1, circo:1, sale: 1, foresta: 1, deserto: 1, grattacielo: 1, notte: 1, neve: 1, vulcano: 1, mare: 1, luna: 1, stadio: 1, stadionotte: 1, spiaggia: 1 } && (!e || !e.skyLoaded);
 }
 function loadingBusy() {
   if (fighterLoading || sparLoading) return true;
   if (stageBusy()) return true;
-  const envs = [[saltEnv, 'sale'], [forestEnv, 'foresta'], [desertEnv, 'deserto'], [roofEnv, 'grattacielo'], [nightEnv, 'notte'], [snowEnv, 'neve'], [volcEnv, 'vulcano'], [seaEnv, 'mare'], [moonEnv, 'luna'], [stadiumEnv, 'stadio'], [stadiumNEnv, 'stadionotte'], [beachEnv, 'spiaggia']];
+  const envs = [[cageEnv, 'gabbia'], [circusEnv, 'circo'], [saltEnv, 'sale'], [forestEnv, 'foresta'], [desertEnv, 'deserto'], [roofEnv, 'grattacielo'], [nightEnv, 'notte'], [snowEnv, 'neve'], [volcEnv, 'vulcano'], [seaEnv, 'mare'], [moonEnv, 'luna'], [stadiumEnv, 'stadio'], [stadiumNEnv, 'stadionotte'], [beachEnv, 'spiaggia']];
   for (const [e, m] of envs) if (mode === m && e && !e.skyLoaded) return true;
   if (mode === 'palestra' && gymEnv && !gymEnv.loaded) return true;
   return false;
@@ -1821,7 +1847,7 @@ function tick(dt, frame) {
   if (cpu) {
     for (const g of Object.values(player.gloves)) g.mesh.visible = false;      // guardi soltanto
     if (!game.paused) cpu.update(dt);                          // (in pausa l'incontro si ferma)
-    const st = i => ({ points: cpu.pts[i], dmg: cpu.dmg[i], hits: cpu.hits[i], blocks: 0, dodges: 0, kd: cpu.kdN[i], penalties: cpu.pen[i] });
+    const st = i => ({ points: cpu.pts[i], dmg: cpu.dmg[i], stamina:cpu.condition[i].stamina,hits: cpu.hits[i], blocks: 0, dodges: 0, kd: cpu.kdN[i], penalties: cpu.pen[i] });
     board.draw({ flags: cpuIds().map(id => id && ROSTER[id] && ROSTER[id].flag), round: cpu.round, rounds: cpu.rounds, level: t('l_' + level), time: Math.max(0, cpu.rest > 0 ? cpu.rest : cpu.time), running: cpu.delay <= 0 && !cpu.kd, player: st(0), mike: st(1),
       names: cpuNames().map(n => n.toUpperCase()), message: t('cpu_vs', { a: cpuNames()[0], b: cpuNames()[1] }), diag: '' });
     // "vai al risultato": alla tua sinistra, girato verso di te (davanti copriva l'incontro)
@@ -1850,7 +1876,7 @@ function tick(dt, frame) {
       if (cpu.done && (cpu.skipped || (A.t > (A.final ? 9 : 6) && !sfx.voiceBusy() && A.reactAt != null && A.t - A.reactAt > 6) || A.t > 24)) { if (cpu.skipped) sfx.stopVoices(); girl.stop(); party.hideAll(); endCpuWatch(); }
     } else if (cpu.done) endCpuWatch();
   } else if (game.phase === 'sparring') {
-    if (!game.paused) { mike.update(dt, player); const ev = mike.events.slice(); mike.events.length = 0; sparSounds(ev); spar.update(dt, player, ev); }
+    if (!game.paused) { updateHumanCondition(dt,true); mike.update(dt, player); const ev = mike.events.slice(); mike.events.length = 0; sparSounds(ev); spar.update(dt, player, ev); }
   } else if (game.phase === 'training') {
     const cam_ = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
     if (trainKind === 'corda') {                          // corda: niente guantoni, ci sono le fasce e le manopole
@@ -1860,6 +1886,7 @@ function tick(dt, frame) {
     else if (trainKind === 'pera' || trainKind === 'doppio') { if (!game.paused) trainer().update(dt, player, cam_); }
     else if (!game.paused) bagTr.update(dt, player, cam_);
   } else if (mike && game.phase !== 'watch') {
+    if(game.phase==='fight'&&!game.paused&&!game.kd&&!game.foul)updateHumanCondition(dt);
     mike.learnOn = game.phase === 'fight' && !game.paused;      // impara solo mentre si combatte
     mike.update(dt, player);
     handleEvents();
@@ -1882,6 +1909,10 @@ function tick(dt, frame) {
   }
   if (party.update(dt)) sfx.firework();
   if (arenaEnv && arenaEnv.group.visible) { arenaEnv.update(dt,player.head); sfx.crowdLevel(arenaEnv.excite); }
+  const crowdKD=cpu?cpu.kd:game.kd,crowdEnd=cpu?cpu.winner!==null:game.phase==='end';
+  for(const env of [cageEnv,circusEnv])if(env?.group.visible)env.spectators.setMatchState(!!crowdKD&&!crowdKD.up,crowdEnd);
+  if(cageEnv?.group.visible){cageEnv.update(dt,camera);cageEnv.setMatch(pending && ((pending.cm && tour) || pending.arcade) ? cpuNames() : [t('bn_you'), FIGHTERS[fighterId].name]);}
+  if(circusEnv?.group.visible)circusEnv.update(dt);
   if (saltEnv && saltEnv.group.visible) saltEnv.update(dt, renderer.xr.isPresenting ? renderer.xr.getCamera() : camera);
   if (desertEnv && desertEnv.group.visible) desertEnv.update(dt, renderer.xr.isPresenting ? renderer.xr.getCamera() : camera);
   if (stadiumEnv && stadiumEnv.group.visible) stadiumEnv.update(dt, renderer.xr.isPresenting ? renderer.xr.getCamera() : camera);
@@ -1973,7 +2004,7 @@ function refreshMatchSummaries() {
     const p=matchPreferences.get(kind), stage=t(p.stage==='random'?'m_random':'m_'+p.stage);
     const detail=kind==='arcade'?(p.opponent==='random'?t('f_random'):FIGHTERS[p.opponent].name):kind==='tour'?t('tr_size',{n:p.tourSize}):t('tw_size',{n:p.towerSize});
     const label=t({arcade:'opponent',tour:'tr_n',surv:'tw_n'}[kind]);
-    // Reuse the selection previews, including their textures, in the passive cards.
+    // Reuse the selection previews in the compact cards that open settings.
     const detailId=kind==='arcade'?'f:'+p.opponent:kind==='tour'?'tz:'+p.tourSize:'tw:'+p.towerSize;
     const images=['s:'+p.stage,detailId].map(id=>matchSettingsMenu.buttons.find(b=>b.id===id).img);
     ['summary_stage','summary_detail'].forEach((id,i)=>{const b=panel.buttons.find(b=>b.id===id);b.text=i?detail:stage;panel._paint(b.label,b.text,'#ffffff');b.im.material.map=images[i];b.im.material.needsUpdate=true;});
@@ -2101,17 +2132,26 @@ function stopTraining() {
   if (gymEnv) gymEnv.setTraining(false);
 }
 // suoni dei colpi nello sparring (come nell'incontro, ma senza pubblico ne' danni)
+function updateHumanCondition(dt,practice=false) {
+  mike.condition=game.mike;
+  for(const g of Object.values(player.gloves)){
+    if(g.mesh.visible&&g.speed>=1.8&&player.combatPunchIds?.[g.side]!==g.punchId){
+      (player.combatPunchIds||={})[g.side]=g.punchId;exert(game.player,1.5+Math.min(2,g.speed*.2));
+    }
+  }
+  if(practice){recoverCombat(game.player,dt);recoverCombat(game.mike,dt);mike.fatigue=game.mike.dmg/100;}
+}
 function sparSounds(ev) {
   for (const e of ev) {
-    if (e.type === 'playerHit') { sfx.punchHit(Math.min(1.3, 0.6 + (e.speed || 3) / 6)); player.pulse(e.side, 1.0, 70); }
-    else if (e.type === 'mikeBlocked') { sfx.punchBlock(); player.pulse(e.side, 0.4, 40); }
-    else if (e.type === 'mikeThrows') sfx.whoosh();
-    else if (e.type === 'mikeHit') { sfx.punchHit(e.zone === 'body' ? 0.9 : 1.2, false); flash.hit(e.zone === 'body' ? 0.3 : 0.5); player.pulse('left', 0.6, 80); player.pulse('right', 0.6, 80); }
-    else if (e.type === 'playerBlocked') { sfx.punchBlock(); player.pulse(e.side, 0.6, 50); }
+    if (e.type === 'playerHit') { applyImpact(game.mike,e.zone,impactPower(e.speed,1,game.player.stamina)*(mike.cfg.toughness??1)*(e.counter?1.5:1),e.quality??1); game.mike.dmg=Math.min(85,game.mike.dmg);game.mike.shock=Math.min(65,game.mike.shock);sfx.punchHit(Math.min(1.3, 0.6 + (e.speed || 3) / 6)*(e.quality??1),true,e.zone,e.point,camera); player.pulse(e.side, 1.0, 70); }
+    else if (e.type === 'mikeBlocked') { sfx.punchBlock(1,e.point,camera); player.pulse(e.side, 0.4, 40); }
+    else if (e.type === 'mikeSwing') sfx.whoosh(.45,e.point,camera);
+    else if (e.type === 'mikeHit') { applyImpact(game.player,e.zone,(e.power??1)*(POWER[mike.levelName]??.95)*(mike.cfg0.mods?.power??1)*(e.counter?1.5:1),e.quality??1);game.player.dmg=Math.min(85,game.player.dmg);game.player.shock=Math.min(65,game.player.shock);sfx.punchHit(Math.min(1.3,.5+(e.speed??4)/7)*(e.quality??1),false,e.zone,e.point,camera); flash.hit(e.zone === 'body' ? 0.3 : 0.5); player.pulse('left', 0.6, 80); player.pulse('right', 0.6, 80); }
+    else if (e.type === 'playerBlocked') { sfx.punchBlock(1,e.point,camera); player.pulse(e.side, 0.6, 50); }
   }
 }
 // ---- sparring: il partner (caschetto, alto come te) prende il posto dell'avversario sul ring della palestra
-const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261012074748', evenSkin: false,
+const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261012215037', evenSkin: false,
   band: { bg: '#1a1a1c', line: '#c4122a', text: '#f2ece0', label: 'SPARRING' } };
 let spar = null, partner = null, savedMike = null, sparLoading = false;
 async function startSparring(kind, defKinds = null) {
@@ -2120,8 +2160,8 @@ async function startSparring(kind, defKinds = null) {
   if (!partner) {
     if (sparLoading) return; sparLoading = true;
     try {
-      const gltf = await loadMikeGLTF(PARTNER.glb, () => {});
-      partner = new Mike(gltf, scene, 'normale', PARTNER); partner.bounds = keepInRing;
+      const gltf = await loadFighterGLTF(PARTNER.glb, () => {});
+      partner = new Fighter(gltf, scene, 'normale', PARTNER); partner.bounds = keepInRing;
     } catch (e) { console.warn('partner', e); sparLoading = false; showMainMenu(); return; }
     sparLoading = false;
     closeMenus();                                   // (se nel frattempo si fosse aperto un menu)
@@ -2136,10 +2176,13 @@ async function startSparring(kind, defKinds = null) {
   if (lastPlace) placeArena(lastPlace.head, lastPlace.yaw); else placeArena(new THREE.Vector3(0, 1.65, 0), 0);
   mike.root.visible = true; mike.enabled = true; board.mesh.visible = false; stool.visible = false;
   mike.reachExtra = kind === 'difesa' ? 0.03 : 0;               // in difesa un filo piu' lontano (ma il colpo arriva al viso)
-  mike.lightHits = true;                                         // sparring: contano anche i colpi leggeri
+  mike.lightHits = false;                                        // same contact thresholds as a match
   mike.footwork = kind === 'libero'; mike.fw = null;            // negli esercizi resta davanti a te
   mike.quickRecover = kind === 'difesa';                          // in difesa: braccio disteso -> rientra subito, alla stessa velocita'
-  spar.defKinds = defKinds; spar.defType = defType; spar.defGuard = defGuard;
+  spar.defKinds = defKinds; spar.defType = defType; spar.defGuard = defGuard;spar.defCombos=defCombos;
+  spar.onDefenseChange=({kinds,type,guard,combos})=>{defSel=new Set(kinds||[]);defType=type;defGuard=guard;defCombos=combos;
+    try{localStorage.setItem('hb-def-kinds',JSON.stringify([...defSel]));localStorage.setItem('hb-def-type',type);localStorage.setItem('hb-def-guard',guard?'si':'no');localStorage.setItem('hb-def-combos',combos?'yes':'no');}catch(e){}
+    defSelect();};
   if (headOutOfRing()) recenterPlayer();
   const eye = new THREE.Vector3(0, 1.6, playerZ).applyMatrix4(arena.matrixWorld);
   spar.start(kind, mike, arena, new THREE.Vector3(ringSize / 2 + 0.15, 1.95, -ringSize / 2 - 0.1),
@@ -2164,7 +2207,7 @@ function showMainMenu() {
   openMenu(rootMenu);
 }
 // stage dell'incontro: quello scelto, oppure a caso tra gli stage virtuali (nel torneo senza ripetere finche' si puo')
-const VIRTUAL = ['arena', 'spiaggia', 'grattacielo', 'notte', 'deserto', 'sale', 'neve', 'foresta', 'vulcano', 'mare', 'luna', 'stadio', 'stadionotte', 'palestra'].filter(v => v !== 'mare' || SEA_READY);
+const VIRTUAL = ['arena', 'spiaggia', 'grattacielo', 'notte', 'deserto', 'sale', 'neve', 'foresta', 'vulcano', 'mare', 'luna', 'stadio', 'stadionotte', 'palestra', 'gabbia', 'circo'].filter(v => v !== 'mare' || SEA_READY);
 function pickStage() {
   if (stageChoice !== 'random') return stageChoice;
   let pool = VIRTUAL;
@@ -2333,8 +2376,8 @@ async function startCpuWatch() {
   if (!pending.arcade) setStage(pickStage());        // torneo: anche gli incontri che guardi cambiano stage (con "a caso")
   await setFighter(idA);
   if (mike) mike.root.visible = false;               // (si vede solo quando e' pronto anche l'altro: prima compariva davanti a te)
-  const gltf = await loadMikeGLTF(FIGHTERS[idB].glb, () => {});
-  cpuB = new Mike(gltf, scene, level, FIGHTERS[idB]); cpuB.root.visible = false;
+  const gltf = await loadFighterGLTF(FIGHTERS[idB].glb, () => {});
+  cpuB = new Fighter(gltf, scene, level, FIGHTERS[idB]); cpuB.root.visible = false;
   if (bruises) bruises.reset(); bruisesB = new Bruises(cpuB.model);   // lividi di tutti e due, da zero
   // da spettatore guardi da fuori: appena oltre le corde, di fronte al ring (nella tua stanza no: lo stage e' la stanza)
   if (mode !== 'stanza' && ringSize) recenterPlayer(ringSize / 2 + 0.25);   // (a pochi centimetri dalle corde)
@@ -2369,11 +2412,13 @@ async function startCpuWatch() {
       mike.leaveCorner(); cpuB.leaveCorner(); stool.visible = stoolB.visible = false; girl.stop(); nextMenu.close();
       sfx.announce([last ? 'final_round' : 'round_' + r]); setTimeout(() => sfx.bell(1), 1500);
     },
-    onHit: (zone, p) => { sfx.punchHit(Math.min(1.3, 0.6 + p * 0.4)); if (arenaEnv) arenaEnv.cheer(zone === 'head' ? 0.8 : 0.5); if (mode === 'arena' && zone === 'head') sfx.cheer('boato', 0.5); },
+    onHit: (zone, p, e) => { cheerVenueCrowd(p);sfx.punchHit(Math.min(1.3, 0.6 + p * 0.4),true,zone,e?.point,camera); if (arenaEnv) arenaEnv.cheer(zone === 'head' ? 0.8 : 0.5); if (mode === 'arena' && zone === 'head') sfx.cheer('boato', 0.5); },
+    onBlock: e => sfx.punchBlock(1,e.point,camera),
+    onSwing: e => sfx.whoosh(.45,e.point,camera),
     onKD: () => { sfx.voiceNow('knockdown'); if (arenaEnv) arenaEnv.cheer(2); if (mode === 'arena') sfx.cheer('boato', 1); },   // atterramento
     onKO: () => { if (arenaEnv) arenaEnv.cheer(2); if (mode === 'arena') sfx.cheer('boato', 1); },                             // e non si rialza
     onCount: c => sfx.voiceNow('count_' + c),
-    onLowBlow: (n, dq) => { sfx.punchHit(0.8); sfx.voiceNow(dq ? 'dq' : 'lowblow_' + n); if (arenaEnv) arenaEnv.cheer(0.4); if (mode === 'arena') sfx.cheer('ooh', 1); },
+    onLowBlow: (n, dq) => { sfx.punchHit(0.8,true,'body'); sfx.voiceNow(dq ? 'dq' : 'lowblow_' + n); if (arenaEnv) arenaEnv.cheer(0.4); if (mode === 'arena') sfx.cheer('ooh', 1); },
     // colpo a segno sul pugile i: livido dove l'ha preso, sudore, e sangue nei colpi al viso forti o se e' gia' segnato
     onMark: (i, e) => {
       const br = i === 0 ? bruises : bruisesB; if (!br) return;
@@ -2624,6 +2669,7 @@ function updateMainMenu(dt, gloves) {
   if (id === 'sp:difesa') { openMenu(defMenu); defSelect(); return; }
   if (id === 'back_spar') { openMenu(sparMenu); return; }
   if (id === 'back_train') { openMenu(trainMenu); return; }
+  if(id.startsWith('dc:')){defCombos=id==='dc:yes';try{localStorage.setItem('hb-def-combos',defCombos?'yes':'no');}catch(e){}defSelect();return;}
   if (id.startsWith('dg:')) { defGuard = id === 'dg:si'; try { localStorage.setItem('hb-def-guard', defGuard ? 'si' : 'no'); } catch (e) {} defSelect(); return; }
   if (id.startsWith('dt:')) { defType = id.slice(3); try { localStorage.setItem('hb-def-type', defType); } catch (e) {} defSelect(); return; }
   if (id.startsWith('dk:')) {                                  // colpo scelto / tolto
@@ -2644,7 +2690,7 @@ function updateMainMenu(dt, gloves) {
     try { localStorage.setItem('hb-gamemode', gameMode); } catch (e) {}
     openMenu({ arcade: arcadeMenu, tour: tourMenu, surv: survMenu }[gameMode]); return;
   }
-  if (id==='match_settings') {openMatchSettings();return;}
+  if (id==='match_settings'||id==='summary_stage'||id==='summary_detail') {openMatchSettings();return;}
   if(menu===matchSettingsMenu) {
     if(id==='match_save') {matchPreferences.save(gameMode,settingsDraft);activateMatchPreferences(gameMode);openMenu({arcade:arcadeMenu,tour:tourMenu,surv:survMenu}[gameMode]);}
     else if(id==='match_cancel') {discardMatchDraft();openMenu({arcade:arcadeMenu,tour:tourMenu,surv:survMenu}[gameMode]);}
@@ -2747,13 +2793,13 @@ function setFighter(id) {
   return new Promise(resolve => {
   if (!FIGHTERS[id] || id === fighterId || fighterLoading) return resolve();
   fighterLoading = true;
-  loadMikeGLTF(FIGHTERS[id].glb, () => {}).then(gltf => {
+  loadFighterGLTF(FIGHTERS[id].glb, () => {}).then(gltf => {
     fighterLoading = false;
     fighterId = id;
     try { localStorage.setItem('hb-fighter', id); } catch (e) {}
     setOpponentName(FIGHTERS[id].name);
     const old = mike;
-    mike = new Mike(gltf, scene, level, FIGHTERS[id]);
+    mike = new Fighter(gltf, scene, level, FIGHTERS[id]);
     mike.bounds = keepInRing;
     bruises = new Bruises(mike.model);
     if (old) { scene.remove(old.root); old.dispose(); }   // (libera la memoria del pugile di prima)
@@ -2766,13 +2812,13 @@ function setFighter(id) {
   });
 }
 
-loadMikeGLTF(FIGHTERS[fighterId].glb, f => statusT('loading', { p: Math.min(100, Math.round(f * 100)) })).then(gltf => {
-  mike = new Mike(gltf, scene, level, FIGHTERS[fighterId]);
+loadFighterGLTF(FIGHTERS[fighterId].glb, f => statusT('loading', { p: Math.min(100, Math.round(f * 100)) })).then(gltf => {
+  mike = new Fighter(gltf, scene, level, FIGHTERS[fighterId]);
   girl.load().catch(e => console.warn('ragazza del ring', e));
   bruises = new Bruises(mike.model);
   mike.bounds = keepInRing;
   placeArena(new THREE.Vector3(0, 1.65, 0), 0);
-  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.getUpFx = getUp; window.gameApi = { matchPreferences, matchSettingsMenu, arcadeMenu, tourMenu, survMenu, activateMatchPreferences, openMatchSettings, editMatchPreference, updateMainMenu, getMatchState:()=>({gameMode,level,rounds,roundSecs,threeKO,oneKO,stageChoice,oppChoice,fighterId,mode,tourSize,towerSize,settingsDraft}), introMenu: () => introMenu, endMatch: (w, h) => endMatch(w, h), board: () => board, optionsMenu: () => optionsMenu, mtab: () => mtab, mtabUpdate: (dt, rays) => updateMenuTab(dt, rays), setStage, newMatch, showMainMenu, openPause, pause, startTraining, bag: () => bagTr, rope: () => ropeTr, slip: () => slipTr, spar: () => spar, startSparring, speed: () => speedTr, de: () => deTr, envs: () => ({ saltEnv, forestEnv, arenaEnv, roofEnv, nightEnv, desertEnv, gymEnv, snowEnv, volcEnv, seaEnv, moonEnv, stadiumEnv, stadiumNEnv }), setFighter, startIntro, startPresentation, girl: () => girl, arena: () => arena, ringSize: () => ringSize }; window.sweatFx = sweat;   // per le prove
+  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.getUpFx = getUp; window.gameApi = { matchPreferences, matchSettingsMenu, arcadeMenu, tourMenu, survMenu, activateMatchPreferences, openMatchSettings, editMatchPreference, updateMainMenu, getMatchState:()=>({gameMode,level,rounds,roundSecs,threeKO,oneKO,stageChoice,oppChoice,fighterId,mode,tourSize,towerSize,settingsDraft}), introMenu: () => introMenu, endMatch: (w, h) => endMatch(w, h), board: () => board, optionsMenu: () => optionsMenu, mtab: () => mtab, mtabUpdate: (dt, rays) => updateMenuTab(dt, rays), setStage, newMatch, showMainMenu, openPause, pause, startTraining, bag: () => bagTr, rope: () => ropeTr, slip: () => slipTr, spar: () => spar, startSparring, speed: () => speedTr, de: () => deTr, envs: () => ({ cageEnv, circusEnv, saltEnv, forestEnv, arenaEnv, roofEnv, nightEnv, desertEnv, gymEnv, snowEnv, volcEnv, seaEnv, moonEnv, stadiumEnv, stadiumNEnv }), setFighter, startIntro, startPresentation, girl: () => girl, arena: () => arena, ringSize: () => ringSize }; window.sweatFx = sweat;   // per le prove
   window.tourApi = { MENUS, bracket, tourBtns, show: () => showMainMenu(), watchTour: () => { surv = null; tour = new Tournament(FIGHTERS, true, tourSize); specRound(); }, toFinal: () => { surv = null; tour = new Tournament(FIGHTERS, true, tourSize); while (!tour.isFinal()) tour.result(true, {}); specRound(); }, get pending() { return pending; }, open: m => openMenu(MENUS[m]), start: () => { tour = new Tournament(FIGHTERS, false, tourSize); showBracketNext(); },
     after: win => { game.result = { winner: win ? 'player' : 'mike' }; showBracketAfter(); }, fight: () => startFight(tour.opponent()), setStageChoice: c => { stageChoice = c; }, get mode() { return mode; }, get tour() { return tour; }, get cpu() { return cpu; }, skipBtn, tower, startSurvival, get surv() { return surv; }, survAfter: win => { game.result = { winner: win ? 'player' : 'mike' }; showTowerAfter(); } };   // (prove)
   status('');

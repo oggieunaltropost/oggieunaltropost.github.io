@@ -5,12 +5,12 @@
 // Doppler).
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
 import * as THREE from 'three';
-import { panoDepth } from './pano_depth.js?v=20261012074748';
-import { contactShadow } from './contact_shadow.js?v=20261012074748';
-import * as sfx from './sfx.js?v=20261012074748';
-import { Footballer } from './footballer.js?v=20261012074748';
-import { NightFireworks } from './fireworks.js?v=20261012074748';
-import { StadiumScreen } from './stadium_screen.js?v=20261012074748';
+import { panoDepth } from './pano_depth.js?v=20261012215037';
+import { contactShadow } from './contact_shadow.js?v=20261012215037';
+import * as sfx from './sfx.js?v=20261012215037';
+import { Footballer } from './footballer.js?v=20261012215037';
+import { NightFireworks } from './fireworks.js?v=20261012215037';
+import { StadiumScreen } from './stadium_screen.js?v=20261012215037';
 
 const EYE = 1.65;
 // il Sole della foto: Blender (-0.2484, -0.5327, 0.809) -> gioco (y, z, x)
@@ -91,7 +91,7 @@ export class Stadium {
   }
   // ---------------------------------------------------------------- foto a 360 gradi
   _sky() {
-    const tex = new THREE.TextureLoader().load(this.night ? 'assets/stadio_notte_panorama.jpg?v=20261012074748' : 'assets/stadio_panorama.jpg?v=20261012074748', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load(this.night ? 'assets/stadio_notte_panorama.jpg?v=20261012215037' : 'assets/stadio_panorama.jpg?v=20261012215037', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -107,7 +107,25 @@ export class Stadium {
     const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 64, 32), m);
     sky.renderOrder = -10; sky.frustumCulled = false; this.group.add(sky);
     // sfondo in 3D vero: il prato piatto, le gradinate e le torri alla loro distanza
-    this.group.add(panoDepth('assets/stadio_profondita.png?v=20261012074748', tex, { eye: EYE, flat: 40, hi: true, ratio: 2.6 }));
+    this.group.add(panoDepth('assets/stadio_profondita.png?v=20261012215037', tex, { eye: EYE, flat: 40, hi: true, ratio: 2.6 }));
+    if(!this.night)this._stadiumOcclusion();
+  }
+
+  _stadiumOcclusion(){
+    // The reconstructed mesh intentionally drops triangles at near/sky jumps.
+    // At the upper rim those gaps retained the photo but no foreground depth,
+    // letting a distant aircraft draw on top. Restore depth per panorama pixel.
+    const depth=new THREE.TextureLoader().load('assets/stadio_profondita.png?v=20261012215037');
+    depth.colorSpace=THREE.NoColorSpace;depth.minFilter=depth.magFilter=THREE.NearestFilter;depth.generateMipmaps=false;
+    const material=new THREE.ShaderMaterial({side:THREE.BackSide,colorWrite:false,depthWrite:true,depthTest:true,
+      uniforms:{uDepth:{value:depth}},
+      vertexShader:`varying vec3 vDirection;void main(){vDirection=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+      fragmentShader:`uniform sampler2D uDepth;uniform mat4 projectionMatrix;uniform mat4 modelViewMatrix;varying vec3 vDirection;
+        void main(){vec3 d=normalize(vDirection);vec2 uv=vec2(fract(atan(d.z,d.x)*.15915494+.5),asin(clamp(d.y,-1.0,1.0))*.31830989+.5);
+          vec2 code=floor(texture2D(uDepth,uv).rg*255.0+.5);float value=code.x*256.0+code.y;if(value>65534.0)discard;
+          float distance=value*.5;if(distance<40.0||distance>500.0)discard;
+          vec4 clip=projectionMatrix*modelViewMatrix*vec4(d*distance,1.0);gl_FragDepth=clip.z/clip.w*.5+.5;gl_FragColor=vec4(0.0);}`});
+    const mask=new THREE.Mesh(new THREE.SphereGeometry(900,48,24),material);mask.position.y=EYE;mask.renderOrder=-8;mask.frustumCulled=false;mask.name='Occlusione bordo stadio';this.group.add(mask);this.rimOcclusion=mask;
   }
 
   // ---------------------------------------------------------------- di notte: i quattro fari illuminano il ring
@@ -175,7 +193,8 @@ export class Stadium {
     this.bannerTex = [mkBanner('#c4161f', '#d81e2c'), mkBanner('#1d4fc4', '#2a63e0')];
     const btex = this.bannerTex[0];
     this.bannerMat = new THREE.ShaderMaterial({
-      side: THREE.DoubleSide, uniforms: { uTex: { value: btex }, uT: { value: 0 }, uL: { value: BANNER_L } },
+      transparent:true, depthWrite:false,
+      side: THREE.DoubleSide, uniforms: { uTex: { value: btex }, uT: { value: 0 }, uL: { value: BANNER_L }, uVisibility:{value:0} },
       vertexShader: `uniform float uT; uniform float uL; varying vec2 vUv; varying float vShade;
         void main(){
           vUv = uv; float s = uv.x;                                   // 0 = asta davanti, 1 = coda
@@ -188,11 +207,11 @@ export class Stadium {
           vShade = 0.86 + 0.14 * cos(ph);
           gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
         }`,
-      fragmentShader: `uniform sampler2D uTex; varying vec2 vUv; varying float vShade;
+      fragmentShader: `uniform sampler2D uTex; uniform float uVisibility; varying vec2 vUv; varying float vShade;
         void main(){
           vec2 uv = vUv; if (!gl_FrontFacing) uv.x = 1.0 - uv.x;      // dietro: stampato al contrario, si legge giusto anche li'
           vec4 c = texture2D(uTex, uv);
-          gl_FragColor = vec4(c.rgb * vShade, 1.0);
+          gl_FragColor = vec4(c.rgb * vShade, uVisibility);
           #include <colorspace_fragment>
         }`,
     });
@@ -204,19 +223,28 @@ export class Stadium {
     const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(12), 3));
     this.line = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0x20242c })); this.line.frustumCulled = false; this.line.visible = false;
     this.group.add(this.line);
+    const materials=new Set();P.traverse(o=>{if(o.material)materials.add(o.material);});
+    this.flightMaterials=[...materials].map(material=>({material,opacity:material.opacity}));
+    for(const {material} of this.flightMaterials){material.transparent=true;material.depthWrite=false;}
+  }
+  _flightVisibility(value){
+    for(const {material,opacity} of this.flightMaterials)material.opacity=opacity*value;
+    this.bannerMat.uniforms.uVisibility.value=value;this.line.material.transparent=true;this.line.material.opacity=value;
   }
 
-  // un passaggio: retta a quota 90-130 m, a 30-110 m dal ring, da un lato all'altro (lunga ~1 km: ~30 s)
+  // A high, straight fly-by continues into the distance; haze softens the
+  // distant ends before the objects are recycled, even if the viewer follows.
   _launch() {
     const a = Math.random() * Math.PI * 2;
     const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));                        // direzione del volo
     const side = new THREE.Vector3(-dir.z, 0, dir.x);
     const off = (Math.random() < 0.5 ? -1 : 1) * (30 + Math.random() * 80);
     const h = 145 + Math.random() * 25;   // anche lo striscione resta sopra il profilo delle tribune e dei fari
-    const L = 240;                       // evita i passaggi bassi sull'orizzonte all'arrivo e all'uscita
+    const L = 850;
     this.fly = { dir, side, off, h, p: new THREE.Vector3().copy(dir).multiplyScalar(-L).addScaledVector(side, off).setY(h), v: 30 + Math.random() * 5, L, t: 0, roll: 0 };
     this.bannerMat.uniforms.uTex.value = this.bannerTex[Math.random() < 0.5 ? 0 : 1];      // striscione rosso o blu, a caso
     this.plane.visible = this.banner.visible = this.pole.visible = this.line.visible = true;
+    this.plane.position.copy(this.fly.p);this._flightVisibility(0);
   }
 
   setRing(size) {
@@ -240,6 +268,8 @@ export class Stadium {
     }
     F.t += dt;
     F.p.addScaledVector(F.dir, F.v * dt);
+    const visibility=1-THREE.MathUtils.smoothstep(Math.abs(F.p.dot(F.dir)),520,F.L);
+    this._flightVisibility(visibility);
     const pos = F.p, P = this.plane;
     // assetto: muso lungo il volo, un po' di rollio e beccheggio lenti
     const yaw = Math.atan2(F.dir.x, F.dir.z);
@@ -259,6 +289,7 @@ export class Stadium {
     this.smokeT += dt;
     while (this.smokeT > 1.2 / F.v) {
       this.smokeT -= 1.2 / F.v;
+      if(visibility<.05)continue;
       const ex = _v.copy(F.dir).multiplyScalar(-3.2).add(pos).add(new THREE.Vector3(0, -0.5, 0));       // scarico (la posizione e' del passo corrente)
       this.smoke.emit(ex, new THREE.Vector3(-F.dir.x * 0.6, 0, -F.dir.z * 0.6));
     }
@@ -267,13 +298,13 @@ export class Stadium {
       const cp = cam.getWorldPosition(new THREE.Vector3()), wp = this.group.localToWorld(pos.clone());
       const to = wp.clone().sub(cp), dist = to.length();
       const vr = to.dot(this.group.localToWorld(pos.clone().add(F.dir)).sub(wp)) / Math.max(1, dist) * F.v;   // > 0: si allontana
-      sfx.planeBuzz(wp, cam, 1 - vr / 340);
+      sfx.planeBuzz(wp, cam, 1 - vr / 340, visibility);
     }
-    // finito il passaggio (oltre la fine della retta): sparisce e riparte dopo un po'
+    // At this point plane, tow cable and banner are already fully faded.
     if (F.t * F.v > 2 * F.L) {
       this.fly = null; this.plane.visible = this.banner.visible = this.pole.visible = this.line.visible = false;
       sfx.planeStop(); this.nextPlane = 30 + Math.random() * 40;
     }
   }
-  dispose() { sfx.planeStop(); }
+  dispose() { sfx.planeStop();this.rimOcclusion?.material.uniforms.uDepth.value.dispose(); }
 }

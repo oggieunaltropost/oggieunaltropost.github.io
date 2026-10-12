@@ -6,8 +6,9 @@
 // Durata libera: si va avanti finche' non fermi dalla pausa. La velocita' del partner (colpi, andata e ritorno,
 // spostamenti, parate) si regola trascinando su e giu' il cursore della barra al tuo fianco.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261012074748';
-import { t as tr } from './i18n.js?v=20261012074748';
+import * as sfx from './sfx.js?v=20261012215037';
+import { t as tr, onLang } from './i18n.js?v=20261012215037';
+import {MenuPanel} from './hud.js?v=20261012215037';
 
 // combinazioni chiamate: voce, colpi che tira il partner (non qui) e quello che devi tirare tu
 // codici: 1 jab, 2 diretto, 3 gancio sinistro, 4 gancio destro, 5 montante sinistro, 6 montante destro; 'b' = al corpo
@@ -29,7 +30,8 @@ export const DEF_KINDS = {
   hook_r: [{ v: 'c_d_duck', combo: ['hook_r'] }, { v: 'c_d_block', combo: ['hook_r'] }],
   upper_l: [{ v: 'c_d_block', combo: ['uppercut_l'] }, { v: 'c_d_slip', combo: ['uppercut_l'] }],
   upper_r: [{ v: 'c_d_block', combo: ['uppercut_r'] }, { v: 'c_d_slip', combo: ['uppercut_r'] }],
-  body: [{ v: 'c_d_body', combo: ['body_r'] }, { v: 'c_d_body', combo: ['body_l'] }],
+  body_l: [{ v: 'c_d_body', combo: ['hook_body_l'] }],
+  body_r: [{ v: 'c_d_body', combo: ['hook_body_r'] }],
 };
 const ALL_ATTACKS = Object.values(DEF_KINDS).flat();
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -40,7 +42,7 @@ const GOOD = ['c_good1', 'c_good2', 'c_good3'];                 // ('Ancora!' to
 export class Sparring {
   constructor(scene) {
     this.scene = scene;
-    this._board(); this._slider(); this._cue();
+    this._board(); this._slider(); this._cue();this._defControls();
     let p = 0.31; try {                                          // (barra nuova 5..120%; la vecchia era 30..120%: si converte)
       const v2 = parseFloat(localStorage.getItem('hb-spar-speed2')), v = parseFloat(localStorage.getItem('hb-spar-speed'));
       if (v2 >= 0 && v2 <= 1) p = v2; else if (v >= 0 && v <= 1) p = (0.3 + 0.9 * v - 0.05) / 1.15; } catch (e) {}
@@ -48,6 +50,40 @@ export class Sparring {
     this.active = false;
   }
   get speed() { return 0.05 + 1.15 * this.p; }                   // 5% .. 120% della velocita' normale
+
+  _defControls(){
+    const button=(id,tk,w=.22)=>({id,tk,text:tr(tk),w,color:0x24445a});
+    this.defControls=new MenuPanel({title:tr('sp_punches'),titleTk:'sp_punches',titleH:.06,width:.50,height:1.18,pushOnly:true,rows:[
+      {y:.42,h:.08,buttons:[button('random','dm_random',.46)]},
+      ...[['jab','cross'],['hook_l','hook_r'],['upper_l','upper_r'],['body_l','body_r']].map((pair,i)=>({y:.29-i*.12,h:.09,buttons:pair.map(k=>button('kind:'+k,'dk_'+k))})),
+      {y:-.22,h:.08,buttons:['para','schiva','entrambi'].map(k=>button('type:'+k,'dt_'+k,.14))},
+      {label:tr('dm_guard'),tk:'dm_guard',y:-.37,h:.07,buttons:[button('guard:yes','yes'),button('guard:no','no')]},
+      {label:tr('sp_combo'),tk:'sp_combo',y:-.51,h:.07,buttons:[button('combos:yes','yes'),button('combos:no','no')]},
+    ]});
+    this.defControls.group.name='Sparring: premi per scegliere';this.defControls.group.position.set(-.34,0,.03);this.slider.G.add(this.defControls.group);
+    onLang(()=>this._refreshDefControls());
+  }
+  _refreshDefControls(){
+    this.defControls.relabel();this.defControls.select([...(this.defKinds?.length?this.defKinds.map(k=>'kind:'+k):['random']),'type:'+(this.defType||'entrambi'),this.defGuard===false?'guard:no':'guard:yes',this.defCombos?'combos:yes':'combos:no']);
+  }
+  changeDefense(id){
+    if(this.kind!=='difesa')return;
+    if(id==='random')this.defKinds=null;
+    else if(id.startsWith('kind:')){const k=id.slice(5);if(!DEF_KINDS[k])return;const kinds=new Set(this.defKinds||[]);if(kinds.has(k))kinds.delete(k);else kinds.add(k);this.defKinds=kinds.size?[...kinds]:null;}
+    else if(id.startsWith('type:'))this.defType=id.slice(5);
+    else if(id.startsWith('guard:'))this.defGuard=id==='guard:yes';
+    else if(id.startsWith('combos:'))this.defCombos=id==='combos:yes';
+    else return;
+    this.onDefenseChange?.({kinds:this.defKinds,type:this.defType,guard:this.defGuard,combos:!!this.defCombos});
+    this._refreshDefControls();this._restartDefense();
+  }
+  _restartDefense(){
+    const m=this.mike;sfx.stopVoices();this.task=null;this.next=.8;this.coachT=0;this.cueS.visible=false;
+    m.resetPose();for(const l of m.layers)l.action.stop();m.layers=[];
+    m.idle.reset().setEffectiveWeight(1).play();m.idleLow.reset().setEffectiveWeight(0).play();
+    for(const l of Object.values(m.loco)){l.w=0;l.action.reset().setEffectiveWeight(0).play();}
+    m.state='stalk';m.stateT=0;m.low=0;m.nextAttack=2;m.vel.set(0,0,0);m.moveVel.set(0,0,0);m.events.length=0;m.animate(0);
+  }
 
   // ---- la combinazione da tirare: scritta sopra la testa del partner, in blu; ogni parola diventa verde (con una corsa di colore e un
   // piccolo "pop") quando il colpo giusto arriva a segno nell'ordine giusto, lampeggia rossa se il colpo e' sbagliato. Sotto, la barra del tempo.
@@ -221,6 +257,8 @@ export class Sparring {
     this._applySpeed();
     arena.add(this.board); this.board.position.copy(boardPos); this.board.visible = true;
     arena.add(this.slider.G); this.slider.G.position.copy(slidePos); this.slider.G.visible = true;
+    this.defControls.group.visible=kind==='difesa';this.defControls.age=0;this._refreshDefControls();
+    for(const b of this.defControls.buttons)b.pushHands?.clear();
     arena.updateMatrixWorld(true); this.board.lookAt(lookAt); this.slider.G.lookAt(lookAt);   // girati verso di te
     this._layoutSlider();
     this.reset();
@@ -335,19 +373,25 @@ export class Sparring {
     if (!this.active) return;
     this.time += dt; this.coachT -= dt; this.next -= dt;
     this._updSlider(dt, player);
+    if(this.kind==='difesa'){
+      const id=this.defControls.update(dt,Object.values(player.gloves));
+      if(id){this.changeDefense(id);return;}
+    }
     const landed = {};
     for (const e of events) if ((e.type === 'playerHit' || e.type === 'mikeBlocked' || e.type === 'mikeDodged') && e.side) landed[e.side] = e.zone || 'head';
     const punches = this._trackPunches(dt, player, landed), S = this.st, m = this.mike;
     // eventi dell'incontro (niente danni: si conta e basta)
     for (const e of events) {
+      if(e.type==='mikeThrows'&&this.defCombos&&this.task?.kind==='def')this.task.attackIndex++;
+      if(this.defCombos&&this.task?.kind==='def'&&['mikeHit','playerBlocked','playerDodged'].includes(e.type))this._cueMark(this.task.attackIndex,e.type==='mikeHit'?'ko':'ok');
       if (e.type === 'playerHit') { S.landed++; if (e.zone === 'body') S.body++; }
       else if (e.type === 'mikeHit') {
         S.taken++; if (e.zone !== 'body') S.headTaken++;
         if (this.task && this.task.kind === 'def') this.task.res = 'hit';
         if (this.kind === 'libero' && S.headTaken % 3 === 0) this._coach('c_bad1');
       }
-      else if (e.type === 'playerBlocked') { S.blocked++; if (this.task && this.task.kind === 'def') { this.task.res = 'ok'; this.task.blocked = true; } }
-      else if (e.type === 'playerDodged') { S.dodged++; if (this.task && this.task.kind === 'def') this.task.res = 'ok'; }
+      else if (e.type === 'playerBlocked') { S.blocked++; if (this.task && this.task.kind === 'def') { if(this.task.res!=='hit')this.task.res = 'ok'; this.task.blocked = true; } }
+      else if (e.type === 'playerDodged') { S.dodged++; if (this.task && this.task.kind === 'def' && this.task.res!=='hit') this.task.res = 'ok'; }
     }
     if (this.kind === 'libero') {
       if (S.landed && S.landed % 6 === 0 && this._lastPraise !== S.landed && this._coach(pick(GOOD))) this._lastPraise = S.landed;
@@ -417,9 +461,18 @@ export class Sparring {
       // para / schiva: solo gli esercizi di quel tipo (se per i colpi scelti non ce ne sono, restano tutti)
       const want = this.defType === 'para' ? ['c_d_block', 'c_d_body'] : this.defType === 'schiva' ? ['c_d_slip', 'c_d_duck'] : null;
       if (want) { const f = pool.filter(x => want.includes(x.v)); if (f.length) pool = f; }   // (i colpi senza esercizi di quel tipo restano fuori)
-      const a = pick(pool);
+      let a = pick(pool);
+      if(this.defCombos){
+        const map={'1':'jab','2':'cross','3':'hook_l','4':'hook_r','5':'uppercut_l','6':'uppercut_r','2b':'hook_body_r','b':'hook_body_l'};
+        const allowed=new Set(pool.flatMap(x=>x.combo));
+        const sequences=CALLS.filter(c=>c.seq.length>=2&&c.seq.length<=4&&c.seq.every(code=>allowed.has(map[code])));
+        const chosen=sequences.length?pick(sequences):{seq:null};
+        const combo=chosen.seq?chosen.seq.map(code=>map[code]):[a.combo[0],pick(pool).combo[0]];
+        a={...a,combo,seq:(chosen.seq||combo.map(name=>Object.keys(map).find(code=>map[code]===name))).map(code=>code==='b'?'3b':code==='2b'?'4b':code)};
+        this._newCue(a.seq,1);this.cue.left=null;this._placeCue();this.cueS.visible=true;this._drawCue(null,0);
+      }
       sfx.announce(a.v);
-      this.task = { kind: 'def', a, t: 0, thrown: false, res: null, delay: sfx.voiceDur(a.v) + 0.35 / Math.sqrt(this.speed), after: 0 };
+      this.task = { kind: 'def', a, t: 0, thrown: false, res: null, attackIndex:-1, delay: sfx.voiceDur(a.v) + 0.35 / Math.sqrt(this.speed), after: 0 };
       return;
     }
     const T = this.task; T.t += dt;
@@ -427,8 +480,9 @@ export class Sparring {
     if (!T.thrown) return;
     const done = m.state === 'retreat' || m.state === 'stalk';
     if (!T.res && done && T.t > T.delay + 0.3) T.res = 'ok';               // non ti ha preso: evitato
-    if (T.res && !T.judged) {
-      T.judged = true;
+    if(this.defCombos&&this.cueS.visible){this._placeCue();this._drawCue(null,dt);}
+    if (T.res && !T.judged && (!this.defCombos || (done && T.t>T.delay+.3))) {
+      T.judged = true;this.cueS.visible=false;
       if (T.res === 'ok') { S.avoided++; if (T.blocked) S.defBlocked = (S.defBlocked || 0) + 1; else S.defDodged = (S.defDodged || 0) + 1; }   // evitato con la parata o schivando
       else S.taken += 0;                                                    // (gia' contato dall'evento)
     }
