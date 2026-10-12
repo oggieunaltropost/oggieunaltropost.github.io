@@ -163,6 +163,8 @@ class Glove {
     this.mesh.matrix.copy(_m);
     this.mesh.matrix.decompose(this.mesh.position, this.mesh.quaternion, this.mesh.scale);
     this.center.copy(wrist).addScaledVector(fwd.clone().normalize(), 0.095);
+    // Reacquiring a hand is a new pose, not a punch from its old position.
+    if(!this.mesh.visible){this.prev.copy(this.center);this.vel.set(0,0,0);this.hist.length=this.hist2.length=0;this.wasFast=false;}
     this.active = true;
   }
 
@@ -247,35 +249,63 @@ export class Player {
     return this.head;
   }
 
-  update(dt) {
+  resetTracking() {
+    this.fist.left = this.fist.right = false;
+    for (const g of Object.values(this.gloves)) {
+      g.active = false; g.mesh.visible = false; g.vel.set(0,0,0); g.speed = 0;
+      g.hist.length = g.hist2.length = 0; g.wasFast = false; g.lostT = .12;
+    }
+  }
+
+  update(dt, frame = null) {
     this.updateHead();
+    // Discard last-frame poses even if an XR overlay interrupted endFrame().
+    for (const g of Object.values(this.gloves)) g.active = false;
     if (this.sim) this.sim.apply(this, dt);
     else {
       const modes = [];
-      for (const s of this.sources) {
+      const session = this.renderer.xr.getSession();
+      const inputs = session ? Array.from(session.inputSources) : [];
+      const ref = this.renderer.xr.getReferenceSpace();
+      const sources=frame ? inputs.filter(i=>this.gloves[i.handedness]).map(input=>{
+        const cached=this.sources.find(s=>s.handedness===input.handedness);
+        return {...cached,input,handedness:input.handedness,isHand:!!input.hand,hand:cached?.hand||{joints:{}},gamepad:input.gamepad};
+      }) : this.sources;
+      // Read joints from the current XR frame, rather than cached Three.js hand
+      // objects which may still refer to the inputs used before room capture.
+      const point = (s, name) => {
+        if (frame) {
+          const input = s.input;
+          const joint = input?.hand.get(name);
+          if (!joint || !ref) return null;
+          try { const pose = frame.getJointPose(joint, ref); return pose ? new THREE.Vector3(pose.transform.position.x,pose.transform.position.y,pose.transform.position.z) : null; }
+          catch { return null; }
+        }
+        const joint = s.hand.joints[name];
+        return joint?.visible ? joint.getWorldPosition(new THREE.Vector3()) : null;
+      };
+      for (const s of sources) {
         if (!s.handedness) continue;
         const g = this.gloves[s.handedness];
         if (s.isHand) {
           const j = s.hand.joints;
-          const W = j['wrist'], M = j['middle-finger-phalanx-proximal'], I = j['index-finger-phalanx-proximal'],
-            P = j['pinky-finger-phalanx-proximal'];
-          if (!W || !M || !I || !P || !W.visible) continue;
-          const w = W.getWorldPosition(new THREE.Vector3());
-          const fwd = M.getWorldPosition(new THREE.Vector3()).sub(w);
-          const iv = I.getWorldPosition(new THREE.Vector3()).sub(w), pv = P.getWorldPosition(new THREE.Vector3()).sub(w);
+          const w = point(s,'wrist'), m = point(s,'middle-finger-phalanx-proximal'), i = point(s,'index-finger-phalanx-proximal'), p = point(s,'pinky-finger-phalanx-proximal');
+          if (!w || !m || !i || !p) { this.fist[s.handedness] = false; continue; }
+          const fwd = m.sub(w);
+          const iv = i.sub(w), pv = p.sub(w);
           const back = s.handedness === 'right' ? new THREE.Vector3().crossVectors(pv, iv) : new THREE.Vector3().crossVectors(iv, pv);
           g.setPose(w, fwd.normalize(), back.normalize());
           // punto piu' basso della mano (dita, palmo): serve per sistemare il pavimento toccandolo con la mano
           let lowY = w.y;
-          for (const k in j) { const J = j[k]; if (J && J.visible) lowY = Math.min(lowY, J.getWorldPosition(_lowV).y); }
+          for (const k of frame ? s.input.hand.keys() : Object.keys(j)) { const q = point(s,k); if(q) lowY = Math.min(lowY, q.y); }
           g.lowY = lowY;
           // pugno chiuso: le punte di indice, medio e anulare vicine al polso (aperta ~18 cm, chiusa ~9 cm)
           let dsum = 0, nt = 0;
-          for (const n of ['index-finger-tip', 'middle-finger-tip', 'ring-finger-tip']) { const T = j[n]; if (T && T.visible) { dsum += T.getWorldPosition(new THREE.Vector3()).distanceTo(w); nt++; } }
+          for (const n of ['index-finger-tip', 'middle-finger-tip', 'ring-finger-tip']) { const q = point(s,n); if(q) { dsum += q.distanceTo(w); nt++; } }
           if (nt) { const dm = dsum / nt; this.fist[s.handedness] = this.fist[s.handedness] ? dm < 0.13 : dm < 0.11; }   // (isteresi: non sfarfalla)
           modes.push('mani');
         } else {
-          if (!s.grip.visible) continue;
+          if (!s.grip?.visible) continue;
           const p = s.grip.getWorldPosition(new THREE.Vector3());
           _q.setFromRotationMatrix(s.ray.matrixWorld);
           const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(_q);

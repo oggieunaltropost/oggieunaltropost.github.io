@@ -5,7 +5,7 @@
 // di scintille bianche alla fine). Ogni scoppio da' un lampo di luce che illumina ring e pugili e un botto posizionale
 // (sfx.fireworkLaunch/Burst). Un solo THREE.Points (scintille additive, colore che svanisce) e una sola luce puntiforme.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261010231139';
+import * as sfx from './sfx.js?v=20261012074748';
 
 const N = 14000;                                          // scintille al massimo
 const PALETTE = [[1.0, 0.12, 0.08], [1.0, 0.7, 0.2], [0.2, 0.45, 1.0], [0.25, 1.0, 0.4], [1.0, 0.15, 0.75], [1.0, 1.0, 0.95], [0.25, 0.95, 1.0], [1.0, 0.4, 0.08], [0.7, 0.3, 1.0]];
@@ -23,16 +23,21 @@ export class NightFireworks {
     this.pos = new Float32Array(N * 3); this.col = new Float32Array(N * 3);
     this.vel = new Float32Array(N * 3); this.life = new Float32Array(N); this.max = new Float32Array(N);
     this.base = new Float32Array(N * 3); this.drag = new Float32Array(N); this.grav = new Float32Array(N); this.trail = new Uint8Array(N);
-    this.next = 0;
+    this.next = 0;this.sizes=new Float32Array(N);
     for (let i = 0; i < N; i++) this.pos[i * 3 + 1] = -1000;
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
     geo.setAttribute('color', new THREE.BufferAttribute(this.col, 3).setUsage(THREE.DynamicDrawUsage));
+    geo.setAttribute('aSparkSize',new THREE.BufferAttribute(this.sizes,1).setUsage(THREE.DynamicDrawUsage));
     this.points = new THREE.Points(geo, new THREE.PointsMaterial({
       size: 1.15, map: sparkTexture(), vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
       sizeAttenuation: true, toneMapped: false, fog: false,
     }));
     this.points.frustumCulled = false; this.points.renderOrder = 6; this.group.add(this.points);
+    this.points.material.onBeforeCompile=sh=>{
+      sh.vertexShader='attribute float aSparkSize;\n'+sh.vertexShader;
+      sh.vertexShader=sh.vertexShader.replace('gl_PointSize = size;','gl_PointSize = size * aSparkSize;');
+    };
     this.flash = new THREE.PointLight(0xffffff, 0, 0, 0); this.group.add(this.flash);      // il lampo del botto (luce sempre presente: niente ricompilazioni)
     this.flashT = 0; this.flashK = 0; this.flashCol = new THREE.Color();
     this.rockets = []; this.bursts = []; this.t = 0; this.next_ = 6 + Math.random() * 5; this.queue = [];
@@ -43,6 +48,7 @@ export class NightFireworks {
     this.pos[k] = x; this.pos[k + 1] = y; this.pos[k + 2] = z; this.vel[k] = vx; this.vel[k + 1] = vy; this.vel[k + 2] = vz;
     this.base[k] = r; this.base[k + 1] = g; this.base[k + 2] = b; this.col[k] = r; this.col[k + 1] = g; this.col[k + 2] = b;
     this.life[i] = this.max[i] = life; this.drag[i] = drag; this.grav[i] = grav; this.trail[i] = trail;
+    this.sizes[i]=(trail?.8:life<.9?.35:.65)+Math.random()*.25;
   }
   _dir() { const u = Math.random() * 2 - 1, a = Math.random() * 2 * Math.PI, s = Math.sqrt(1 - u * u); return [s * Math.cos(a), u, s * Math.sin(a)]; }
   _ball(at, col, n, sp, life, trail, drag = 1.5, grav = 2.6) {
@@ -53,13 +59,13 @@ export class NightFireworks {
   launch(cam) {
     const a = Math.random() * 2 * Math.PI, r = 150 + Math.random() * 80;
     const x = Math.cos(a) * r * 1.2, z = Math.sin(a) * r, top = 85 + Math.random() * 55, T = 2.2 + top / 90;
-    this.rockets.push({ x, z, y: 0, top, t: 0, T, kind: Math.random(), done: false });
+    this.rockets.push({ x, z, y: 0, top, t: 0, T, kind: Math.random(), done: false, whistle:Math.random()<.38, whistled:false });
     if (cam) sfx.fireworkLaunch(this.group.localToWorld(new THREE.Vector3(x, 1, z)), cam, T);
   }
   // uno scoppio (at: posizione; type: figura; sc: scala; power: forza del botto)
   _explode(at, type, cam, sc = 1, power = 1, cols = null) {
     const c1 = cols ? cols[0] : PALETTE[Math.floor(Math.random() * PALETTE.length)], c2 = cols ? cols[1] : PALETTE[Math.floor(Math.random() * PALETTE.length)];
-    const sp = (20 + Math.random() * 5) * sc;
+    const sp = (24 + Math.random() * 6) * sc;
     if (type === 'peony') this._ball(at, c1, Math.round(330 * sc), sp, 2.0, 2);
     else if (type === 'chrysanthemum') this._ball(at, c1, Math.round(260 * sc), sp * 0.9, 2.6, 3, 1.3, 3.2);
     else if (type === 'double') { this._ball(at, c1, 300, sp, 2.0, 2); this._ball(at, c2, 170, sp * 0.52, 1.7, 0); }
@@ -67,7 +73,7 @@ export class NightFireworks {
       const nx = this._dir(), ax = new THREE.Vector3(nx[0], nx[1], nx[2]), u = new THREE.Vector3(1, 0, 0).cross(ax).normalize(), w = ax.clone().cross(u);
       for (let k = 0; k < 190; k++) { const a = k / 190 * 2 * Math.PI, s = sp * 1.0; this._spawn(at.x, at.y, at.z, (u.x * Math.cos(a) + w.x * Math.sin(a)) * s, (u.y * Math.cos(a) + w.y * Math.sin(a)) * s, (u.z * Math.cos(a) + w.z * Math.sin(a)) * s, c1[0], c1[1], c1[2], 1.9, 1.5, 2.4, 1); }
       this._ball(at, [1, 1, 0.85], 50, sp * 0.3, 1.2, 0);
-    } else if (type === 'willow') this._ball(at, [1.0, 0.72, 0.26], 190, sp * 0.7, 3.6, 3, 1.2, 4.4);
+    } else if (type === 'willow') this._ball(at, [1.0, 0.72, 0.26], 240, sp * 0.85, 4.4, 3, .55, 5.6);
     else if (type === 'palm') {                              // pochi rami spessi che si aprono e ricadono
       for (let b = 0; b < 8; b++) { const d = this._dir(); if (d[1] < -0.1) d[1] = -d[1] * 0.5; for (let k = 0; k < 26; k++) { const s = sp * (0.75 + k * 0.012); this._spawn(at.x, at.y, at.z, d[0] * s + (Math.random() - 0.5) * 1.2, d[1] * s + 2, d[2] * s + (Math.random() - 0.5) * 1.2, 1.0, 0.7, 0.28, 2.6 + k * 0.02, 1.6, 4.0, 3); } }
     }
@@ -109,8 +115,12 @@ export class NightFireworks {
     for (const R of this.rockets) {
       R.t += dt; const q = Math.min(1, R.t / R.T), e = 1 - (1 - q) * (1 - q);
       R.y = R.top * e;
+      if(R.whistle&&!R.whistled&&R.t>=R.T-1.45){
+        R.whistled=true;
+        if(cam)sfx.fireworkWhistle(this.group.localToWorld(new THREE.Vector3(R.x,R.y,R.z)),cam,1.35);
+      }
       const sx = R.x + Math.sin(R.t * 9) * 0.15, sz = R.z + Math.cos(R.t * 7) * 0.15;
-      if (Math.random() < 0.7) this._spawn(sx, R.y, sz, (Math.random() - 0.5) * 1.5, -4 - Math.random() * 3, (Math.random() - 0.5) * 1.5, 1.0, 0.7, 0.3, 0.45 + Math.random() * 0.25, 3.0, 4.0);
+      if (Math.random() < 1-Math.exp(-70*dt)) this._spawn(sx, R.y, sz, (Math.random() - 0.5) * 1.5, -4 - Math.random() * 3, (Math.random() - 0.5) * 1.5, 1.0, 0.7, 0.3, 0.65 + Math.random() * 0.3, 3.0, 4.0);
       this._spawn(sx, R.y, sz, 0, 0, 0, 1, 0.95, 0.8, 0.05, 0, 0);
       if (q >= 1 && !R.done) { R.done = true; this._burst(R, cam); }
     }
@@ -126,12 +136,17 @@ export class NightFireworks {
       vel[k] *= dr; vel[k + 1] = vel[k + 1] * dr - this.grav[i] * dt; vel[k + 2] *= dr;
       pos[k] += vel[k] * dt; pos[k + 1] += vel[k + 1] * dt; pos[k + 2] += vel[k + 2] * dt;
       const tr = this.trail[i];                               // codina: piccole scintille che restano dietro la stella e svaniscono subito
-      if (tr && Math.random() < (tr === 1 ? 0.2 : tr === 2 ? 0.3 : 0.45)) this._spawn(pos[k], pos[k + 1], pos[k + 2], vel[k] * 0.05, vel[k + 1] * 0.05 - 0.2, vel[k + 2] * 0.05, base[k], base[k + 1] * 0.85, base[k + 2] * 0.7, tr === 2 ? 0.28 : 0.6, 2.0, 2.0, 0);
+      if (tr && Math.random() < 1-Math.exp(-(tr===1?24:tr===2?40:60)*dt)) {
+        const lag=Math.random()*dt;
+        this._spawn(pos[k]-vel[k]*lag,pos[k+1]-vel[k+1]*lag,pos[k+2]-vel[k+2]*lag,vel[k]*.04,vel[k+1]*.04-.3,vel[k+2]*.04,base[k],base[k+1]*.82,base[k+2]*.62,tr===2?.42:.85,1.5,2.5,0);
+      }
       const f = Math.max(0, this.life[i] / this.max[i]), fl = 0.7 + 0.3 * Math.sin(this.t * 45 + i * 7.3);      // si spegne con un po' di scintillio
-      const kk = (f < 0.35 ? f / 0.35 : 1) * (this.max[i] < 0.9 ? 1 : fl) * 1.25;
+      const kk = Math.pow(Math.min(1,f/.6),1.3) * (this.max[i] < 0.9 ? 1 : fl) * 1.55;
+      this.sizes[i]=Math.max(.15,this.sizes[i]*(1-dt*.10));
       col[k] = base[k] * kk; col[k + 1] = base[k + 1] * kk; col[k + 2] = base[k + 2] * kk;
     }
     this.points.geometry.attributes.position.needsUpdate = true; this.points.geometry.attributes.color.needsUpdate = true;
+    this.points.geometry.attributes.aSparkSize.needsUpdate=true;
     // lampo
     if (this.flashT > 0) { this.flashT -= dt; const f = Math.max(0, this.flashT / 0.7); this.flash.intensity = this.flashK * 1.0 * f * f * (0.8 + 0.2 * Math.sin(this.t * 60)); }
     else { this.flash.intensity = 0; this.flashK = 0; }

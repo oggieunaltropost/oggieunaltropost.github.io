@@ -16,12 +16,14 @@ export class Room {
   }
 
   update(frame, ref) {
+    this.floorTracked = false;
     const planes = frame.detectedPlanes;
     if (!planes) return;
     let floor = null, floorPoly = null, floorArea = 0;
     const seen = new Set();
     for (const pl of planes) {
-      const pose = frame.getPose(pl.planeSpace, ref);
+      // Room capture can replace spaces while the session resumes.
+      let pose; try { pose = frame.getPose(pl.planeSpace, ref); } catch { continue; }
       if (!pose) continue;
       seen.add(pl);
       const m = new THREE.Matrix4().fromArray(pose.transform.matrix);
@@ -50,7 +52,7 @@ export class Room {
       this.planes.set(pl, { mesh, changed: pl.lastChangedTime });
     }
     for (const pl of [...this.planes.keys()]) if (!seen.has(pl)) this._drop(pl);
-    if (floor !== null) this.floorY = floor;
+    if (floor !== null) { this.floorY = floor; this.floorTracked = true; }
     if (floorPoly) this.floorPoly = floorPoly;
   }
 

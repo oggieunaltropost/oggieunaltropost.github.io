@@ -22,9 +22,34 @@ export class StadiumScreen {
     const F = front ? 1.35 : 1, zz = front ? -101 : SCREEN.z, yy = front ? 38.5 : SCREEN.y;       // (di fronte: piu' vicino e piu' grande)
     this.mesh.position.set(SCREEN.x, yy, zz); this.mesh.rotation.y = front ? 0 : Math.PI; this.mesh.scale.set(F, F, 1);       // guarda verso il ring
     if (front) {                                                                                   // cornice nera e due pali, come lo schermo del panorama
-      const dark = new THREE.MeshStandardMaterial({ color: 0x1a1c22, roughness: 0.5, metalness: 0.6 });
+      const dark = new THREE.MeshStandardMaterial({ color: 0x343c49, roughness: 0.65, metalness: 0.45, emissive:0x172131, emissiveIntensity:.35 });
       const fr = new THREE.Mesh(new THREE.BoxGeometry(SCREEN.w * F + 1.4, SCREEN.h * F + 1.4, 0.6), dark); fr.position.set(SCREEN.x, yy, zz - 0.35); parent.add(fr);
-      for (const dx of [-9, 9]) { const po = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 12, 10), dark); po.position.set(dx, yy - SCREEN.h * F / 2 - 5.5, zz - 0.9); parent.add(po); }
+      const steel=new THREE.MeshLambertMaterial({color:0x3c403f});
+      const concrete=new THREE.MeshLambertMaterial({color:0x383b3c});
+      this.supports=new THREE.Group();this.supports.name='sostegni maxischermo';
+      const base=22.2,top=yy-SCREEN.h*F/2+.5;
+      const beam=(a,b,width=.32)=>{
+        const d=b.clone().sub(a),o=new THREE.Mesh(new THREE.BoxGeometry(width,d.length(),width),steel);
+        o.position.copy(a).add(b).multiplyScalar(.5);o.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());this.supports.add(o);
+      };
+      for(const dx of [-9,9]){
+        beam(new THREE.Vector3(dx,base,zz-1.8),new THREE.Vector3(dx,top,zz-1.8),.64);
+        const foot=new THREE.Mesh(new THREE.BoxGeometry(1.5,.45,2.2),concrete);foot.position.set(dx,base-.2,zz-1.8);this.supports.add(foot);
+        const collar=new THREE.Mesh(new THREE.BoxGeometry(.92,.30,.92),steel);collar.position.set(dx,top-.7,zz-1.8);this.supports.add(collar);
+      }
+      beam(new THREE.Vector3(-9,base+1,zz-1.8),new THREE.Vector3(9,base+1,zz-1.8),.4);
+      beam(new THREE.Vector3(-9,base+1,zz-1.8),new THREE.Vector3(9,top-.8,zz-1.8),.20);
+      beam(new THREE.Vector3(9,base+1,zz-1.8),new THREE.Vector3(-9,top-.8,zz-1.8),.20);
+      parent.add(this.supports);
+    }
+    if(front){
+      const trim=new THREE.MeshBasicMaterial({color:0x596b81,toneMapped:false,fog:false});
+      this.trim=new THREE.Group();this.trim.name='cornice maxischermo';
+      const width=SCREEN.w*F,height=SCREEN.h*F;
+      for(const [x,y,w,h] of [[0,height/2+.18,width+.7,.16],[0,-height/2-.18,width+.7,.16],[-width/2-.18,0,.16,height+.52],[width/2+.18,0,.16,height+.52]]){
+        const bar=new THREE.Mesh(new THREE.BoxGeometry(w,h,.08),trim);bar.position.set(SCREEN.x+x,yy+y,zz-.04);this.trim.add(bar);
+      }
+      parent.add(this.trim);
     }
     this.mesh.renderOrder = -8; this.mesh.name = 'maxischermo'; parent.add(this.mesh);
     this.dots = document.createElement('canvas'); this.dots.width = 160; this.dots.height = 60; this.dg = this.dots.getContext('2d', { willReadFrequently: true });

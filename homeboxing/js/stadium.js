@@ -5,12 +5,12 @@
 // Doppler).
 // Sistema di riferimento: quello del ring (origine al centro del tappeto, y in alto).
 import * as THREE from 'three';
-import { panoDepth } from './pano_depth.js?v=20261010231139';
-import { contactShadow } from './contact_shadow.js?v=20261010231139';
-import * as sfx from './sfx.js?v=20261010231139';
-import { Footballer } from './footballer.js?v=20261010231139';
-import { NightFireworks } from './fireworks.js?v=20261010231139';
-import { StadiumScreen } from './stadium_screen.js?v=20261010231139';
+import { panoDepth } from './pano_depth.js?v=20261012074748';
+import { contactShadow } from './contact_shadow.js?v=20261012074748';
+import * as sfx from './sfx.js?v=20261012074748';
+import { Footballer } from './footballer.js?v=20261012074748';
+import { NightFireworks } from './fireworks.js?v=20261012074748';
+import { StadiumScreen } from './stadium_screen.js?v=20261012074748';
 
 const EYE = 1.65;
 // il Sole della foto: Blender (-0.2484, -0.5327, 0.809) -> gioco (y, z, x)
@@ -91,7 +91,7 @@ export class Stadium {
   }
   // ---------------------------------------------------------------- foto a 360 gradi
   _sky() {
-    const tex = new THREE.TextureLoader().load(this.night ? 'assets/stadio_notte_panorama.jpg?v=20261010231139' : 'assets/stadio_panorama.jpg?v=20261010231139', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
+    const tex = new THREE.TextureLoader().load(this.night ? 'assets/stadio_notte_panorama.jpg?v=20261012074748' : 'assets/stadio_panorama.jpg?v=20261012074748', () => { this.skyLoaded = true; if (this.onSkyLoad) this.onSkyLoad(); });
     tex.colorSpace = THREE.SRGBColorSpace; tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
     this.skyTex = tex;
     const m = new THREE.ShaderMaterial({
@@ -107,7 +107,7 @@ export class Stadium {
     const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 64, 32), m);
     sky.renderOrder = -10; sky.frustumCulled = false; this.group.add(sky);
     // sfondo in 3D vero: il prato piatto, le gradinate e le torri alla loro distanza
-    this.group.add(panoDepth('assets/stadio_profondita.png', tex, { eye: EYE, flat: 40, hi: true, ratio: 2.6 }));
+    this.group.add(panoDepth('assets/stadio_profondita.png?v=20261012074748', tex, { eye: EYE, flat: 40, hi: true, ratio: 2.6 }));
   }
 
   // ---------------------------------------------------------------- di notte: i quattro fari illuminano il ring
@@ -212,8 +212,8 @@ export class Stadium {
     const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));                        // direzione del volo
     const side = new THREE.Vector3(-dir.z, 0, dir.x);
     const off = (Math.random() < 0.5 ? -1 : 1) * (30 + Math.random() * 80);
-    const h = 90 + Math.random() * 40;                                                   // sopra le torri faro (58 m + fari): non attraversa niente
-    const L = 520;
+    const h = 145 + Math.random() * 25;   // anche lo striscione resta sopra il profilo delle tribune e dei fari
+    const L = 240;                       // evita i passaggi bassi sull'orizzonte all'arrivo e all'uscita
     this.fly = { dir, side, off, h, p: new THREE.Vector3().copy(dir).multiplyScalar(-L).addScaledVector(side, off).setY(h), v: 30 + Math.random() * 5, L, t: 0, roll: 0 };
     this.bannerMat.uniforms.uTex.value = this.bannerTex[Math.random() < 0.5 ? 0 : 1];      // striscione rosso o blu, a caso
     this.plane.visible = this.banner.visible = this.pole.visible = this.line.visible = true;

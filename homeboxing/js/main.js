@@ -2,39 +2,42 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261010231139';
-import { Mike, LEVELS, loadMikeGLTF, StyleLearner } from './mike.js?v=20261010231139';
-import { Sweat, Bruises, Celebration } from './fx.js?v=20261010231139';
-import { Player, SimInput } from './player.js?v=20261010231139';
-import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261010231139';
-import { Room } from './room.js?v=20261010231139';
-import { Arena } from './arena.js?v=20261010231139';
-import { Beach } from './beach.js?v=20261010231139';
-import { Rooftop } from './rooftop.js?v=20261010231139';
-import { Desert } from './desert.js?v=20261010231139';
-import { Snow } from './snow.js?v=20261010231139';
-import { Volcano } from './volcano.js?v=20261010231139';
-import { Sea, WATER } from './sea.js?v=20261010231139';
-import { Moon } from './moon.js?v=20261010231139';
-import { Stadium } from './stadium.js?v=20261010231139';
-import { FighterCard, ROSTER, COUNTRY_CODES, countryName, drawFlagAny, flagFontReady } from './roster.js?v=20261010231139';
-import { Gym } from './gym.js?v=20261010231139';
-import { BagTraining } from './training.js?v=20261010231139';
-import { RopeTraining } from './rope.js?v=20261010231139';
-import { SpeedBagTraining } from './speedbag.js?v=20261010231139';
-import { SlipLineTraining } from './slipline.js?v=20261010231139';
-import { RingSkirt } from './ring_skirt.js?v=20261010231139';
-import { panoPending } from './pano_depth.js?v=20261010231139';
-import { DoubleEndTraining } from './doubleend.js?v=20261010231139';
-import { Sparring } from './sparring.js?v=20261010231139';
-import { RingGirl } from './ringgirl.js?v=20261010231139';
-import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261010231139';
-import * as sfx from './sfx.js?v=20261010231139';
-import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261010231139';
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261010231139';
-import { Tournament, BracketView } from './tournament.js?v=20261010231139';
-import { CpuMatch } from './cpu_match.js?v=20261010231139';
-import { TowerView } from './tower.js?v=20261010231139';
+import { buildRing, RING_SIZE, updateRopes } from './ring.js?v=20261012074748';
+import { Mike, LEVELS, loadMikeGLTF, StyleLearner } from './mike.js?v=20261012074748';
+import { Sweat, Bruises, Celebration } from './fx.js?v=20261012074748';
+import { Player, SimInput } from './player.js?v=20261012074748';
+import { Scoreboard, HitFlash, PauseMenu, MenuPanel, CountdownHUD, RayPointers, setRays } from './hud.js?v=20261012074748';
+import { Room } from './room.js?v=20261012074748';
+import { Arena } from './arena.js?v=20261012074748';
+import { Beach } from './beach.js?v=20261012074748';
+import { Rooftop } from './rooftop.js?v=20261012074748';
+import { Desert } from './desert.js?v=20261012074748';
+import { SaltDesert } from './salt_desert.js?v=20261012074748';
+import { Snow } from './snow.js?v=20261012074748';
+import { Forest, FOREST_FOG } from './forest.js?v=20261012074748';
+import { Volcano } from './volcano.js?v=20261012074748';
+import { Sea, WATER } from './sea.js?v=20261012074748';
+import { Moon } from './moon.js?v=20261012074748';
+import { Stadium } from './stadium.js?v=20261012074748';
+import { FighterCard, ROSTER, COUNTRY_CODES, countryName, drawFlagAny, flagFontReady } from './roster.js?v=20261012074748';
+import { Gym } from './gym.js?v=20261012074748';
+import { BagTraining } from './training.js?v=20261012074748';
+import { RopeTraining } from './rope.js?v=20261012074748';
+import { SpeedBagTraining } from './speedbag.js?v=20261012074748';
+import { SlipLineTraining } from './slipline.js?v=20261012074748';
+import { RingSkirt } from './ring_skirt.js?v=20261012074748';
+import { panoPending } from './pano_depth.js?v=20261012074748';
+import { DoubleEndTraining } from './doubleend.js?v=20261012074748';
+import { Sparring } from './sparring.js?v=20261012074748';
+import { RingGirl } from './ringgirl.js?v=20261012074748';
+import { REST_S, knockdownChance, say, sayCount, GetUpChallenge } from './match.js?v=20261012074748';
+import * as sfx from './sfx.js?v=20261012074748';
+import { t, lang, setLang, onLang, setOpponentName } from './i18n.js?v=20261012074748';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261012074748';
+import { Tournament, BracketView } from './tournament.js?v=20261012074748';
+import { CpuMatch } from './cpu_match.js?v=20261012074748';
+import { TowerView } from './tower.js?v=20261012074748';
+import { createMatchPreferences } from './match_preferences.js?v=20261012074748';
 sfx.setVoiceLang(lang);
 
 const $ = id => document.getElementById(id);
@@ -103,6 +106,7 @@ const board = new Scoreboard();
 arena.add(board.mesh);
 const PLAYER_Z = 0.8;                 // dove sta il giocatore rispetto al centro del ring (se c'e' spazio)
 let ringSize = 0, ringObj = null, playerZ = PLAYER_Z;
+let forestEnv = null, saltEnv = null;
 let snowEnv = null, volcEnv = null, seaEnv = null, moonEnv = null, desertEnv = null, stadiumEnv = null, stadiumNEnv = null, ringSkirt = null, ringDrop = 0;   // (seaEnv: sotto il mare; la sfera dipende dalla misura del ring)               // stage neve (creato in applyMode; qui perche' setRing lo usa subito)
 // Tabellone: parte al suo posto (dietro all'avversario, in alto a destra). Si sposta SOLO se esce dal campo
 // visivo: allora gira piano attorno a te (stessa distanza e altezza) finche' rientra un po' dentro la vista, e li' resta.
@@ -158,6 +162,8 @@ function setRing(size, pz) {
     if (ringObj) arena.remove(ringObj);
     ringObj = buildRing(size); arena.add(ringObj); ringSize = size; ringObj.visible = wasVisible;
     if (snowEnv) snowEnv.setRing(size);
+    if (forestEnv) forestEnv.setRing(size);
+    if (saltEnv) saltEnv.setRing(size);
     if (stadiumEnv) stadiumEnv.setRing(size); if (stadiumNEnv) stadiumNEnv.setRing(size);
     if (moonEnv) moonEnv.setRing(size); if (volcEnv) volcEnv.setRing(size); if (desertEnv) desertEnv.setRing(size);
     if (ringSkirt) ringSkirt.set(size, ringDrop);
@@ -181,8 +187,8 @@ let bruises = null;
 let rounds = 3;
 // durata dei round (dal menu: 1, 2 o 3 minuti; di base 3)
 let roundSecs = 180;
-try { roundSecs = parseInt(localStorage.getItem('hb-roundsec')) || 180; } catch (e) {}
-try { rounds = parseInt(localStorage.getItem('hb-rounds')) || 3; } catch (e) {}
+
+
 const party = new Celebration(scene);
 const girl = new RingGirl(scene);
 // sgabello di Mike nel suo angolo (blu), si vede solo nel riposo
@@ -193,22 +199,29 @@ const stool = new THREE.Group();
 stool.visible = false; scene.add(stool);
 const stoolB = stool.clone(); scene.add(stoolB);      // (incontri tra pugili CPU: lo sgabello dell'altro angolo)
 let level = 'normale';
-try { level = localStorage.getItem('hb-level') || 'normale'; } catch (e) {}
+
 if (!LEVELS[level]) level = 'normale';
 // dove si gioca: 'stanza' = realta' mista nella tua stanza, 'arena' = palazzetto virtuale con il pubblico,
 // 'spiaggia' = ring sulla sabbia in riva al mare
 const SEA_READY = true;                            // stage 'mare' (si puo' nascondere dal menu mettendo false)
-const MODES = ['stanza', 'arena', 'spiaggia', 'grattacielo', 'notte', 'deserto', 'neve', 'vulcano', 'mare', 'luna', 'stadio', 'stadionotte', 'palestra'];
-let mode = 'stanza';
-try { mode = localStorage.getItem('hb-mode') || 'stanza'; } catch (e) {}
+const MODES = ['stanza', 'arena', 'spiaggia', 'grattacielo', 'notte', 'deserto', 'sale', 'neve', 'foresta', 'vulcano', 'mare', 'luna', 'stadio', 'stadionotte', 'palestra'];
+let mode = 'palestra';
+
 // stage scelto nel menu: uno dei tre oppure 'random' (estratto a ogni incontro tra gli stage virtuali)
 let stageChoice = mode;
-try { stageChoice = localStorage.getItem('hb-stage') || mode; } catch (e) {}
+
 let gameMode = 'arcade';
 try { gameMode = localStorage.getItem('hb-gamemode') || 'arcade'; } catch (e) {}
 let tour = null;                      // torneo in corso
 
-if (!MODES.includes(mode)) mode = 'stanza';
+if (!['arcade','tour','surv'].includes(gameMode)) gameMode='arcade';
+let preferenceStorage;try { preferenceStorage=localStorage; } catch {}
+const matchPreferences=createMatchPreferences(preferenceStorage,MODES,FIGHTER_IDS);
+const initialMatchPreferences=matchPreferences.get(gameMode);
+level=initialMatchPreferences.level;rounds=initialMatchPreferences.rounds;roundSecs=initialMatchPreferences.roundSecs;
+stageChoice=initialMatchPreferences.stage;mode=stageChoice==='random'?'palestra':stageChoice;
+let settingsDraft=null;
+let settingsPreviewBefore=null;
 let arenaEnv = null, beachEnv = null, roofEnv = null, gymEnv = null, nightEnv = null;   // nightEnv: il grattacielo di notte
 // libera la memoria della grafica di un oggetto (geometrie, materiali, immagini). Nel visore la memoria e' poca:
 // in un torneo con stage "a caso" e tanti incontri guardati, pugili e stage gia' usati restavano tutti caricati
@@ -232,6 +245,8 @@ function freeStage(e) {
   freeGPU(e.group);
 }
 function freeOtherStages() {
+  if (mode !== 'sale' && saltEnv) { freeStage(saltEnv); saltEnv = null; }
+  if (mode !== 'foresta' && forestEnv) { freeStage(forestEnv); forestEnv = null; }
   if (mode !== 'deserto' && desertEnv) { freeStage(desertEnv); desertEnv = null; }
   if (mode !== 'grattacielo' && roofEnv) { freeStage(roofEnv); roofEnv = null; }
   if (mode !== 'notte' && nightEnv) { freeStage(nightEnv); nightEnv = null; }
@@ -257,6 +272,12 @@ function applyMode() {
   if (inGym) applyGymTraining();
   if (onDesert && !desertEnv) { desertEnv = new Desert(); arena.add(desertEnv.group); if (ringSize) desertEnv.setRing(ringSize); }
   if (desertEnv) desertEnv.group.visible = onDesert;
+  const onSalt = mode === 'sale';
+  if (onSalt && !saltEnv) { saltEnv = new SaltDesert(ringSize || RING_SIZE); arena.add(saltEnv.group); }
+  if (saltEnv) saltEnv.group.visible = onSalt;
+  const onForest = mode === 'foresta';
+  if (onForest && !forestEnv) { forestEnv = new Forest(ringSize || RING_SIZE); arena.add(forestEnv.group); }
+  if (forestEnv) forestEnv.group.visible = onForest;
   const onSnow = mode === 'neve';
   if (onSnow && !snowEnv) { snowEnv = new Snow(ringSize || RING_SIZE); arena.add(snowEnv.group); }
   if (snowEnv) snowEnv.group.visible = onSnow;
@@ -281,11 +302,30 @@ function applyMode() {
   room.group.visible = mode === 'stanza';
   // ring rialzato: dove c'e' il terreno vero tutto intorno, il terreno sta 90 cm sotto il tappeto e la piattaforma
   // ha il suo telo (come un ring vero); il resto degli stage resta com'e'
-  const drop = { luna: 0.9, vulcano: 0.9, neve: 0.9, deserto: 0.9 }[mode] || 0;
-  for (const e of [moonEnv, volcEnv, snowEnv, desertEnv]) if (e) e.group.position.y = e.group.visible ? -drop : 0;
+  const drop = { sale: 0.9, foresta: 0.9, luna: 0.9, vulcano: 0.9, neve: 0.9, deserto: 0.9 }[mode] || 0;
+  for (const e of [moonEnv, volcEnv, snowEnv, desertEnv, saltEnv]) if (e) e.group.position.y = e.group.visible ? -drop : 0;
   if (!ringSkirt) { ringSkirt = new RingSkirt(); arena.add(ringSkirt.group); }
   ringSkirt.set(ringSize || RING_SIZE, drop); ringDrop = drop;
-  if (inGym) {                                         // palestra la sera: luci calde e soffuse dall'alto, sala in penombra
+  if (onSalt) {
+    scene.environment = roomEnv; scene.environmentRotation.set(0, 0, 0);
+    hemi.color.set(0xc1d9ff); hemi.groundColor.set(0xf1ecdf); hemi.intensity = .75;
+    scene.environmentIntensity = .5; key.intensity = 2.4; fill.intensity = .35;
+    key.color.set(0xfffbef); key.position.copy(saltEnv.sunDir).multiplyScalar(6);
+    scene.background = new THREE.Color(0x91b8de); scene.fog = null; camera.far = 1200;
+    const useSky = () => {
+      if (!saltEnv || mode !== 'sale') return;
+      if (!saltEnv.envMap) saltEnv.envMap = pmrem.fromEquirectangular(saltEnv.skyTex).texture;
+      scene.environment = saltEnv.envMap; scene.environmentRotation.set(0, 0, 0);
+    };
+    if (saltEnv.skyLoaded) useSky(); else saltEnv.onSkyLoad = useSky;
+  } else if (onForest) {
+    scene.environment = roomEnv; scene.environmentRotation.set(0, 0, 0);
+    hemi.color.set(0xb3c6cf); hemi.groundColor.set(0x323b28); hemi.intensity = 1.0;
+    scene.environmentIntensity = 0.42; key.intensity = 0.95; fill.intensity = 0.35;
+    key.color.set(0xd0dee5); key.position.set(-1.5, 5, -2);
+    scene.background = new THREE.Color(FOREST_FOG); scene.fog = new THREE.FogExp2(FOREST_FOG, 0.075);
+    camera.far = 110;
+  } else if (inGym) {                                         // palestra la sera: luci calde e soffuse dall'alto, sala in penombra
     scene.environment = roomEnv; scene.environmentRotation.set(0, 0, 0);
     hemi.color.set(0xffe2c0); hemi.groundColor.set(0x2a2018); hemi.intensity = 0.35;
     scene.environmentIntensity = 0.3; key.intensity = 1.8; fill.intensity = 0.35;
@@ -417,7 +457,7 @@ function applyMode() {
   camera.updateProjectionMatrix();
   sfx.crowdAmbient(inArena);
   sfx.seaAmbient(onBeach);
-  sfx.windAmbient(onRoof || onNight || onDesert || onStadium || onStadiumN);
+  sfx.windAmbient(onRoof || onNight || onDesert || onSalt || onStadium || onStadiumN);
   sfx.snowAmbient(onSnow);
   sfx.lavaAmbient(onVolc);
   sfx.underAmbient(onSea);
@@ -454,8 +494,9 @@ function roomPreview() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261010231139`); t.colorSpace = THREE.SRGBColorSpace; return t; };
-const stageImg = n => { const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261010231139`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const modeImg = n => { const t = new THREE.TextureLoader().load(`assets/${n}.webp?v=20261012074748`); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const stageImages = {};
+const stageImg = n => { if(stageImages[n])return stageImages[n]; const t = new THREE.TextureLoader().load(`assets/stage_${n}.webp?v=20261012074748`); t.colorSpace = THREE.SRGBColorSpace; return (stageImages[n]=t); };
 const fighterImg = id => { const tx = new THREE.TextureLoader().load(FIGHTERS[id].thumb); tx.colorSpace = THREE.SRGBColorSpace; return tx; };
 // anteprima di "Arena random": gli stage virtuali con un grande punto di domanda
 function randomPreview() {
@@ -501,7 +542,7 @@ function sizeArt(kind, n) {
 }
 let tourSize = 32, towerSize = 16;
 const TOWER_MAX = FIGHTER_IDS.length;                   // la torre piu' alta: tutti i lottatori (40)
-try { tourSize = +localStorage.getItem('hb-toursize') || 32; towerSize = +localStorage.getItem('hb-towersize') || 16; } catch (e) {}
+tourSize=initialMatchPreferences.tourSize;towerSize=initialMatchPreferences.towerSize;
 if (towerSize > 16) towerSize = TOWER_MAX;              // (la torre lunga ha sempre tutti i lottatori: 32/36 salvati -> 40)
 // riquadri delle modalita' (menu iniziale): foto dal gioco per arcade e allenamento, disegni per torneo e torre
 function modeArt(kind) {
@@ -539,6 +580,15 @@ function modeArt(kind) {
     for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? 9 : 22; g.lineTo(240 + Math.cos(a) * rr, 108 + Math.sin(a) * rr); }
     g.closePath(); g.fill();
     sparkle(305, 50, 12); sparkle(172, 150, 8); sparkle(300, 175, 6);
+  } else if (kind === 'stages') {
+    const bg=g.createLinearGradient(0,0,0,300);bg.addColorStop(0,'#17384f');bg.addColorStop(1,'#6ba088');g.fillStyle=bg;g.fillRect(0,0,480,300);
+    g.fillStyle='#f7db92';g.beginPath();g.arc(360,65,28,0,Math.PI*2);g.fill();
+    for(const [y,col] of [[145,'#416a77'],[185,'#274f59']]) {g.fillStyle=col;g.beginPath();g.moveTo(0,300);g.lineTo(0,y);g.lineTo(90,y-80);g.lineTo(165,y-20);g.lineTo(255,y-105);g.lineTo(365,y-20);g.lineTo(480,y-70);g.lineTo(480,300);g.fill();}
+    for(const x of [32,70,410,450]) {g.fillStyle='#173d37';g.beginPath();g.moveTo(x,105);g.lineTo(x-27,218);g.lineTo(x+27,218);g.fill();g.fillRect(x-4,210,8,50);}
+    g.fillStyle='#cba563';g.beginPath();g.moveTo(130,207);g.lineTo(265,175);g.lineTo(365,219);g.lineTo(220,269);g.closePath();g.fill();
+    const posts=[[130,207],[265,175],[365,219],[220,269]];g.lineWidth=6;g.strokeStyle='#fce6ae';
+    for(const [x,y] of posts){g.beginPath();g.moveTo(x,y);g.lineTo(x,y-53);g.stroke();}
+    for(const h of [18,34,50]) {g.lineWidth=3;g.strokeStyle=h===34?'#dc725e':'#fff1c7';g.beginPath();posts.forEach(([x,y],i)=>i?g.lineTo(x,y-h):g.moveTo(x,y-h));g.closePath();g.stroke();}
   } else if (kind === 'options') {                  // ingranaggio dorato su blu
     const bg = g.createRadialGradient(240, 150, 10, 240, 150, 280); bg.addColorStop(0, '#2c5a8c'); bg.addColorStop(1, '#0b1626'); g.fillStyle = bg; g.fillRect(0, 0, 480, 300);
     const gear = (cx, cy, R, teeth, col) => {
@@ -591,7 +641,7 @@ const stageRow = y => ({ label: t('stage'), tk: 'stage', y, h: 0.2, carousel: tr
   { id: 's:stanza', tk: 'm_stanza', w: 0.22, img: roomPreview() }, { id: 's:arena', tk: 'm_arena', w: 0.22, img: stageImg('arena') },
   { id: 's:spiaggia', tk: 'm_spiaggia', w: 0.22, img: stageImg('spiaggia') },
   { id: 's:grattacielo', tk: 'm_grattacielo', w: 0.22, img: stageImg('grattacielo') }, { id: 's:notte', tk: 'm_notte', w: 0.22, img: stageImg('notte') },
-  { id: 's:deserto', tk: 'm_deserto', w: 0.22, img: stageImg('deserto') }, { id: 's:neve', tk: 'm_neve', w: 0.22, img: stageImg('neve') }, { id: 's:vulcano', tk: 'm_vulcano', w: 0.22, img: stageImg('vulcano') }, ...(SEA_READY ? [{ id: 's:mare', tk: 'm_mare', w: 0.22, img: stageImg('mare') }] : []), { id: 's:luna', tk: 'm_luna', w: 0.22, img: stageImg('luna') }, { id: 's:stadio', tk: 'm_stadio', w: 0.22, img: stageImg('stadio') }, { id: 's:stadionotte', tk: 'm_stadionotte', w: 0.22, img: stageImg('stadionotte') }, { id: 's:palestra', tk: 'm_palestra', w: 0.22, img: stageImg('palestra') }, { id: 's:random', tk: 'm_random', w: 0.22, img: randomPreview() }] });
+  { id: 's:deserto', tk: 'm_deserto', w: 0.22, img: stageImg('deserto') }, { id: 's:sale', tk: 'm_sale', w: 0.22, img: stageImg('sale') }, { id: 's:neve', tk: 'm_neve', w: 0.22, img: stageImg('neve') }, { id: 's:foresta', tk: 'm_foresta', w: 0.22, img: stageImg('foresta') }, { id: 's:vulcano', tk: 'm_vulcano', w: 0.22, img: stageImg('vulcano') }, ...(SEA_READY ? [{ id: 's:mare', tk: 'm_mare', w: 0.22, img: stageImg('mare') }] : []), { id: 's:luna', tk: 'm_luna', w: 0.22, img: stageImg('luna') }, { id: 's:stadio', tk: 'm_stadio', w: 0.22, img: stageImg('stadio') }, { id: 's:stadionotte', tk: 'm_stadionotte', w: 0.22, img: stageImg('stadionotte') }, { id: 's:palestra', tk: 'm_palestra', w: 0.22, img: stageImg('palestra') }, { id: 's:random', tk: 'm_random', w: 0.22, img: randomPreview() }] });
 // la tua bandiera (si sceglie nelle opzioni, tra tutti i paesi): sul tabellone sta nella barra del tuo nome. 'none' = rettangolo nero con "?"
 let playerFlag = 'none';
 try { playerFlag = localStorage.getItem('hb-pflag') || 'none'; } catch (e) {}
@@ -633,7 +683,7 @@ const rootMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.1, 
     { id: 'gm:training', tk: 'm_training', w: 0.22, color: 0x8a3a1a, img: modeImg('mode_train') }, { id: 'gm:tour', tk: 'm_tour', w: 0.22, color: 0x7a5a10, img: modeArt('tour') },
     { id: 'gm:surv', tk: 'm_surv', w: 0.22, color: 0x6a1f8a, img: modeArt('surv') }] },
   // opzioni: difficolta', round, regole, puntatore (un menu a parte)
-  { y: -0.03, h: 0.19, buttons: [{ id: 'gm:roster', tk: 'roster', w: 0.3, color: 0x7a2a2a, img: fighterImg('lars') }, { id: 'gm:options', tk: 'options', w: 0.3, color: 0x1f4f7a, img: modeArt('options') }] },
+  { y: -0.03, h: 0.19, buttons: [{ id: 'gm:roster', tk: 'roster', w: 0.3, color: 0x7a2a2a, img: fighterImg('lars') }, { id: 'gm:stages', tk: 'stages', w: 0.3, color: 0x28584e, img: modeArt('stages') }, { id: 'gm:options', tk: 'options', w: 0.3, color: 0x1f4f7a, img: modeArt('options') }] },
   { label: t('language'), tk: 'language', y: -0.31, h: 0.13, buttons: [{ id: 'g:it', text: 'Italiano', w: 0.2, img: flagImg('it') }, { id: 'g:en', text: 'English', w: 0.2, img: flagImg('en') }] },
   // esci: in basso al centro, da tenere premuto 2 secondi (si riempie piano: niente uscite per sbaglio)
   { y: -0.49, h: 0.065, buttons: [{ id: 'quit', tk: 'quit', w: 0.26, color: 0x8a1a20, hold: 2.0 }] },
@@ -649,54 +699,68 @@ const rootMenu = new MenuPanel({ title: 'HOME BOXING', titleH: 0.1, width: 1.1, 
 }
 // Arcade: stage, avversario e opzioni dell'incontro
 // avversari a righe da 4 (pulsanti grandi); con piu' pugili le righe si aggiungono da sole e il pannello si allunga
+const FIGHTER_MENU_IDS = ['mike', ...FIGHTER_IDS.filter(id => id !== 'mike')];
 const OPP_BTNS = [{ id: 'f:random', tk: 'f_random', w: 0.22, img: randomPreview() },
-  ...FIGHTER_IDS.map(id => ({ id: 'f:' + id, text: FIGHTERS[id].name, w: 0.22, img: fighterImg(id) }))];
+  ...FIGHTER_MENU_IDS.map(id => ({ id: 'f:' + id, text: FIGHTERS[id].name, w: 0.22, img: fighterImg(id) })),
+  {id:'f:random_end',tk:'f_random',w:.22,img:randomPreview()}];
 const OPP_ROWS = 1, OPP_EXTRA = 0;      // (una riga a scorrimento)
-const arcadeMenu = new MenuPanel({ title: t('arcade'), titleTk: 'arcade', titleH: 0.1, width: 1.0, height: 1.08 + OPP_EXTRA, draggable: true, rows: withText([
-  stageRow(0.24 + OPP_EXTRA / 2),
-  { label: t('opponent'), tk: 'opponent', y: -0.08, h: 0.2, carousel: true, buttons: OPP_BTNS },
-  { y: -0.39 - OPP_EXTRA / 2, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.26, color: 0x3a4254 }, { id: 'watch_arc', tk: 'watch', w: 0.26, color: 0x6a4a9a }, { id: 'start', tk: 'start', w: 0.4, color: 0x1f8a4c }] },
-]) });
+const matchSummaryRows = () => [
+  {y:.18,h:.25,cx:-.235,colW:.4,label:t('stage'),tk:'stage',buttons:[{id:'summary_stage',text:' ',w:.4,img:stageImg('palestra'),displayOnly:true,color:0x202a39}]},
+  {y:.18,h:.25,cx:.235,colW:.4,label:t('opponent'),summaryDetail:true,buttons:[{id:'summary_detail',text:' ',w:.4,img:fighterImg('mike'),displayOnly:true,color:0x202a39}]},
+  {y:-.065,h:.035,buttons:[],label:' ',summaryLine:0},
+  {y:-.145,h:.035,buttons:[],label:' ',summaryLine:1},
+  {y:-.205,h:.035,buttons:[],label:' ',summaryLine:2},
+  {y:-.30,h:.085,buttons:[{id:'match_settings',tk:'match_settings',w:.36,img:modeArt('options'),inlineIcon:true}]},
+];
+const arcadeMenu = new MenuPanel({title:t('arcade'),titleTk:'arcade',titleH:.1,width:1.1,height:1.16,draggable:true,rows:withText([
+  ...matchSummaryRows(),
+  {y:-.46,h:.10,buttons:[{id:'back',tk:'back',w:.24},{id:'watch_arc',tk:'watch',w:.24,color:0x6a4a9a},{id:'start',tk:'start',w:.4,color:0x1f8a4c}]},
+])});
 // Guarda un incontro (dall'arcade): scegli tu tutti e due i pugili (o "a caso"), lo stage e' quello dell'arcade
 let watchA = 'random', watchB = 'random';
 const watchBtns = pre => [{ id: pre + 'random', tk: 'f_random', w: 0.22, img: randomPreview() },
-  ...FIGHTER_IDS.map(id => ({ id: pre + id, text: FIGHTERS[id].name, w: 0.22, img: fighterImg(id) }))];
+  ...FIGHTER_MENU_IDS.map(id => ({ id: pre + id, text: FIGHTERS[id].name, w: 0.22, img: fighterImg(id) })),
+  {id:pre+'random_end',tk:'f_random',w:.22,img:randomPreview()}];
 const watchMenu = new MenuPanel({ title: t('watch_title'), titleTk: 'watch_title', titleH: 0.1, width: 1.0, height: 1.08, draggable: true, rows: withText([
   { label: t('w_red'), tk: 'w_red', y: 0.22, h: 0.2, carousel: true, buttons: watchBtns('wa:') },
   { label: t('w_blue'), tk: 'w_blue', y: -0.1, h: 0.2, carousel: true, buttons: watchBtns('wb:') },
   { y: -0.39, h: 0.11, buttons: [{ id: 'back_arc', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'watch_go', tk: 'watch', w: 0.45, color: 0x6a4a9a }] },
 ]) });
 // Torneo: come l'arcade ma gli avversari li assegna il tabellone
-const tourMenu = new MenuPanel({ title: t('tour'), titleTk: 'tour', titleH: 0.1, width: 1.0, height: 1.02, draggable: true, rows: withText([
-  stageRow(0.22),
-  { label: t('tr_n'), tk: 'tr_n', y: -0.1, h: 0.17, buttons: [32, 64].map(n => ({ id: 'tz:' + n, text: t('tr_size', { n }), w: 0.27, img: sizeArt('tour', n) })) },
-  { y: -0.38, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.24, color: 0x3a4254 }, { id: 'watch_tour', tk: 'watch_tour', w: 0.3, color: 0x6a4a9a }, { id: 'start_tour', tk: 'start_tour', w: 0.36, color: 0x1f8a4c }] },
-]) });
-// Sopravvivenza: come il torneo (stage e opzioni), poi la torre con tutti gli avversari in ordine casuale
-const survMenu = new MenuPanel({ title: t('surv'), titleTk: 'surv', titleH: 0.1, width: 1.0, height: 1.02, draggable: true, rows: withText([
-  stageRow(0.22),
-  { label: t('tw_n'), tk: 'tw_n', y: -0.1, h: 0.17, buttons: [8, 16, TOWER_MAX].map(n => ({ id: 'tw:' + n, text: t('tw_size', { n }), w: 0.25, img: sizeArt('tower', n) })) },
-  { y: -0.38, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'start_surv', tk: 'start_surv', w: 0.5, color: 0x6a1f8a }] },
-]) });
+const tourMenu = new MenuPanel({title:t('tour'),titleTk:'tour',titleH:.1,width:1.1,height:1.16,draggable:true,rows:withText([
+ ...matchSummaryRows(),
+ {y:-.46,h:.10,buttons:[{id:'back',tk:'back',w:.22},{id:'watch_tour',tk:'watch_tour',w:.32,color:0x6a4a9a},{id:'start_tour',tk:'start_tour',w:.38,color:0x1f8a4c}]},
+])});
+const survMenu = new MenuPanel({title:t('surv'),titleTk:'surv',titleH:.1,width:1.1,height:1.16,draggable:true,rows:withText([
+ ...matchSummaryRows(),
+ {y:-.46,h:.10,buttons:[{id:'back',tk:'back',w:.3},{id:'start_surv',tk:'start_surv',w:.5,color:0x6a1f8a}]},
+])});
+const matchSettingsMenu = new MenuPanel({title:t('match_settings_title'),titleH:.075,width:1.66,height:1.32,dist:.95,draggable:true,rows:withText([
+ {...stageRow(.31),h:.17},...optionRows(.075,.13),
+ {label:t('opponent'),tk:'opponent',y:-.39,h:.16,carousel:true,buttons:OPP_BTNS,matchKind:'arcade'},
+ {label:t('tr_n'),tk:'tr_n',y:-.39,h:.14,buttons:[32,64].map(n=>({id:'tz:'+n,text:t('tr_size',{n}),w:.27,img:sizeArt('tour',n)})),matchKind:'tour'},
+ {label:t('tw_n'),tk:'tw_n',y:-.39,h:.14,buttons:[8,16,TOWER_MAX].map(n=>({id:'tw:'+n,text:t('tw_size',{n}),w:.25,img:sizeArt('tower',n)})),matchKind:'surv'},
+ {y:-.56,h:.1,buttons:[{id:'match_cancel',tk:'back',w:.3},{id:'match_save',tk:'match_save',w:.4,color:0x1f8a4c}]},
+])});
 // Opzioni: valgono per tutte le modalita'
-const optionsMenu = new MenuPanel({ title: t('options_title'), titleTk: 'options_title', titleH: 0.1, width: 1.66, height: 1.46, dist: 0.78, draggable: true, onRelabel: pflagRelabel, rows: withText([
-  ...optionRows(0.34),
+const optionsMenu = new MenuPanel({ title: t('options_title'), titleTk: 'options_title', titleH: 0.1, width: 1.66, height: 1.1, dist: 0.78, draggable: true, onRelabel: pflagRelabel, rows: withText([
+
   // con quale mano si punta nei menu (con tutte e due si facevano scelte per sbaglio)
-  { label: t('pointer'), tk: 'pointer', y: -0.14, h: 0.09, buttons: [{ id: 'pt:left', tk: 'pt_left', w: 0.23 }, { id: 'pt:right', tk: 'pt_right', w: 0.23 }, { id: 'pt:both', tk: 'pt_both', w: 0.23 }] },
-  { cx: 0.385, colW: 0.74, label: t('vibration'), tk: 'vibration', y: 0.02, h: 0.09, buttons: [{ id: 'vb:si', tk: 'yes', w: 0.2 }, { id: 'vb:no', tk: 'no', w: 0.2 }] },
-  { label: t('pflag'), tk: 'pflag', y: -0.38, h: 0.2, carousel: true, pflagRow: true, buttons: pflagOrder().map(c => ({ id: 'pf:' + c, text: pflagName(c), w: 0.22, img: pflagImg(c) })) },
-  { y: -0.58, h: 0.1, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'opt_floor', tk: 'opt_floor', w: 0.4, color: 0x1f6f8a }] },
+  { label: t('pointer'), tk: 'pointer', y: 0.22, h: 0.09, buttons: [{ id: 'pt:left', tk: 'pt_left', w: 0.23 }, { id: 'pt:right', tk: 'pt_right', w: 0.23 }, { id: 'pt:both', tk: 'pt_both', w: 0.23 }] },
+  { label: t('vibration'), tk: 'vibration', y: 0.03, h: 0.09, buttons: [{ id: 'vb:si', tk: 'yes', w: 0.2 }, { id: 'vb:no', tk: 'no', w: 0.2 }] },
+  { label: t('pflag'), tk: 'pflag', y: -0.23, h: 0.2, carousel: true, pflagRow: true, buttons: pflagOrder().map(c => ({ id: 'pf:' + c, text: pflagName(c), w: 0.22, img: pflagImg(c) })) },
+  { y: -0.43, h: 0.1, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'opt_floor', tk: 'opt_floor', w: 0.4, color: 0x1f6f8a }] },
 ]) });
 // Lottatori: griglia di ritratti (come la scelta dei personaggi nei giochi di combattimento); punti un ritratto e
 // a sinistra compare la sua scheda (bandiera, misure, stile, caratteristiche), a destra lui in 3D
 const ROSTER_ROWS = [];
 const RC = 6;                                       // ritratti per riga (36 pugili = 6 x 6; da 37 a 42: 7 righe piu' strette)
 const RSTEP = Math.ceil(FIGHTER_IDS.length / RC) > 6 ? 0.124 : 0.142;
-for (let r = 0; r * RC < FIGHTER_IDS.length; r++) ROSTER_ROWS.push({ y: 0.41 - r * RSTEP, h: RSTEP * 0.9, buttons: FIGHTER_IDS.slice(r * RC, r * RC + RC).map(id => ({ id: 'rf:' + id, text: FIGHTERS[id].name, w: 0.16, img: fighterImg(id) })) });
+for (let r = 0; r * RC < FIGHTER_IDS.length; r++) ROSTER_ROWS.push({ y: 0.41 - r * RSTEP, h: RSTEP * 0.9, buttons: FIGHTER_MENU_IDS.slice(r * RC, r * RC + RC).map(id => ({ id: 'rf:' + id, text: FIGHTERS[id].name, w: 0.16, img: fighterImg(id) })) });
 const rosterMenu = new MenuPanel({ title: t('roster_title'), titleTk: 'roster_title', titleH: 0.1, width: 1.1, height: 1.24, draggable: true, rows: withText([
   ...ROSTER_ROWS,
   { y: -0.5, h: 0.09, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }] },
-]) }, 0.7);                                       // (stessa attesa dello scorrimento fuori: 0,7 s, con il riempimento giallo da sinistra a destra)
+]) }, 0.6);
 for (const b of rosterMenu.buttons) if (b.id.startsWith('rf:')) { b.fill.material.color.setHex(0xffc928); b.fill.material.opacity = 0.7; }
 const fighterCard = new FighterCard();
 fighterCard.mesh.position.set(-1.1 / 2 - 0.27, 0.06, 0); rosterMenu.group.add(fighterCard.mesh);
@@ -708,13 +772,13 @@ const trainMenu = new MenuPanel({ title: t('training'), titleTk: 'training', tit
     /* , { id: 't:rope', tk: 'tr_rope', w: 0.22, color: 0x1f6f8a } */] },   // (salta la corda: nascosta per ora, il codice resta: rope.js, startTraining('corda'), 't:rope')
   { y: -0.1, h: 0.13, buttons: [{ id: 't:slip', tk: 'tr_slip', w: 0.3, color: 0x2e7a3a }, { id: 't:spar', tk: 'tr_spar', w: 0.46, color: 0x9a1418 }] },
   { y: -0.32, h: 0.11, buttons: [{ id: 'back', tk: 'back', w: 0.3, color: 0x3a4254 }] },
-]) });
+]) }, 0.6);
 // Sparring: libero oppure esercizio a scelta
 const sparMenu = new MenuPanel({ title: t('sp_title'), titleTk: 'sp_title', titleH: 0.1, width: 1.0, height: 0.86, draggable: true, rows: withText([
   { y: 0.14, h: 0.14, buttons: [{ id: 'sp:libero', tk: 'sp_libero', w: 0.4, color: 0x9a1418 }] },
   { label: t('sp_choose'), tk: 'sp_choose', y: -0.1, h: 0.12, buttons: [{ id: 'sp:combo', tk: 'sp_combo', w: 0.3, color: 0x1f6f8a }, { id: 'sp:difesa', tk: 'sp_difesa', w: 0.3, color: 0x2e7a3a }] },
   { y: -0.33, h: 0.1, buttons: [{ id: 'back_train', tk: 'back', w: 0.3, color: 0x3a4254 }] },     // indietro: all'allenamento
-]) });
+]) }, 0.6);
 // Difesa: tutto casuale, oppure scegli i colpi che il partner ti tira (uno alla volta, niente combinazioni)
 const DEF_IDS = ['jab', 'cross', 'hook_l', 'hook_r', 'upper_l', 'upper_r', 'body'];
 let defSel = new Set(['jab', 'cross']);
@@ -731,9 +795,16 @@ const defMenu = new MenuPanel({ title: t('sp_difesa'), titleTk: 'sp_difesa', tit
   { label: t('dm_guard'), tk: 'dm_guard', y: -0.36, h: 0.1, buttons: [{ id: 'dg:si', tk: 'yes', w: 0.2, color: 0x5a3a8a }, { id: 'dg:no', tk: 'no', w: 0.2, color: 0x5a3a8a }] },
   { y: -0.53, h: 0.11, buttons: [{ id: 'back_spar', tk: 'back', w: 0.3, color: 0x3a4254 }, { id: 'dm:start', tk: 'dm_start', w: 0.42, color: 0x9a1418 }] },
 ]) });
+defMenu.hold = 0.6;
 const defSelect = () => defMenu.select([...[...defSel].map(k => 'dk:' + k), 'dt:' + defType, defGuard ? 'dg:si' : 'dg:no']);
 let lastTrainMenu = null;                          // per "Cambia allenamento": il menu da cui eri partito
-const MENUS = [rootMenu, arcadeMenu, tourMenu, survMenu, trainMenu, sparMenu, defMenu, optionsMenu, rosterMenu, watchMenu];
+let galleryBefore=null, galleryStage='palestra';
+const galleryRow=stageRow(.025);
+const stageGalleryMenu=new MenuPanel({title:t('stages'),titleTk:'stages',titleH:.065,width:.94,height:.43,dist:.9,rows:withText([
+  {...galleryRow,label:null,tk:null,h:.17,buttons:galleryRow.buttons.filter(b=>b.id!=='s:random').map(b=>({...b,id:'browse:'+b.id.slice(2)}))},
+  {y:-.145,h:.05,buttons:[{id:'stage_exit',tk:'stage_exit',w:.19,color:0x293440}]},
+])});
+const MENUS = [rootMenu, arcadeMenu, tourMenu, survMenu, trainMenu, sparMenu, defMenu, optionsMenu, rosterMenu, watchMenu, matchSettingsMenu, stageGalleryMenu];
 for (const m of MENUS) { m.group.scale.setScalar(0.88); scene.add(m.group); }
 const menuVisible = () => MENUS.some(m => m.group.visible) || bracket.group.visible || tower.group.visible || tourBtns.group.visible;
 // tabellone del torneo e i suoi pulsanti (sotto il tabellone)
@@ -743,11 +814,11 @@ let surv = null;          // sopravvivenza in corso: { order, idx, state, stages
 const tourBtns = new MenuPanel({ title: '', titleH: 0.03, width: 1.75, height: 0.16, rows: withText([
   // (come in tutti i menu: uscire/indietro a sinistra, avanti a destra; "esci" in piu' quando scegli se guardare;
   // "salta il turno" solo quando salta piu' di un incontro)
-  { y: -0.01, h: 0.09, buttons: [{ id: 'texit', tk: 'tr_quit', w: 0.3, color: 0x7a2a2a }, { id: 'tquit', tk: 'tr_quit', w: 0.36, color: 0x3a4254 }, { id: 'tskiprd', tk: 'tr_skipround', w: 0.4, color: 0x5a3d6e }, { id: 'tgo', tk: 'tr_fight', w: 0.42, color: 0x1f8a4c }] }]) }, 0.75);   // (0,75 s: prima 0,3)
+  { y: -0.01, h: 0.09, buttons: [{ id: 'texit', tk: 'tr_quit', w: 0.3, color: 0x7a2a2a }, { id: 'tquit', tk: 'tr_quit', w: 0.36, color: 0x3a4254 }, { id: 'tskiprd', tk: 'tr_skipround', w: 0.4, color: 0x5a3d6e }, { id: 'tgo', tk: 'tr_fight', w: 0.42, color: 0x1f8a4c }] }]) }, 0.6);
 scene.add(tourBtns.group);
 // incontro CPU: pulsante piccolo per andare al risultato
 const skipBtn = new MenuPanel({ title: '', titleH: 0.02, width: 0.3, height: 0.1, draggable: true, dragSide: 'left', rows: withText([   // (maniglia a sinistra: lo sposti dove non ti da' fastidio)
-  { y: -0.005, h: 0.06, buttons: [{ id: 'skip', tk: 'tr_skip', w: 0.25, color: 0x3a4254 }] }]) }, 0.75);
+  { y: -0.005, h: 0.06, buttons: [{ id: 'skip', tk: 'tr_skip', w: 0.25, color: 0x3a4254 }] }]) }, 0.6);
 scene.add(skipBtn.group);
 // ---- accesso al menu di pausa dal tabellone (l'unico modo con le mani): una linguetta blu attaccata al bordo alto del tabellone.
 // Si attiva solo col pugno chiuso, il braccio disteso verso il tabellone e abbastanza fermo (non in guardia, non mentre ondeggi):
@@ -843,11 +914,8 @@ let prevButtons = false;
 
 let mike = null;
 // avversario scelto (nel codice resta "mike" = l'avversario)
-let fighterId = 'bruce';
-try { fighterId = localStorage.getItem('hb-fighter') || 'bruce'; } catch (e) {}
-let oppChoice = fighterId;                  // avversario scelto in arcade: un pugile o 'random'
-try { oppChoice = localStorage.getItem('hb-opp') || fighterId; } catch (e) {}
-if (!FIGHTERS[fighterId]) fighterId = 'bruce';
+let oppChoice=matchPreferences.get('arcade').opponent;
+let fighterId=oppChoice==='random'?'mike':oppChoice;
 setOpponentName(FIGHTERS[fighterId].name);
 let sim = null, orbit = null;
 
@@ -905,6 +973,13 @@ function detectFloor(frame) {
   if (!ref) return null;
   room.update(frame, ref);
   return room.floorY;
+}
+function refreshDetectedFloor(frame) {
+  const y=detectFloor(frame),userSet=floorSource==='mano'||floorSource==='manuale';
+  const scanAgain=!!(floorForce?.scan&&room.floorTracked&&floorSets===floorForce.sets);
+  // A completed rescan must also confirm an unchanged floor height.
+  if(y!==null&&(!userSet||scanAgain)&&(floorSource!=='stanza'||Math.abs(y-floorY)>.02||scanAgain))setFloor(y,'stanza');
+  return y;
 }
 
 let lastPlace = null, fitted = false;
@@ -993,17 +1068,40 @@ let floorForce = null;                                // { sets, scan }: dalle o
 // proprio da un tuo clic: il pulsante si preme anche solo tenendoci sopra il guantone); al secondo rifiuto si mostra
 // il motivo che da' il Quest
 let captureArmed = false;
+let captureBusy=false,captureTimer=null;
+const capturedSessions=new WeakSet();
 function startRoomCapture(session, fromClick) {
-  // se dopo 10 s non e' successo niente (il Quest non apre la scansione e non risponde): si dice cosa fare
-  const tok = (startRoomCapture.tok = (startRoomCapture.tok || 0) + 1);
-  setTimeout(() => { if (startRoomCapture.tok === tok && floorMenu.group.visible && floorMenu.titleText === t('floor_scan_hint')) floorMenu.setTitle(t('floor_scan_settings')); }, 10000);
-  session.initiateRoomCapture().then(() => {
-    if (floorForce) { floorForce.scan = true; floorSource = 'visore'; }    // (dalle opzioni: si rilegge il pavimento)
-  }).catch(e => {
-    console.warn('scansione', e);
-    if (!fromClick) { captureArmed = true; floorMenu.setTitle(t('floor_scan_click')); }
-    else floorMenu.setTitle(t('floor_scan_err', { e: (e && (e.message || e.name)) || '?' }));
-  });
+  if(!session||typeof session.initiateRoomCapture!=='function'){floorMenu.setTitle(t('floor_scan_no'));return;}
+  if(!spatialOK()){floorMenu.setTitle(t('floor_perm_how'));return;}
+  if(captureBusy)return;
+  if(capturedSessions.has(session)){floorMenu.setTitle(t('floor_scan_settings'));return;}
+  // Dwell/touch runs inside requestAnimationFrame. Arm it there, but invoke
+  // the protected API synchronously in the XR select event (same first click).
+  if(!fromClick){captureArmed=true;floorMenu.setTitle(t('floor_scan_click'));return;}
+  captureArmed=false;captureBusy=true;floorMenu.select(['fl:scan']);floorMenu.setTitle(t('floor_scan_hint'));
+  const tok=startRoomCapture.tok=(startRoomCapture.tok||0)+1;
+  clearTimeout(captureTimer);
+  captureTimer=setTimeout(()=>{if(startRoomCapture.tok===tok&&floorMenu.group.visible){captureBusy=false;floorMenu.setTitle(t('floor_scan_settings'));}},10000);
+  const failed=e=>{if(startRoomCapture.tok!==tok)return;captureBusy=false;clearTimeout(captureTimer);floorMenu.setTitle(t('floor_scan_err',{e:e?.message||e?.name||'?'}));};
+  try{
+    Promise.resolve(session.initiateRoomCapture()).then(()=>{
+      if(startRoomCapture.tok!==tok)return;
+      capturedSessions.add(session);captureBusy=false;
+      if(floorForce){floorForce.scan=true;floorSource='visore';}
+    },failed);
+  }catch(e){failed(e);}
+}
+function cancelRoomCapture(){captureArmed=false;captureBusy=false;clearTimeout(captureTimer);startRoomCapture.tok=(startRoomCapture.tok||0)+1;}
+function selectRoomCapture(e,session){
+  if(!floorMenu.group.visible||!['ask','force'].includes(floorGate))return;
+  if(pointerHand!=='both'&&e.inputSource?.handedness&&e.inputSource.handedness!==pointerHand)return;
+  let hit=null;
+  if(e.frame&&e.inputSource?.targetRaySpace){
+    const pose=e.frame.getPose(e.inputSource.targetRaySpace,renderer.xr.getReferenceSpace());
+    if(pose){const m=new THREE.Matrix4().fromArray(pose.transform.matrix);hit=floorMenu.hitRay(new THREE.Vector3().setFromMatrixPosition(m),new THREE.Vector3(0,0,-1).transformDirection(m));}
+  }
+  if(hit==='fl:scan'||(captureArmed&&(!hit||hit==='fl:scan')))startRoomCapture(session,true);
+  else if(hit)captureArmed=false;
 }
 // il sito ha il permesso "dati spaziali"? (senza, il Quest non da' la stanza e non fa partire la scansione)
 function spatialOK() {
@@ -1012,6 +1110,7 @@ function spatialOK() {
   return !f || f.includes('plane-detection') || f.includes('mesh-detection');
 }
 function openFloorMenu(force) {
+  cancelRoomCapture();
   floorGate = force ? 'force' : 'ask'; floorForce = force ? { sets: floorSets, scan: false } : null;
   closeMenus();
   const bs = floorMenu.buttons, back = bs.find(b => b.id === 'fl:back');
@@ -1023,7 +1122,7 @@ function openFloorMenu(force) {
   floorMenu.setTitle(t(!spatialOK() ? 'floor_noperm' : force ? 'floor_title2' : 'floor_title')); floorMenu.open(player.head, menuYaw(), 0.7, 0.1);
 }
 const floorOK = () => ['stanza', 'mano', 'manuale', 'salvato'].includes(floorSource);
-window.floorTest = { space: sp => { floorSpace = sp; }, save: y => saveFloor(y), saved: () => savedFloor(), ask: () => openFloorMenu(false), force: () => openFloorMenu(true), set: () => setFloor(floorY, 'mano'), get state() { return floorGate; }, menu: floorMenu };   // (prove)
+window.floorTest = { space: sp => { floorSpace = sp; }, save: y => saveFloor(y), saved: () => savedFloor(), ask: () => openFloorMenu(false), force: () => openFloorMenu(true), set: () => setFloor(floorY, 'mano'), requestCapture:startRoomCapture, selectCapture:selectRoomCapture, refresh:refreshDetectedFloor, get captureState(){return {armed:captureArmed,busy:captureBusy};}, get state() { return floorGate; }, menu: floorMenu };   // (prove)
 // durante la presentazione dello speaker: conto alla rovescia e pulsante per iniziare subito
 const introMenu = new MenuPanel({ title: t('intro_title', { s: 20 }), titleH: 0.045, titleW: 0.3, width: 0.38, height: 0.2, rows: [
   { y: -0.04, h: 0.06, buttons: [{ id: 'skip', tk: 'skip_intro', text: t('skip_intro'), w: 0.29, color: 0x1f8a4c }] },
@@ -1039,10 +1138,10 @@ const game = {
   round: 1, time: roundSecs, phase: 'ready', phaseT: 0, paused: false,
   player: fighter(), mike: fighter(), message: '', kd: null, result: null, foul: null, fill: null,
 };
-let threeKO = true;
-try { threeKO = localStorage.getItem('hb-3ko') !== 'no'; } catch (e) {}
-let oneKO = false;                                   // opzione: il primo atterramento chiude l'incontro (si conta fino a 10)
-try { oneKO = localStorage.getItem('hb-1ko') === 'si'; } catch (e) {}
+let threeKO = initialMatchPreferences.threeKO;
+
+let oneKO = initialMatchPreferences.oneKO;                                   // opzione: il primo atterramento chiude l'incontro (si conta fino a 10)
+
 
 function setPeople(v) {                      // nel menu il ring e' vuoto: niente Mike, niente pubblico
   if (mike) mike.root.visible = v;
@@ -1422,6 +1521,7 @@ function startPresentation() {
 onLang(l => {
   sfx.setVoiceLang(l);
   for (const m of MENUS) m.relabel();
+  refreshMatchSummaries();
   skipBtn.relabel();
   nextMenu.relabel(); introMenu.relabel(); trophyMenu.relabel(); pause.relabel(); tourBtns.relabel(); floorMenu.relabel(); mtabText();
   for (const m of MENUS) m.select(menuChoices());
@@ -1520,21 +1620,21 @@ const loader = (() => {
 })();
 // lo stage scelto non e' ancora pronto (foto e modelli): finche' non lo e' si resta al buio
 function stageBusy() {
-  const envs = [[desertEnv, 'deserto'], [roofEnv, 'grattacielo'], [nightEnv, 'notte'], [snowEnv, 'neve'], [volcEnv, 'vulcano'], [seaEnv, 'mare'], [moonEnv, 'luna'], [stadiumEnv, 'stadio'], [stadiumNEnv, 'stadionotte'], [beachEnv, 'spiaggia']];
+  const envs = [[saltEnv, 'sale'], [forestEnv, 'foresta'], [desertEnv, 'deserto'], [roofEnv, 'grattacielo'], [nightEnv, 'notte'], [snowEnv, 'neve'], [volcEnv, 'vulcano'], [seaEnv, 'mare'], [moonEnv, 'luna'], [stadiumEnv, 'stadio'], [stadiumNEnv, 'stadionotte'], [beachEnv, 'spiaggia']];
   for (const [e, m] of envs) if (mode === m && e && !e.skyLoaded) return true;
   if (panoPending > 0 && mode !== 'stanza' && mode !== 'arena') return true;   // lo sfondo 3D e' ancora in costruzione
   return mode === 'palestra' && gymEnv && !gymEnv.loaded;
 }
 // lo stage st deve ancora caricare foto e modelli (mai aperto prima)?
 function stageCold(st) {
-  const e = { deserto: desertEnv, grattacielo: roofEnv, notte: nightEnv, neve: snowEnv, vulcano: volcEnv, mare: seaEnv, luna: moonEnv, stadio: stadiumEnv, stadionotte: stadiumNEnv, spiaggia: beachEnv }[st];
+  const e = { sale: saltEnv, foresta: forestEnv, deserto: desertEnv, grattacielo: roofEnv, notte: nightEnv, neve: snowEnv, vulcano: volcEnv, mare: seaEnv, luna: moonEnv, stadio: stadiumEnv, stadionotte: stadiumNEnv, spiaggia: beachEnv }[st];
   if (st === 'palestra') return !gymEnv || !gymEnv.loaded;
-  return st in { deserto: 1, grattacielo: 1, notte: 1, neve: 1, vulcano: 1, mare: 1, luna: 1, stadio: 1, stadionotte: 1, spiaggia: 1 } && (!e || !e.skyLoaded);
+  return st in { sale: 1, foresta: 1, deserto: 1, grattacielo: 1, notte: 1, neve: 1, vulcano: 1, mare: 1, luna: 1, stadio: 1, stadionotte: 1, spiaggia: 1 } && (!e || !e.skyLoaded);
 }
 function loadingBusy() {
   if (fighterLoading || sparLoading) return true;
   if (stageBusy()) return true;
-  const envs = [[desertEnv, 'deserto'], [roofEnv, 'grattacielo'], [nightEnv, 'notte'], [snowEnv, 'neve'], [volcEnv, 'vulcano'], [seaEnv, 'mare'], [moonEnv, 'luna'], [stadiumEnv, 'stadio'], [stadiumNEnv, 'stadionotte'], [beachEnv, 'spiaggia']];
+  const envs = [[saltEnv, 'sale'], [forestEnv, 'foresta'], [desertEnv, 'deserto'], [roofEnv, 'grattacielo'], [nightEnv, 'notte'], [snowEnv, 'neve'], [volcEnv, 'vulcano'], [seaEnv, 'mare'], [moonEnv, 'luna'], [stadiumEnv, 'stadio'], [stadiumNEnv, 'stadionotte'], [beachEnv, 'spiaggia']];
   for (const [e, m] of envs) if (mode === m && e && !e.skyLoaded) return true;
   if (mode === 'palestra' && gymEnv && !gymEnv.loaded) return true;
   return false;
@@ -1635,9 +1735,7 @@ function tick(dt, frame) {
     }
   }
   if (renderer.xr.isPresenting && frame && xrFrames % 30 === 0) {
-    const y = detectFloor(frame);
-    const userSet = floorSource === 'mano' || floorSource === 'manuale';
-    if (y !== null && !userSet && (floorSource !== 'stanza' || Math.abs(y - floorY) > 0.02)) setFloor(y, 'stanza');
+    const y = refreshDetectedFloor(frame);
     // la pianta della stanza e' arrivata dopo: rimetti il ring della misura giusta
     // (solo nella stanza: nell'arena il ring non si adatta e rimetterlo a posto riportava Mike al punto di partenza)
     if (placed && !fitted && mode === 'stanza' && room.floorPoly && lastPlace && game.phase === 'menu') placeArena(lastPlace.head, lastPlace.yaw);
@@ -1696,7 +1794,7 @@ function tick(dt, frame) {
   if (reopenFrames > 0 && --reopenFrames === 0) reopenMenus();
   lastHeadR = (lastHeadR || new THREE.Vector3()).copy(player.head);
   if (orbit) orbit.update();
-  player.update(dt);
+  player.update(dt, frame);
   // puntatori: raggi da mani e controller quando c'e' il menu aperto (puntare = toccare col guantone)
   const menuOpen = menuVisible() || pause.group.visible || skipBtn.group.visible || introMenu.group.visible || (trophyMenu.group.visible && girl.cupState !== 'held');   // (solo menu principale e pausa, non i pannellini dell'incontro)
   const rays = [];
@@ -1783,10 +1881,15 @@ function tick(dt, frame) {
     stool.position.copy(mike.root.position).addScaledVector(mike.forward(), -0.07);
   }
   if (party.update(dt)) sfx.firework();
-  if (arenaEnv && arenaEnv.group.visible) { arenaEnv.update(dt); sfx.crowdLevel(arenaEnv.excite); }
+  if (arenaEnv && arenaEnv.group.visible) { arenaEnv.update(dt,player.head); sfx.crowdLevel(arenaEnv.excite); }
+  if (saltEnv && saltEnv.group.visible) saltEnv.update(dt, renderer.xr.isPresenting ? renderer.xr.getCamera() : camera);
   if (desertEnv && desertEnv.group.visible) desertEnv.update(dt, renderer.xr.isPresenting ? renderer.xr.getCamera() : camera);
   if (stadiumEnv && stadiumEnv.group.visible) stadiumEnv.update(dt, renderer.xr.isPresenting ? renderer.xr.getCamera() : camera);
   if (stadiumNEnv && stadiumNEnv.group.visible) stadiumNEnv.update(dt, renderer.xr.isPresenting ? renderer.xr.getCamera() : camera);
+  if (forestEnv && forestEnv.group.visible) {
+    const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
+    key.intensity = 0.95 + forestEnv.update(dt, cam, {observer:player.head,hold:game.phase==='end'||!!game.kd||(game.phase==='watch'&&!!cpu&&(!!cpu.kd||cpu.winner!==null))}) * 1.6;
+  }
   if (snowEnv && snowEnv.group.visible) {
     let h = renderer.domElement.height;
     if (renderer.xr.isPresenting) { const bl = renderer.xr.getBaseLayer && renderer.xr.getBaseLayer(); h = bl ? (bl.framebufferHeight || bl.textureHeight || 1800) : 1800; }
@@ -1818,6 +1921,10 @@ function tick(dt, frame) {
     const ch = (renderer.xr.isPresenting ? renderer.xr.getCamera() : camera).getWorldPosition(new THREE.Vector3());
     const w = game.phase === 'training' || !mike || !mike.root.visible ? ch : ch.lerp(mike.root.getWorldPosition(new THREE.Vector3()).setY(ch.y), 0.5);
     gymEnv.update(dt, w);
+    const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
+    sfx.mopDrag(gymEnv.mopSoundPosition, gymEnv.mopSoundSpeed || 0, cam);
+  } else {
+    sfx.mopStop();
   }
   for (const re of [roofEnv, nightEnv]) if (re && re.group.visible) {
     const hp = re.update(dt);
@@ -1847,8 +1954,69 @@ function closePause() {
   mike.enabled = (game.phase === 'fight' && !game.kd) || game.phase === 'sparring';
 }
 try { player.vibrate = localStorage.getItem('hb-vibe') !== 'no'; } catch (e) {}   // vibrazione dei controller (di serie: si')
-const menuChoices = () => ['s:' + stageChoice, 'f:' + oppChoice, 'wa:' + watchA, 'wb:' + watchB, 'l:' + level, 'r:' + rounds, 'd:' + roundSecs,
+const savedMenuChoices = () => ['s:' + stageChoice, 'f:' + oppChoice, 'wa:' + watchA, 'wb:' + watchB, 'l:' + level, 'r:' + rounds, 'd:' + roundSecs,
   threeKO ? 'k:si' : 'k:no', oneKO ? 'ko:si' : 'ko:no', 'tz:' + tourSize, 'tw:' + towerSize, 'g:' + lang, 'pt:' + pointerHand, player.vibrate === false ? 'vb:no' : 'vb:si', 'pf:' + playerFlag];
+function preferenceChoices(p) {return ['s:'+p.stage,'f:'+p.opponent,...(p.opponent==='random'?['f:random_end']:[]),'l:'+p.level,'r:'+p.rounds,'d:'+p.roundSecs,p.threeKO?'k:si':'k:no',p.oneKO?'ko:si':'ko:no','tz:'+p.tourSize,'tw:'+p.towerSize];}
+function menuChoices() {return settingsDraft?preferenceChoices(settingsDraft):['browse:'+galleryStage,...savedMenuChoices(),...(oppChoice==='random'?['f:random_end']:[]),...(watchA==='random'?['wa:random_end']:[]),...(watchB==='random'?['wb:random_end']:[])];}
+function activateMatchPreferences(kind) {
+  gameMode=kind;settingsDraft=null;settingsPreviewBefore=null;pendingStage=pendingFighter=null;
+  const p=matchPreferences.get(kind);
+  stageChoice=p.stage;level=p.level;rounds=p.rounds;roundSecs=p.roundSecs;threeKO=p.threeKO;oneKO=p.oneKO;
+  tourSize=p.tourSize;towerSize=p.towerSize;oppChoice=matchPreferences.get('arcade').opponent;
+  if(mike)mike.setLevel(level);
+  setStage(stageChoice==='random'?'palestra':stageChoice);
+  if(kind==='arcade'&&oppChoice!=='random')pendingFighter={id:oppChoice,t:.2};
+  showLevel();showMode();
+}
+function refreshMatchSummaries() {
+  for(const [kind,panel] of Object.entries({arcade:arcadeMenu,tour:tourMenu,surv:survMenu})) {
+    const p=matchPreferences.get(kind), stage=t(p.stage==='random'?'m_random':'m_'+p.stage);
+    const detail=kind==='arcade'?(p.opponent==='random'?t('f_random'):FIGHTERS[p.opponent].name):kind==='tour'?t('tr_size',{n:p.tourSize}):t('tw_size',{n:p.towerSize});
+    const label=t({arcade:'opponent',tour:'tr_n',surv:'tw_n'}[kind]);
+    // Reuse the selection previews, including their textures, in the passive cards.
+    const detailId=kind==='arcade'?'f:'+p.opponent:kind==='tour'?'tz:'+p.tourSize:'tw:'+p.towerSize;
+    const images=['s:'+p.stage,detailId].map(id=>matchSettingsMenu.buttons.find(b=>b.id===id).img);
+    ['summary_stage','summary_detail'].forEach((id,i)=>{const b=panel.buttons.find(b=>b.id===id);b.text=i?detail:stage;panel._paint(b.label,b.text,'#ffffff');b.im.material.map=images[i];b.im.material.needsUpdate=true;});
+    const lines=[t('match_round_summary',{level:t('l_'+p.level),rounds:p.rounds,minutes:p.roundSecs/60}),t('match_rule_three',{value:t(p.threeKO?'yes':'no')}),t('match_rule_one',{value:t(p.oneKO?'yes':'no')})];
+    for(const r of panel.rowLabels){if(r.row.summaryDetail)panel._paint(r.m,label,'#9aa3b6');if(r.row.summaryLine!==undefined)panel._paint(r.m,lines[r.row.summaryLine],'#d7dfeb');}
+  }
+}
+function openMatchSettings() {
+  settingsDraft=matchPreferences.get(gameMode);
+  settingsPreviewBefore={mode,fighterId};
+  matchSettingsMenu.carousels[1].hidden=gameMode!=='arcade';
+  for(const b of matchSettingsMenu.buttons)if(b.matchKind)b.g.visible=b.matchKind===gameMode;
+  // Kind metadata belongs to rows, so hide each row's controls and label together.
+  for(const row of matchSettingsMenu.spec.rows)if(row.matchKind) {
+    const show=row.matchKind===gameMode;
+    for(const b of matchSettingsMenu.buttons)if(row.buttons.some(x=>x.id===b.id)||row._arrows?.some(x=>x.id===b.id))b.g.visible=show;
+  }
+  const labels=matchSettingsMenu.rowLabels;
+  for(let i=0;i<3;i++)labels[6+i].m.visible=['arcade','tour','surv'][i]===gameMode;
+  openMenu(matchSettingsMenu);
+  matchSettingsMenu.setTitle(t('match_settings_title')+' · '+t({arcade:'arcade',tour:'tour',surv:'surv'}[gameMode]));
+}
+function editMatchPreference(id) {
+  const p=settingsDraft, v=id.slice(id.indexOf(':')+1).replace('random_end','random');
+  if(id.startsWith('s:'))p.stage=v;else if(id.startsWith('f:'))p.opponent=v;
+  else if(id.startsWith('l:'))p.level=v;else if(id.startsWith('r:'))p.rounds=+v;
+  else if(id.startsWith('d:'))p.roundSecs=+v;else if(id.startsWith('k:'))p.threeKO=v==='si';
+  else if(id.startsWith('ko:'))p.oneKO=v==='si';else if(id.startsWith('tz:'))p.tourSize=+v;else if(id.startsWith('tw:'))p.towerSize=+v;
+  matchSettingsMenu.select(preferenceChoices(p));
+  if(id.startsWith('s:')) {
+    pendingStage=p.stage!=='random'?{id:p.stage,t:.35}:null;
+    if(pendingStage && p.stage!==mode){loader.hold=Math.max(loader.hold||0,.9);loader.dark.material.opacity=1;loader.dark.visible=true;}
+  }
+  if(id.startsWith('f:')) {
+    pendingFighter=p.opponent!=='random'?{id:p.opponent,t:.35}:null;
+    if(pendingFighter && p.opponent!==fighterId)loader.glassT=.9;
+  }
+}
+function discardMatchDraft() {
+  const before=settingsPreviewBefore;settingsDraft=null;settingsPreviewBefore=null;
+  pendingStage=pendingFighter=null;
+  if(before){setStage(before.mode);if(fighterId!==before.fighterId||fighterLoading)pendingFighter={id:before.fighterId,t:.2,restore:true};}
+}
 function menuYaw() {
   const cam = renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
   return new THREE.Euler().setFromQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()), 'YXZ').y;
@@ -1856,7 +2024,7 @@ function menuYaw() {
 // rimette davanti alla testa i menu aperti (dopo che il visore ha ricalcolato la posizione)
 function reopenMenus() {
   const yaw = menuYaw();
-  for (const m of MENUS) if (m.group.visible) m.open(player.head, yaw);
+  for (const m of MENUS) if (m.group.visible) positionMenu(m,yaw);
   if (tower.group.visible) { tower.open(player.head, yaw); setTourButtons(tourBtns.buttons.find(b => b.id === 'tgo').tk, tourBtns.buttons.find(b => b.id === 'tquit').g.visible, yaw, tourBtns.buttons.find(b => b.id === 'tquit').tk, tourSkipRd); }
   else if (bracket.group.visible) { bracket.open(player.head, yaw); setTourButtons(tourBtns.buttons.find(b => b.id === 'tgo').tk, tourBtns.buttons.find(b => b.id === 'tquit').g.visible, yaw, tourBtns.buttons.find(b => b.id === 'tquit').tk, tourSkipRd); }
 }
@@ -1873,7 +2041,22 @@ function followMenus(dt) {
   } else menuMoveT = 0;
 }
 function closeMenus() { menuY = null; trophyMenu.close(); for (const m of MENUS) m.close(); bracket.close(); tower.close(); tourBtns.close(); }
-function openMenu(m) { closeMenus(); m.select(menuChoices()); m.open(player.head, menuYaw()); }
+function positionMenu(m,yaw) {
+  const launch=[arcadeMenu,tourMenu,survMenu].includes(m);
+  m.open(player.head,yaw,launch ? .95 : m.spec.dist||.55,m===stageGalleryMenu ? .46 : m===matchSettingsMenu || launch ? .08 : .2);
+}
+function openMenu(m) {
+  if(galleryBefore && m!==stageGalleryMenu){const previousStage=galleryBefore;galleryBefore=null;pendingStage=pendingFighter=null;setStage(previousStage);}
+
+  const family=[arcadeMenu,tourMenu,survMenu,matchSettingsMenu];
+  const previous=family.find(p=>p.group.visible);
+  const keepPose=previous && family.includes(m);
+  const position=keepPose?previous.group.position.clone():null;
+  const rotation=keepPose?previous.group.quaternion.clone():null;
+  if(m!==matchSettingsMenu && settingsDraft)discardMatchDraft();
+  refreshMatchSummaries();closeMenus();m.select(menuChoices());positionMenu(m,menuYaw());
+  if(keepPose){m.group.position.copy(position);m.group.quaternion.copy(rotation);}
+}
 // ---- allenamento al sacco: in palestra, il ring sparisce e il sacco pende davanti a te
 let bagTr = null, ropeTr = null, speedTr = null, deTr = null, slipTr = null, trainKind = 'sacco';
 const trainer = () => ({ corda: ropeTr, pera: speedTr, doppio: deTr, spago: slipTr })[trainKind] || bagTr;
@@ -1928,7 +2111,7 @@ function sparSounds(ev) {
   }
 }
 // ---- sparring: il partner (caschetto, alto come te) prende il posto dell'avversario sul ring della palestra
-const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261010231139', evenSkin: false,
+const PARTNER = { id: 'partner', name: 'Partner', glb: 'assets/partner.glb?v=20261012074748', evenSkin: false,
   band: { bg: '#1a1a1c', line: '#c4122a', text: '#f2ece0', label: 'SPARRING' } };
 let spar = null, partner = null, savedMike = null, sparLoading = false;
 async function startSparring(kind, defKinds = null) {
@@ -1981,7 +2164,7 @@ function showMainMenu() {
   openMenu(rootMenu);
 }
 // stage dell'incontro: quello scelto, oppure a caso tra gli stage virtuali (nel torneo senza ripetere finche' si puo')
-const VIRTUAL = ['arena', 'spiaggia', 'grattacielo', 'notte', 'deserto', 'neve', 'vulcano', 'mare', 'luna', 'stadio', 'stadionotte', 'palestra'].filter(v => v !== 'mare' || SEA_READY);
+const VIRTUAL = ['arena', 'spiaggia', 'grattacielo', 'notte', 'deserto', 'sale', 'neve', 'foresta', 'vulcano', 'mare', 'luna', 'stadio', 'stadionotte', 'palestra'].filter(v => v !== 'mare' || SEA_READY);
 function pickStage() {
   if (stageChoice !== 'random') return stageChoice;
   let pool = VIRTUAL;
@@ -2316,11 +2499,11 @@ let pendingStage = null, pendingFighter = null;
 function updatePending(dt) {
   if (pendingStage && (pendingStage.t -= dt) <= 0) {
     const s = pendingStage.id; pendingStage = null;
-    if (game.phase === 'menu' && stageChoice === s) { setStage(s); try { localStorage.setItem('hb-mode', mode); } catch (e) {} }
+    if (game.phase === 'menu' && (settingsDraft?settingsDraft.stage:stageChoice) === s) setStage(s);
   }
   if (pendingFighter && (pendingFighter.t -= dt) <= 0 && !fighterLoading) {
-    const f = pendingFighter.id; pendingFighter = null;
-    if (game.phase === 'menu' && (oppChoice === f || rosterMenu.group.visible)) {
+    const f = pendingFighter.id, restore=pendingFighter.restore; pendingFighter = null;
+    if (game.phase === 'menu' && (restore || (settingsDraft?settingsDraft.opponent:oppChoice) === f || rosterMenu.group.visible)) {
       if (rosterMenu.group.visible && rosterHover === f) sfx.voiceNow('name_' + f);   // nei Lottatori: il nome solo se ci stai ancora sopra (passando su tanti ritratti partivano due nomi insieme)
       setFighter(f);
     }
@@ -2329,18 +2512,19 @@ function updatePending(dt) {
 // nel menu il pugile scelto si vede in anteprima a destra del pannello (dietro sarebbe nascosto); quando parte
 // l'incontro newMatch lo rimette al suo posto nel ring
 function previewFighter() {
-  const m = arcadeMenu.group.visible ? arcadeMenu : rosterMenu.group.visible ? rosterMenu : null;   // (dove scegli l'avversario e nei Lottatori)
+  const m = arcadeMenu.group.visible ? arcadeMenu : rosterMenu.group.visible ? rosterMenu : matchSettingsMenu.group.visible && gameMode==='arcade' ? matchSettingsMenu : null;
   if (!mike) return;
   if (!m) { if (mike.previewing) { placeMikeStart(); mike.root.visible = false; } return; }
   // in Arcade l'anteprima e' sempre l'avversario scelto: se quello caricato e' un altro (es. l'ultimo affrontato, o
   // un caricamento rimasto indietro) si carica quello giusto; con "a caso" non si mostra nessuno
   let hide = false;
-  if (m === arcadeMenu) {
-    if (oppChoice === 'random' || !FIGHTERS[oppChoice]) hide = true;
-    else if (oppChoice !== fighterId && !fighterLoading && (!pendingFighter || pendingFighter.id !== oppChoice)) pendingFighter = { id: oppChoice, t: 0.2 };
+  const previewChoice=settingsDraft?settingsDraft.opponent:oppChoice;
+  if (m === arcadeMenu || m===matchSettingsMenu) {
+    if (previewChoice === 'random' || !FIGHTERS[previewChoice]) hide = true;
+    else if (previewChoice !== fighterId && !fighterLoading && (!pendingFighter || pendingFighter.id !== previewChoice)) pendingFighter = { id: previewChoice, t: 0.2 };
   }
   // appena scegli un altro pugile quello vecchio sparisce (finche' il nuovo non e' caricato)
-  mike.root.visible = !hide && !(pendingFighter && pendingFighter.id !== fighterId) && !fighterLoading && !(m === arcadeMenu && oppChoice !== fighterId);
+  mike.root.visible = !hide && !(pendingFighter && pendingFighter.id !== fighterId) && !fighterLoading && !((m === arcadeMenu || m===matchSettingsMenu) && previewChoice !== fighterId);
   // il posto si decide una volta sola (quando il menu si apre o arriva un pugile nuovo): poi resta fermo li',
   // anche se ti avvicini o gli giri intorno per guardarlo da dietro
   if (!mike.previewing || !mike.previewSpot || m.age < 0.1) {
@@ -2373,7 +2557,7 @@ function updateMainMenu(dt, gloves) {
     const id = floorMenu.update(dt, gloves);
     if (id) sfx.menuBlip();
     if (id === 'fl:hand' || id === 'fl:scan') floorMenu.select([id]);   // resta acceso: si vede che l'hai scelto (non serve ripremere)
-    if (id === 'fl:back') { floorGate = 'ok'; floorForce = null; floorMenu.close(); openMenu(optionsMenu); return; }
+    if (id === 'fl:back') { cancelRoomCapture(); floorGate = 'ok'; floorForce = null; floorMenu.close(); openMenu(optionsMenu); return; }
     if (id === 'fl:scan' && !spatialOK()) floorMenu.setTitle(t('floor_perm_how'));   // senza permesso non partirebbe
     else if (id === 'fl:scan') {
       floorMenu.setTitle(t('floor_scan_hint'));
@@ -2382,7 +2566,7 @@ function updateMainMenu(dt, gloves) {
       if (session && session.initiateRoomCapture) startRoomCapture(session, false);
       else floorMenu.setTitle(t('floor_scan_no'));
     }
-    if (id === 'fl:hand') floorMenu.setTitle(t('floor_hand_hint'));
+    if (id === 'fl:hand') {cancelRoomCapture();floorMenu.setTitle(t('floor_hand_hint'));}
     return;
   }
   updatePending(dt);
@@ -2429,6 +2613,11 @@ function updateMainMenu(dt, gloves) {
   sfx.menuBlip();
   if (id === 'gm:training') { openMenu(trainMenu); return; }
   if (id === 'gm:options') { openMenu(optionsMenu); return; }
+  if(id==='gm:stages'){galleryBefore=mode;galleryStage=mode;pendingStage=pendingFighter=null;openMenu(stageGalleryMenu);stageGalleryMenu.select(['browse:'+galleryStage]);setPeople(false);return;}
+  if(menu===stageGalleryMenu){
+    if(id==='stage_exit'){openMenu(rootMenu);return;}
+    if(id.startsWith('browse:')){galleryStage=id.slice(7);setStage(galleryStage);stageGalleryMenu.select(['browse:'+galleryStage]);return;}
+  }
   if (id === 'gm:roster') { openMenu(rosterMenu); rosterHover = fighterId; fighterCard.show(fighterId, FIGHTERS[fighterId].name); rosterMenu.select(['rf:' + fighterId]); return; }
   if (id.startsWith('rf:')) { rosterShow(id.slice(3)); return; }
   if (id === 't:spar') { openMenu(sparMenu); return; }
@@ -2451,42 +2640,30 @@ function updateMainMenu(dt, gloves) {
   if (id === 't:speed') { startTraining('pera'); return; }
   if (id === 't:double') { startTraining('doppio'); return; }
   if (id === 'gm:arcade' || id === 'gm:tour' || id === 'gm:surv') {
-    gameMode = id.slice(3);
+    activateMatchPreferences(id.slice(3));
     try { localStorage.setItem('hb-gamemode', gameMode); } catch (e) {}
     openMenu({ arcade: arcadeMenu, tour: tourMenu, surv: survMenu }[gameMode]); return;
   }
+  if (id==='match_settings') {openMatchSettings();return;}
+  if(menu===matchSettingsMenu) {
+    if(id==='match_save') {matchPreferences.save(gameMode,settingsDraft);activateMatchPreferences(gameMode);openMenu({arcade:arcadeMenu,tour:tourMenu,surv:survMenu}[gameMode]);}
+    else if(id==='match_cancel') {discardMatchDraft();openMenu({arcade:arcadeMenu,tour:tourMenu,surv:survMenu}[gameMode]);}
+    else editMatchPreference(id);
+    return;
+  }
   if (id === 'back') { openMenu(rootMenu); return; }
   if (id === 'opt_floor') { openFloorMenu(true); return; }      // sistema il pavimento quando vuoi (anche nella stanza scansionata)
-  if (id.startsWith('s:')) {
-    stageChoice = id.slice(2);
-    try { localStorage.setItem('hb-stage', stageChoice); } catch (e) {}
-    // scelta fatta (barra gialla piena): subito lo schermo nero con la clessidra, poi (dopo un attimo, perche' si veda) parte il vero caricamento
-    pendingStage = stageChoice !== 'random' ? { id: stageChoice, t: 0.35 } : null;
-    if (pendingStage && stageChoice !== mode) { loader.hold = Math.max(loader.hold || 0, 0.9); loader.dark.material.opacity = 1; loader.dark.visible = true; }
-  }
-  else if (id.startsWith('l:')) { level = id.slice(2); try { localStorage.setItem('hb-level', level); } catch (e) {} mike.setLevel(level); }
-  else if (id.startsWith('d:')) { roundSecs = parseInt(id.slice(2)); try { localStorage.setItem('hb-roundsec', roundSecs); } catch (e) {} }
-  else if (id.startsWith('tz:')) { tourSize = +id.slice(3); try { localStorage.setItem('hb-toursize', tourSize); } catch (e) {} }
-  else if (id.startsWith('tw:')) { towerSize = +id.slice(3); try { localStorage.setItem('hb-towersize', towerSize); } catch (e) {} }
-  else if (id.startsWith('ko:')) { oneKO = id === 'ko:si'; try { localStorage.setItem('hb-1ko', oneKO ? 'si' : 'no'); } catch (e) {} }
-  else if (id.startsWith('k:')) { threeKO = id === 'k:si'; try { localStorage.setItem('hb-3ko', threeKO ? 'si' : 'no'); } catch (e) {} }
-  else if (id.startsWith('r:')) { rounds = parseInt(id.slice(2)); try { localStorage.setItem('hb-rounds', rounds); } catch (e) {} }
-  else if (id.startsWith('g:')) setLang(id.slice(2));
+  if (id.startsWith('g:')) setLang(id.slice(2));
   else if (id.startsWith('pf:')) { playerFlag = id.slice(3); try { localStorage.setItem('hb-pflag', playerFlag); } catch (e) {} }
   else if (id.startsWith('vb:')) { player.vibrate = id === 'vb:si'; try { localStorage.setItem('hb-vibe', id.slice(3)); } catch (e) {} if (player.vibrate) { player.pulse('left', 0.8, 120); player.pulse('right', 0.8, 120); } }
   else if (id.startsWith('pt:')) { pointerHand = id.slice(3); try { localStorage.setItem('hb-pointer', pointerHand); } catch (e) {} mtabText(); }
-  else if (id.startsWith('f:')) {
-    oppChoice = id.slice(2); try { localStorage.setItem('hb-opp', oppChoice); } catch (e) {}
-    pendingFighter = oppChoice !== 'random' ? { id: oppChoice, t: 0.35 } : null;   // subito la clessidra, poi il caricamento
-    if (pendingFighter && oppChoice !== fighterId) loader.glassT = 0.9;
-  }
   else if (id === 'start') { tour = null; pendingStage = pendingFighter = null; startFight(oppChoice === 'random' ? FIGHTER_IDS[Math.floor(Math.random() * FIGHTER_IDS.length)] : oppChoice); return; }
   else if (id === 'start_tour') { surv = null; tour = new Tournament(FIGHTERS, false, tourSize); showBracketNext(); return; }
   else if (id === 'watch_tour') { surv = null; tour = new Tournament(FIGHTERS, true, tourSize); specRound(); return; }
   else if (id === 'watch_arc') { if (watchA === 'random' && oppChoice !== 'random') watchA = oppChoice; openMenu(watchMenu); return; }   // scegli i due pugili
   else if (id === 'back_arc') { openMenu(arcadeMenu); return; }
-  else if (id.startsWith('wa:')) { watchA = id.slice(3); watchMenu.select(menuChoices()); return; }
-  else if (id.startsWith('wb:')) { watchB = id.slice(3); watchMenu.select(menuChoices()); return; }
+  else if (id.startsWith('wa:')) { watchA = id.slice(3).replace('random_end','random'); watchMenu.select(menuChoices()); return; }
+  else if (id.startsWith('wb:')) { watchB = id.slice(3).replace('random_end','random'); watchMenu.select(menuChoices()); return; }
   else if (id === 'watch_go') {                       // arcade da spettatore: i due scelti (a caso: uno qualsiasi, mai lo stesso)
     tour = null; surv = null; pendingStage = pendingFighter = null;
     const pick = (c, not) => c !== 'random' && c !== not ? c : (l => l[Math.floor(Math.random() * l.length)])(FIGHTER_IDS.filter(x => x !== not));
@@ -2595,7 +2772,7 @@ loadMikeGLTF(FIGHTERS[fighterId].glb, f => statusT('loading', { p: Math.min(100,
   bruises = new Bruises(mike.model);
   mike.bounds = keepInRing;
   placeArena(new THREE.Vector3(0, 1.65, 0), 0);
-  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.getUpFx = getUp; window.gameApi = { introMenu: () => introMenu, endMatch: (w, h) => endMatch(w, h), board: () => board, optionsMenu: () => optionsMenu, mtab: () => mtab, mtabUpdate: (dt, rays) => updateMenuTab(dt, rays), setStage, newMatch, showMainMenu, openPause, pause, startTraining, bag: () => bagTr, rope: () => ropeTr, slip: () => slipTr, spar: () => spar, startSparring, speed: () => speedTr, de: () => deTr, envs: () => ({ arenaEnv, roofEnv, nightEnv, desertEnv, gymEnv, snowEnv, volcEnv, seaEnv, moonEnv, stadiumEnv, stadiumNEnv }), setFighter, startIntro, startPresentation, girl: () => girl, arena: () => arena, ringSize: () => ringSize }; window.sweatFx = sweat;   // per le prove
+  window.mike = mike; window.game = game; window.player = player; window.room = room; window.placeArena = placeArena; window.camera = camera; window.renderOnly = () => renderer.render(scene, camera); window.bruisesFx = () => bruises; window.getUpFx = getUp; window.gameApi = { matchPreferences, matchSettingsMenu, arcadeMenu, tourMenu, survMenu, activateMatchPreferences, openMatchSettings, editMatchPreference, updateMainMenu, getMatchState:()=>({gameMode,level,rounds,roundSecs,threeKO,oneKO,stageChoice,oppChoice,fighterId,mode,tourSize,towerSize,settingsDraft}), introMenu: () => introMenu, endMatch: (w, h) => endMatch(w, h), board: () => board, optionsMenu: () => optionsMenu, mtab: () => mtab, mtabUpdate: (dt, rays) => updateMenuTab(dt, rays), setStage, newMatch, showMainMenu, openPause, pause, startTraining, bag: () => bagTr, rope: () => ropeTr, slip: () => slipTr, spar: () => spar, startSparring, speed: () => speedTr, de: () => deTr, envs: () => ({ saltEnv, forestEnv, arenaEnv, roofEnv, nightEnv, desertEnv, gymEnv, snowEnv, volcEnv, seaEnv, moonEnv, stadiumEnv, stadiumNEnv }), setFighter, startIntro, startPresentation, girl: () => girl, arena: () => arena, ringSize: () => ringSize }; window.sweatFx = sweat;   // per le prove
   window.tourApi = { MENUS, bracket, tourBtns, show: () => showMainMenu(), watchTour: () => { surv = null; tour = new Tournament(FIGHTERS, true, tourSize); specRound(); }, toFinal: () => { surv = null; tour = new Tournament(FIGHTERS, true, tourSize); while (!tour.isFinal()) tour.result(true, {}); specRound(); }, get pending() { return pending; }, open: m => openMenu(MENUS[m]), start: () => { tour = new Tournament(FIGHTERS, false, tourSize); showBracketNext(); },
     after: win => { game.result = { winner: win ? 'player' : 'mike' }; showBracketAfter(); }, fight: () => startFight(tour.opponent()), setStageChoice: c => { stageChoice = c; }, get mode() { return mode; }, get tour() { return tour; }, get cpu() { return cpu; }, skipBtn, tower, startSurvival, get surv() { return surv; }, survAfter: win => { game.result = { winner: win ? 'player' : 'mike' }; showTowerAfter(); } };   // (prove)
   status('');
@@ -2627,11 +2804,27 @@ $('enter').onclick = async () => {
     // visore tolto e rimesso (la sessione torna visibile) o "centro" del Quest cambiato: riallinea appena il tracciamento riparte
     // grilletto / pizzico (mani): per prendere e trascinare i menu e premere i pulsanti come sul Quest
     session.addEventListener('selectstart', e => { selHeld.set(e.inputSource, true); sfx.initAudio(); });   // (partendo da solo l'audio puo' essere sospeso: il primo grilletto lo riaccende)
-    session.addEventListener('select', () => { if (captureArmed && session.initiateRoomCapture) { captureArmed = false; startRoomCapture(session, true); } });
+    session.addEventListener('select', e => selectRoomCapture(e,session));
     session.addEventListener('selectend', e => selHeld.set(e.inputSource, false));
-    session.addEventListener('visibilitychange', () => { if (session.visibilityState === 'visible') { needRecenter = 20; recenterAlways = false; } });   // (solo se sei fuori dal ring)
+    const resetXRInput = () => {
+      selHeld.clear(); selPrev.clear(); player.resetTracking(); setRays([], player.head);
+      for (const menu of [...MENUS, floorMenu, pause]) {
+        if(menu.drag){menu.drag.grab=null;menu.drag.t=0;}
+        for(const b of menu.buttons||[])b.t=0;
+        for(const c of menu.carousels||[])c.drag=null;
+      }
+    };
+    session.addEventListener('inputsourceschange', resetXRInput);
+    session.addEventListener('visibilitychange', () => {
+      resetXRInput();
+      if (session.visibilityState === 'visible') {
+        lastT=performance.now();needRecenter = 20; recenterAlways = false;
+        readSpace(session).then(sp => { floorSpace = sp; });
+      }
+    });
     try { renderer.xr.getReferenceSpace().addEventListener('reset', () => { needRecenter = 20; recenterAlways = true; }); } catch (e) {}
     session.addEventListener('end', () => {
+      cancelRoomCapture();
       intro = null; baseRef = null; blackLayer.layer = null; blackLayer.on = false; blackLayer.fb = null;
       $('overlay').hidden = false; placed = false;
       if (game.paused) closePause();
@@ -2672,7 +2865,7 @@ function showLevel() {
 }
 for (const b of document.querySelectorAll('#levels button')) b.onclick = () => {
   level = b.dataset.level;
-  try { localStorage.setItem('hb-level', level); } catch (e) {}
+  matchPreferences.save(gameMode,{...matchPreferences.get(gameMode),level});refreshMatchSummaries();
   if (mike) mike.setLevel(level);
   showLevel();
 };
@@ -2690,7 +2883,7 @@ function showMode() {
 for (const b of document.querySelectorAll('#langs button')) b.onclick = () => setLang(b.dataset.lang);   // pulsanti IT/EN: lingua gia' dalla pagina
 for (const b of document.querySelectorAll('#modes button')) b.onclick = () => {
   mode = b.dataset.mode;
-  try { localStorage.setItem('hb-mode', mode); } catch (e) {}
+  stageChoice=mode;matchPreferences.save(gameMode,{...matchPreferences.get(gameMode),stage:mode});refreshMatchSummaries();
   showMode();
   if (sim) applyMode();
 };

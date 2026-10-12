@@ -1,7 +1,7 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261010231139';
-import { drawFlagAny } from './roster.js?v=20261010231139';
+import { t as tr } from './i18n.js?v=20261012074748';
+import { drawFlagAny } from './roster.js?v=20261012074748';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
 // ogni raggio: { o, d, hit, sel (grilletto / pizzico tenuto), click (appena premuto) }
@@ -350,9 +350,9 @@ export class PauseMenu {
 
 // Menu fluttuante del gioco (dentro il visore): pulsanti che si premono tenendoci sopra un guantone.
 // spec: { title, rows: [{ y, buttons: [{ id, text, w, color, group? }] }] }
-const CAROUSEL_WAIT = 0.7;                           // s: attesa sulla voce al centro prima che la scelta parta (barra)
+const CAROUSEL_WAIT = 0.6;                           // s: tempo standard per confermare una scelta
 export class MenuPanel {
-  constructor(spec, holdTime = 0.3) {   // (piu' rapidi: prima 0,45 s)
+  constructor(spec, holdTime = 0.6) {
     this.hold = holdTime;
     this.group = new THREE.Group(); this.group.name = 'menu'; this.group.visible = false;
     const W = spec.width || 0.95, H = spec.height || 0.7;
@@ -406,7 +406,7 @@ export class MenuPanel {
       }
       if (row.label) {
         const m = lab(row.label, row.cx || 0, row.y + (row.h || 0.09) / 2 + 0.03, row.colW || W - 0.1, 0.04, '#9aa3b6', 28);
-        this.group.add(m); this.rowLabels.push({ m, tk: row.tk });
+        this.group.add(m); this.rowLabels.push({ m, tk: row.tk, row });
       }
       const gap = 0.02, total = row.buttons.reduce((a, b) => a + b.w, 0) + gap * (row.buttons.length - 1);
       let x = row.x ?? (row.cx || 0) - total / 2;                  // (row.x: riga allineata da quel punto, es. in basso a sinistra)
@@ -432,7 +432,13 @@ export class MenuPanel {
           new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthTest: false }));
         fill.position.z = 0.016; fill.renderOrder = 1102; fill.scale.x = 0.001; fill.visible = false; g.add(fill);
         let t, imMesh = null;
-        if (b.img) {                                   // pulsante con anteprima: immagine sopra, nome sotto
+        if (b.img && b.inlineIcon) {
+          const side=h*.72;
+          const im=new THREE.Mesh(new THREE.PlaneGeometry(side,side),new THREE.MeshBasicMaterial({map:b.img,transparent:true,depthTest:false,toneMapped:false}));
+          im.position.set(-b.w/2+side/2+.014,0,.017);im.renderOrder=1102;g.add(im);imMesh=im;
+          const lw=b.w-side-.04;
+          t=lab(b.text,side/2+.007,0,lw,h*.6,'#ffffff',Math.round(512*h*.6/lw*.82));t.position.z=.018;g.add(t);
+        } else if (b.img) {                                   // pulsante con anteprima: immagine sopra, nome sotto
           const ih = h * 0.7, im = new THREE.Mesh(new THREE.PlaneGeometry(b.w - 0.018, ih - 0.012),
             new THREE.MeshBasicMaterial({ map: b.img, transparent: true, depthTest: false, toneMapped: false }));
           im.position.set(0, h / 2 - ih / 2, 0.017); im.renderOrder = 1102; g.add(im); imMesh = im;
@@ -453,12 +459,12 @@ export class MenuPanel {
   // evidenzia la scelta attuale (es. livello, modalita')
   select(ids) {
     for (const c of this.carousels) {
-      const i = c.items.findIndex(b => ids.includes(b.id));
+      const i = ids.includes(c.items[c.idx]?.id) ? c.idx : c.items.findIndex(b => ids.includes(b.id));
       if (i >= 0 && !c.drag && c.goal === null) { c.idx = i; c.off = i; }
       this._layout(c);
     }
     for (const b of this.buttons) {
-      const on = ids.includes(b.id);
+      const on = !b.displayOnly && ids.includes(b.id);
       b.sel.visible = on;
       b.base.material.color.setHex(on ? 0xffc928 : b.color0);      // scelta attuale: giallo pieno con scritta scura
       if (on !== b.on) { b.on = on; this._paint(b.label, b.text, on ? '#111111' : '#ffffff'); }
@@ -482,6 +488,12 @@ export class MenuPanel {
     if (this.spec.onRelabel) this.spec.onRelabel(this);
   }
   setTitle(text) { if (text !== this.titleText) { this.titleText = text; this._paint(this.title, text, this.title.userData.color); } }
+  hitRay(origin,direction) {
+    if(!this.group.visible)return null;
+    this.group.updateWorldMatrix(true,false);
+    const p=rayLocal(this.group,origin,direction,.035);if(!p)return null;
+    return this.buttons.find(b=>b.g.visible&&!b.disabled&&!b.displayOnly&&Math.abs(p.x-b.g.position.x)<b.w*b.g.scale.x/2&&Math.abs(p.y-b.g.position.y)<b.bh*b.g.scale.y/2)?.id||null;
+  }
   open(head, yaw, dist = this.spec.dist || 0.55, drop = 0.2) {
     this.age = 0;
     this.group.position.set(head.x - Math.sin(yaw) * dist, head.y - drop, head.z - Math.cos(yaw) * dist);
@@ -498,10 +510,10 @@ export class MenuPanel {
     if (this.drag && this._updateDrag(dt, gloves)) { this.moved = true; return null; }   // lo stai spostando: niente pulsanti
     this.age = (this.age || 0) + dt;
     const aimed = this.age < 0.7 ? Object.assign(new Set(), { clicked: new Set() }) :      // appena aperto: il raggio non preme ancora
-      pointed(this.group, this.buttons, 0.035, b => [b.g.position.x, b.g.position.y, b.w / 2 * b.g.scale.x, b.bh / 2 * b.g.scale.y], [this.W / 2 + 0.05, this.H / 2 + 0.05]);
-    for (const c of this.carousels) { const id = this._updateCarousel(c, dt, gloves, aimed); if (id) return id; }
+      pointed(this.group, this.buttons.filter(b => !b.displayOnly), 0.035, b => [b.g.position.x, b.g.position.y, b.w / 2 * b.g.scale.x, b.bh / 2 * b.g.scale.y], [this.W / 2 + 0.05, this.H / 2 + 0.05]);
+    for (const c of this.carousels) { if(c.hidden)continue; const id = this._updateCarousel(c, dt, gloves, aimed); if (id) return id; }
     for (const b of this.buttons) {
-      if (b.disabled || !b.g.visible || b.car) continue;       // (non ancora disponibile o nascosto; le voci a scorrimento non si "premono")
+      if (b.disabled || b.displayOnly || !b.g.visible || b.car) continue;       // (non ancora disponibile o nascosto; le voci a scorrimento non si "premono")
       const p = b.g.getWorldPosition(new THREE.Vector3());
       const on = aimed.has(b) || gloves.some(g => g.mesh.visible && g.center.distanceTo(p) < Math.max(0.09, b.w / 2));
       const hold = b.hold || this.hold;             // (b.hold: pulsanti da tenere premuti a lungo, es. Esci dal gioco)
@@ -526,7 +538,7 @@ export class MenuPanel {
   _layout(c) {
     for (let i = 0; i < c.items.length; i++) {
       const b = c.items[i], d = i - c.off, ad = Math.abs(d);
-      b.g.visible = ad < 1.45;                       // tre voci alla volta (le altre scorrono)
+      b.g.visible = !c.hidden && ad < 1.45;                       // tre voci alla volta (le altre scorrono)
       b.g.position.set(d * c.spacing, c.y, 0.02 - Math.min(1, ad) * 0.01);
       b.g.scale.setScalar(1 - 0.16 * Math.min(1, ad));
     }
@@ -563,7 +575,7 @@ export class MenuPanel {
     // puntare (raggio) o tenere ferma la mano su una voce laterale per mezzo secondo: va al centro
     let hov = -1;
     c.items.forEach((b, i) => { if (b.g.visible && aimed.has(b)) hov = i; });
-    if (hov >= 0 && hov !== c.idx && !hand) { if (hov === c.hoverI) c.hoverT += dt; else { c.hoverI = hov; c.hoverT = 0; } if (c.hoverT > 0.45) { c.goal = hov; c.hoverT = 0; } }
+    if (hov >= 0 && hov !== c.idx && !hand) { if (hov === c.hoverI) c.hoverT += dt; else { c.hoverI = hov; c.hoverT = 0; } if (c.hoverT > 0.6) { c.goal = hov; c.hoverT = 0; } }
     else { c.hoverI = -1; c.hoverT = 0; }
     if (c.fling) {                                       // ruota in corsa: scorre e rallenta per attrito
       c.off += c.fling * dt; c.fling *= Math.exp(-dt * 1.1);

@@ -6,8 +6,8 @@
 // Durata libera: si va avanti finche' non fermi dalla pausa. La velocita' del partner (colpi, andata e ritorno,
 // spostamenti, parate) si regola trascinando su e giu' il cursore della barra al tuo fianco.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261010231139';
-import { t as tr } from './i18n.js?v=20261010231139';
+import * as sfx from './sfx.js?v=20261012074748';
+import { t as tr } from './i18n.js?v=20261012074748';
 
 // combinazioni chiamate: voce, colpi che tira il partner (non qui) e quello che devi tirare tu
 // codici: 1 jab, 2 diretto, 3 gancio sinistro, 4 gancio destro, 5 montante sinistro, 6 montante destro; 'b' = al corpo
@@ -106,7 +106,7 @@ export class Sparring {
     this.ctex.needsUpdate = true;
   }
   _placeCue() {
-    const h = this.mike.headCenter(); this.cueS.position.copy(h); this.cueS.position.y += 0.42;   // sopra la testa, si legge meglio
+    const h = this.mike.headCenter(); this.cueS.position.copy(h); this.cueS.position.y += 0.20;   // indicazioni vicine alla testa, senza coprire il viso
     if (this.cueS.parent !== this.mike.root.parent && this.mike.root.parent) this.mike.root.parent.add(this.cueS);
     if (this.cueS.parent) this.cueS.parent.worldToLocal(this.cueS.position);
   }

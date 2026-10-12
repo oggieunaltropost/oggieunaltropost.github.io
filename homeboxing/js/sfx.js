@@ -1,5 +1,42 @@
 // Suoni sintetizzati con WebAudio: niente file da scaricare.
 let ctx = null, master = null, noiseBuf = null;
+// Stage-specific ambience shares the game context and master gain.
+export function audioBus() { return ctx ? { ctx, master } : null; }
+
+// Soft cotton friction: one reusable spatial loop, loudness follows floor speed.
+let mopSound = null;
+export function mopDrag(pos, speed, cam) {
+  if (!ctx || ctx.state !== 'running' || !pos) return;
+  if (!mopSound && speed > .035) {
+    const src=ctx.createBufferSource(), filter=ctx.createBiquadFilter(), gain=ctx.createGain(), pan=ctx.createPanner();
+    const b=ctx.createBuffer(1,ctx.sampleRate*3,ctx.sampleRate), data=b.getChannelData(0);
+    let smooth=0;
+    for(let i=0;i<data.length;i++) {
+      smooth=.94*smooth+.06*(Math.random()*2-1);
+      const t=i/ctx.sampleRate;
+      data[i]=(smooth*2.4+(Math.random()*2-1)*.1)*(.65+.2*Math.sin(t*Math.PI*6)+.15*Math.sin(t*Math.PI*14));
+    }
+    src.buffer=b;src.loop=true;filter.type='lowpass';filter.frequency.value=1900;
+    gain.gain.value=0;pan.panningModel='HRTF';pan.distanceModel='inverse';pan.refDistance=2;pan.rolloffFactor=1.2;pan.maxDistance=35;
+    src.connect(filter);filter.connect(gain);gain.connect(pan);pan.connect(master);src.start();
+    mopSound={src,filter,gain,pan};
+  }
+  if(!mopSound)return;
+  if(cam.isArrayCamera) {
+    // Read XR pose without recalculating its matrices.
+    const m=cam.matrixWorld.elements,L=ctx.listener;
+    if(L.positionX){L.positionX.value=m[12];L.positionY.value=m[13];L.positionZ.value=m[14];
+      L.forwardX.value=-m[8];L.forwardY.value=-m[9];L.forwardZ.value=-m[10];L.upX.value=m[4];L.upY.value=m[5];L.upZ.value=m[6];}
+  } else setListener(cam);
+  const {pan,gain,filter}=mopSound;
+  pan.positionX.value=pos.x;pan.positionY.value=pos.y;pan.positionZ.value=pos.z;
+  gain.gain.setTargetAtTime(speed>.035?Math.min(.19,speed*.22):0,ctx.currentTime,.09);
+  filter.frequency.setTargetAtTime(900+Math.min(speed,1)*1300,ctx.currentTime,.12);
+}
+export function mopStop() {
+  if(!mopSound)return;
+  mopSound.src.stop();for(const n of Object.values(mopSound))n.disconnect();mopSound=null;
+}
 
 export function initAudio() {
   if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
@@ -33,7 +70,7 @@ function tone(t, dur, freq, gain, type = 'sine', toFreq = null) {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
 
-import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261010231139';
+import { FIGHTERS, FIGHTER_IDS } from './fighters.js?v=20261012074748';
 // Voci dello speaker e dell'arbitro (tools/gen_voices.py) nella lingua del gioco: frasi in coda, una dopo l'altra
 const NUMS = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const VOICES = [...NUMS.map((_, i) => `round_${i + 1}`), ...NUMS.slice(0, 10).map((_, i) => `count_${i + 1}`),
@@ -55,7 +92,7 @@ let vbuf = {}, vLang = 'it';
 let vEnd = 0, vPlaying = [];
 function loadVoices() {
   const mine = vbuf = {}, l = vLang;
-  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261010231139`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
+  for (const n of VOICES) fetch(`assets/voce/${l}/${n}.ogg?v=20261012074748`).then(r => r.arrayBuffer()).then(a => ctx.decodeAudioData(a))
     .then(b => { mine[n] = b; }).catch(() => {});
 }
 // lingua delle voci ('it' o 'en'): al cambio si ricaricano
@@ -215,12 +252,14 @@ const SAMPLES = ['brusio', 'tifo', 'boato_0', 'boato_1', 'boato_2', 'boato_3', '
   'pera_0', 'pera_1', 'pera_2', 'pera_3', 'pera_4', 'pera_5', 'pera_6', 'pera_7', 'aquila_0', 'aquila_1',
   'ululato_0', 'ululato_1', 'ululato_2', 'ululato_3', 'passineve_0', 'passineve_1', 'passineve_2', 'passineve_3', 'passineve_4', 'passineve_5', 'ventoneve',
   'lavaloop', 'eruzione_0', 'eruzione_1', 'eruzione_2', 'eruzione_3', 'schizzo_0', 'schizzo_1', 'schizzo_2', 'schizzo_3', 'schizzo_4', 'schizzo_5',
-  'sottacqua', 'bolle_0', 'bolle_1', 'bolle_2', 'bolle_3'];
+  'sottacqua', 'bolle_0', 'bolle_1', 'bolle_2', 'bolle_3',
+  ...['kick','bounce'].flatMap(kind=>[0,1,2].map(i=>`football_${kind}_${i}`)),
+  ...['burst','crackle'].flatMap(kind=>[0,1,2].map(i=>`fireworks_${kind}_${i}`)), 'fireworks_launch_0','fireworks_launch_1','fireworks_whistle_0','fireworks_whistle_1'];
 const buf = {};
 let loading = null, amb = null, ambWanted = false, sea = null, seaWanted = false;
 function loadSamples() {
   if (loading || !ctx) return loading;
-  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261010231139`).then(r => r.arrayBuffer())
+  loading = Promise.all(SAMPLES.map(n => fetch(`assets/audio/${n}.ogg?v=20261012074748`).then(r => r.arrayBuffer())
     .then(a => ctx.decodeAudioData(a)).then(b => { buf[n] = b; }).catch(e => console.warn('audio', n, e))));
   loading.then(() => { if (ambWanted && !amb) crowdAmbient(true); if (seaWanted && !sea) seaAmbient(true); if (snowWanted && !snowW) snowAmbient(true); if (lavaWanted && !lavaW) lavaAmbient(true); if (underWanted && !underW) underAmbient(true); if (spaceWanted && !spaceW) spaceAmbient(true); if (windWanted && (!wind || wind.synth)) { if (wind) { wind.s.stop(); wind = null; } windAmbient(true); } });   // vento vero appena caricato
   return loading;
@@ -656,26 +695,29 @@ export function lavaSplash(pos, cam) {
 // colpo di piede sul pallone (stage Stadio): tonfo secco + schiocco del cuoio, nel mondo. Piu' e' lontano, piu' arriva
 // tardi (340 m/s), piu' e' piano e ovattato. `power` 0..1 = forza del tocco.
 export function ballKick(pos, cam, power = 0.6) {
+  footballImpact('kick',pos,cam,power);
+}
+// Short AudioGen impacts: no pitched sweep. Keep the existing sound travel
+// delay, directional position and distance muffling used by the stadium.
+function footballImpact(kind,pos,cam,power) {
   if (!ctx || ctx.state !== 'running') return;
+  const samples=[0,1,2].map(i=>buf[`football_${kind}_${i}`]).filter(Boolean);
+  if(!samples.length)return;
   setListener(cam);
   const cp = cam.getWorldPosition(new cam.position.constructor()), dist = cp.distanceTo(pos);
   const t0 = ctx.currentTime + 0.01 + dist / 340, pw = 0.35 + 0.65 * power;
   const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 4; p.rolloffFactor = 1.3; p.maxDistance = 400;
   if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);
   const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 400 + 7000 * Math.exp(-dist / 45);   // lontano = ovattato
-  const g = ctx.createGain(); g.gain.value = 0.45 * pw; lp.connect(g); g.connect(p); p.connect(master);
-  const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(320, t0); o.frequency.exponentialRampToValueAtTime(110, t0 + 0.09);   // il corpo del pallone (i toni bassi non escono dagli altoparlanti: c'e' anche il medio)
-  const og = ctx.createGain(); og.gain.setValueAtTime(0, t0); og.gain.linearRampToValueAtTime(0.8, t0 + 0.004); og.gain.exponentialRampToValueAtTime(0.001, t0 + 0.13);
-  o.connect(og); og.connect(lp); o.start(t0); o.stop(t0 + 0.16);
-  if (!noiseBuf) { noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
-  const n = ctx.createBufferSource(); n.buffer = noiseBuf;                                  // lo schiocco del cuoio
-  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1100 + 900 * power; bp.Q.value = 0.8;
-  const ng = ctx.createGain(); ng.gain.setValueAtTime(0, t0); ng.gain.linearRampToValueAtTime(0.9, t0 + 0.002); ng.gain.exponentialRampToValueAtTime(0.001, t0 + 0.05);
-  n.connect(bp); bp.connect(ng); ng.connect(lp); n.start(t0, Math.random() * 0.5); n.stop(t0 + 0.07);
+  const g = ctx.createGain(); g.gain.value = (kind==='kick'?.55:.32) * pw; lp.connect(g); g.connect(p); p.connect(master);
+  const source=ctx.createBufferSource();source.buffer=samples[Math.floor(Math.random()*samples.length)];source.playbackRate.value=.97+Math.random()*.06;
+  source.connect(lp);source.start(t0);
+  source.onended=()=>{source.disconnect();lp.disconnect();g.disconnect();p.disconnect();};
 }
 // palla contro palo/traversa (clangore metallico che risuona), contro la rete (fruscio sordo) o rimbalzo sul prato (tonfo
 // morbido); nel mondo, in ritardo con la distanza come ballKick. power 0..1
 export function ballHit(pos, cam, kind = 'bounce', power = 0.5) {
+  if(kind==='bounce'){footballImpact('bounce',pos,cam,power);return;}
   if (!ctx || ctx.state !== 'running') return;
   setListener(cam);
   const cp = cam.getWorldPosition(new cam.position.constructor()), dist = cp.distanceTo(pos);
@@ -733,6 +775,7 @@ function fwTone(C, at, f0, f1, dur, amp) {
   o.connect(g); g.connect(C.lp); o.start(at); o.stop(at + dur + 0.05);
 }
 export function fireworkLaunch(pos, cam, T = 3.5) {
+  if(sampleFirework('launch',pos,cam,.45,T))return;
   if (!ctx || ctx.state !== 'running') return;
   const C = fwChain(pos, cam, 70), t = C.t0;
   fwNoise(C, t, 700, 700, 0.22, 0.45, 0.6, 'lowpass');                 // la partenza: un "puff" sordo
@@ -743,7 +786,11 @@ export function fireworkLaunch(pos, cam, T = 3.5) {
   o.connect(g); g.connect(C.lp); o.start(t + 0.15); lfo.start(t + 0.15); o.stop(t + T + 0.05); lfo.stop(t + T + 0.05);
   fwNoise(C, t + 0.1, 2500, 5200, T - 0.2, 0.06, 1.5);                 // e il sibilo della miccia
 }
+export function fireworkWhistle(pos,cam,duration=1.35){
+  return sampleFirework('whistle',pos,cam,.36,duration);
+}
 export function fireworkBurst(pos, cam, type = 'peony', power = 1) {
+  if(sampleFirework('burst',pos,cam,Math.max(.2,power)*(type==='double'?1.15:1)))return;
   if (!ctx || ctx.state !== 'running') return;
   const C = fwChain(pos, cam, 70), t = C.t0 + Math.random() * 0.03, P = Math.max(0.2, power), big = type === 'double' ? 1.15 : 1;
   // scoppio di un vero fuoco d'artificio aereo: un picco secco (rumore a banda larga, attacco istantaneo), subito un "boom" di rumore che
@@ -759,9 +806,20 @@ export function fireworkBurst(pos, cam, type = 'peony', power = 1) {
 }
 // crepitio di scintille bianche (fine di alcuni scoppi): tanti piccoli schiocchi ravvicinati
 export function fireworkCrackle(pos, cam) {
+  if(sampleFirework('crackle',pos,cam,.6))return;
   if (!ctx || ctx.state !== 'running') return;
   const C = fwChain(pos, cam, 70), t = C.t0;
   for (let i = 0; i < 60; i++) fwNoise(C, t + Math.random() * 1.6, 3500 + Math.random() * 3500, 3500 + Math.random() * 3500, 0.012 + Math.random() * 0.02, 0.1 + Math.random() * 0.3, 1.5);
+}
+
+function sampleFirework(kind,pos,cam,power,duration=null){
+  if(!ctx||ctx.state!=='running')return false;
+  const choices=[0,1,2].map(i=>buf[`fireworks_${kind}_${i}`]).filter(Boolean);if(!choices.length)return false;
+  const C=fwChain(pos,cam,70),source=ctx.createBufferSource(),gain=ctx.createGain();
+  source.buffer=choices[Math.floor(Math.random()*choices.length)];
+  source.playbackRate.value=duration?Math.min(1.15,Math.max(.85,source.buffer.duration/duration)):.95+Math.random()*.1;
+  gain.gain.value=power;source.connect(gain);gain.connect(C.lp);source.start(C.t0);
+  source.onended=()=>{source.disconnect();gain.disconnect();};return true;
 }
 
 // fruscio bassissimo dello scorpione che scava / esce / raspa sulla sabbia (nel mondo, quasi sussurrato): rumore filtrato con un

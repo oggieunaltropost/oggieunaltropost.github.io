@@ -5,8 +5,9 @@
 // Tabellone sul muro dietro al sacco: tempo, colpi a segno, colpo piu' forte, colpi al minuto.
 // Sistema: quello del ring (arena): il giocatore sta in (0, 0, playerZ) e guarda verso -Z; il pavimento e' a 0.
 import * as THREE from 'three';
-import * as sfx from './sfx.js?v=20261010231139';
-import { t as tr } from './i18n.js?v=20261010231139';
+import * as sfx from './sfx.js?v=20261012074748';
+import { t as tr } from './i18n.js?v=20261012074748';
+import { PlasterDust } from './plaster_dust.js?v=20261012074748';
 
 let M = 45;                                    // massa (kg): si regola con la barra (KG_MIN..KG_MAX)
 const R = 0.19, H = 1.3;                       // raggio, altezza del sacco
@@ -80,6 +81,7 @@ export class BagTraining {
     parent.add(this.group);
     this.pivot = new THREE.Group(); this.group.add(this.pivot);       // ruota attorno al gancio
     this._build(); this._board(); this._slider();
+    this.plasterDust = new PlasterDust(this.group);
     this.q = new THREE.Quaternion(); this.w = new THREE.Vector3();
     this.Iw = new THREE.Matrix3(); this.IwInv = new THREE.Matrix3();
     this.inside = { left: false, right: false };
@@ -222,8 +224,9 @@ export class BagTraining {
     this._layoutSlider();
     this.reset();
   }
-  stop() { this.group.visible = false; this.slider.G.visible = false; this.slider.grab = null; }
+  stop() { this.group.visible = false; this.slider.G.visible = false; this.slider.grab = null; this.plasterDust.clear(); }
   reset() {
+    this.plasterDust.clear();
     this.q.identity(); this.w.set(0, 0, 0); this.time = 0; this.hits = 0; this.best = 0; this.lastDraw = ''; this.prevSwing = 0; this.creakT = 0;
     this._apply(); this._drawBoard();
   }
@@ -259,6 +262,7 @@ export class BagTraining {
   update(dt, player, cam) {
     if (!this.group.visible) return;
     this.time += dt;
+    this.plasterDust.update(dt);
     this._updSlider(dt, player);
     const n = Math.max(1, Math.ceil(dt / 0.004)), h = dt / n;
     for (let i = 0; i < n; i++) this._step(h);
@@ -295,6 +299,7 @@ export class BagTraining {
         const vt = vrel.clone().addScaledVector(nrm, vn);
         if (vt.length() > 0.2) this._impulse(p, vt.normalize().multiplyScalar(Math.min(0.35 * J, PUNCH_MASS * 0.5 * vt.length())));
         const kmh = vn * 3.6;
+        this.plasterDust.impact(vn);
         if (vn > 2.2) { this.hits++; this.best = Math.max(this.best, kmh); }   // colpo vero solo da 8 km/h in su
         const wp = this.group.localToWorld(p.clone());
         sfx.bagHit(Math.min(1.5, vn / 7), wp, cam);
