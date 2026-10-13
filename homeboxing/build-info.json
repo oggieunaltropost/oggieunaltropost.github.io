@@ -1,6 +1,7 @@
 {
-  "version": "20261013002357",
+  "version": "20261013221613",
   "compression": "lossless Meshopt (no quantization) + lossless WebP when smaller",
   "models": 75,
-  "compressedModels": 67
+  "compressedModels": 67,
+  "update": "Scoreboard health and stamina icons"
 }

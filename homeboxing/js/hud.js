@@ -1,7 +1,7 @@
 // Tabellone dei punti (pannello 3D con una canvas) e lampo rosso quando Mike ti colpisce.
 import * as THREE from 'three';
-import { t as tr } from './i18n.js?v=20261013002357';
-import { drawFlagAny } from './roster.js?v=20261013002357';
+import { t as tr } from './i18n.js?v=20261013221613';
+import { drawFlagAny } from './roster.js?v=20261013221613';
 
 // ---- puntatori: raggi dalle mani/controller. Puntare un pulsante e' come toccarlo col guantone.
 // ogni raggio: { o, d, hit, sel (grilletto / pizzico tenuto), click (appena premuto) }
@@ -116,6 +116,15 @@ export class RayPointers {
   }
 }
 
+function scoreboardHeart(g,x,y){g.save();g.translate(x,y);g.fillStyle='#f16c7d';g.beginPath();g.moveTo(0,10);g.bezierCurveTo(-4,6,-13,-1,-11,-7);g.bezierCurveTo(-9,-14,-2,-13,0,-7);g.bezierCurveTo(3,-14,10,-13,12,-7);g.bezierCurveTo(14,0,4,7,0,10);g.fill();g.restore();}
+   function scoreboardArm(g,x,y){g.save();g.translate(x,y);g.scale(.72,.72);
+    // Bicep and upward forearm: a boxing glove replaces a bare fist.
+    g.fillStyle='#edb2b9';g.strokeStyle='#ffd2d6';g.lineWidth=1.2;g.lineJoin='round';g.beginPath();
+    g.moveTo(-14,11);g.lineTo(-13,2);g.bezierCurveTo(-12,-6,-4,-7,0,-1);g.lineTo(5,1);g.lineTo(7,-12);g.lineTo(15,-12);g.lineTo(14,8);g.bezierCurveTo(12,17,-4,18,-14,11);g.closePath();g.fill();g.stroke();
+    g.strokeStyle='#b87582';g.lineWidth=2;g.beginPath();g.moveTo(-8,3);g.quadraticCurveTo(-4,-1,0,4);g.stroke();
+    g.fillStyle='#e95667';g.strokeStyle='#ffabb4';g.lineWidth=1.1;g.beginPath();g.moveTo(5,-13);g.lineTo(5,-20);g.quadraticCurveTo(5,-27,12,-27);g.quadraticCurveTo(20,-26,19,-19);g.lineTo(18,-13);g.closePath();g.fill();g.stroke();
+    g.fillStyle='#f5e9ec';g.fillRect(5,-14,13,4);g.restore();}
+
 export class Scoreboard {
   constructor() {
     this.canvas = document.createElement('canvas');
@@ -169,15 +178,16 @@ export class Scoreboard {
       g.font = '900 150px system-ui, sans-serif'; g.fillText(p.points, x, 250);
       // energia: verde -> rosso
       const e = Math.max(0, 1 - (p.dmg || 0) / 100);
-      g.fillStyle = '#2a2f3a'; g.fillRect(x - 200, 338, 400, 20);
-      g.fillStyle = e > 0.5 ? '#3cc46b' : e > 0.25 ? '#f0b429' : '#e5484d'; g.fillRect(x - 200, 338, 400 * e, 20);
+      scoreboardHeart(g,x-217.47,347);scoreboardArm(g,x-218,390);
+      g.fillStyle = '#2a2f3a'; g.fillRect(x - 193, 338, 393, 20);
+      g.fillStyle = e > 0.5 ? '#3cc46b' : e > 0.25 ? '#f0b429' : '#e5484d'; g.fillRect(x - 193, 338, 393 * e, 20);
       // Thin blue bar: available breath, distinct from accumulated damage.
-      g.fillStyle='#202d3b';g.fillRect(x-200,363,400,6);
-      g.fillStyle='#69b8ed';g.fillRect(x-200,363,400*Math.max(0,Math.min(1,(p.stamina??100)/100)),6);
+      g.fillStyle='#202d3b';g.fillRect(x-193,384,393,10);
+      g.fillStyle='#69b8ed';g.fillRect(x-193,384,393*Math.max(0,Math.min(1,(p.stamina??100)/100)),10);
       g.font = '500 28px system-ui, sans-serif'; g.fillStyle = '#c9ced8';
-      g.fillText(tr('stats', { h: p.hits, b: p.blocks, d: p.dodges }), x, 392);
+      g.fillText(tr('stats', { h: p.hits, b: p.blocks, d: p.dodges }), x, 419);
       const extra = [p.kd ? tr('down_times', { n: p.kd, v: tr(p.kd === 1 ? 'once' : 'times') }) : '', p.penalties ? tr('penalties', { n: p.penalties }) : ''].filter(Boolean).join(' · ');
-      if (extra) { g.fillStyle = p.penalties ? '#ffd34d' : '#ff8a8a'; g.fillText(extra, x, 428); }
+      if (extra) { g.fillStyle = p.penalties ? '#ffd34d' : '#ff8a8a'; g.fillText(extra, x, 452); }
     };
     const fl = s.flags || [];
     col(W * 0.27, s.names ? s.names[0] : tr('you'), '#c4161f', s.player, fl[0], false);
