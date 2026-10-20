@@ -1,0 +1,6 @@
+/homeboxing/*
+!/homeboxing/index.html
+!/homeboxing/assets/
+/homeboxing/assets/*
+!/homeboxing/assets/icon-192.png
+!/homeboxing/assets/icon-512.png
