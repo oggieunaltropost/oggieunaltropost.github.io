@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jack Arrow: Medieval Siege</title>
+  <meta name="description" content="Jack Arrow: Medieval Siege, a VR archery game for Meta Quest 3. Defend your tower's flag from the orc siege. / Gioco di tiro con l'arco in VR per Meta Quest 3.">
+  <meta property="og:title" content="Jack Arrow: Medieval Siege">
+  <meta property="og:description" content="VR archery for Meta Quest 3: defend your tower's flag from the orc siege.">
+  <meta property="og:image" content="https://oggieunaltropost.github.io/jackarrow/assets/cover.jpg">
+  <link rel="icon" href="assets/icon-192.png">
+  <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg: #140d08; --fg: #f6ecd6; --red: #8f1d1d; --muted: #c9b99a; --gold: #f0c04a; --line: #3a2a1a; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--fg);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    body { background: radial-gradient(circle at 50% 0%, #3a1c12, var(--bg) 60%) no-repeat; min-height: 100vh; }
+    main { max-width: 760px; margin: 0 auto; padding: 16px 16px 56px; }
+    .cover { display: block; width: 100%; border-radius: 12px; border: 2px solid var(--gold); }
+    h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    h2 { margin: 30px 0 6px; font-family: "MedievalSharp", Georgia, serif; font-weight: 400; font-size: 24px; color: var(--gold); letter-spacing: 0.5px; }
+    p { color: var(--muted); line-height: 1.6; margin: 8px 0; font-size: 16px; }
+    .lead { color: var(--fg); font-size: 19px; text-align: center; margin: 18px 0 4px; }
+    .tag { text-align: center; font-size: 14px; }
+    ul, ol { color: var(--muted); font-size: 16px; line-height: 1.6; padding-left: 22px; margin: 8px 0; }
+    li { margin: 4px 0; }
+    li b, p b { color: var(--fg); }
+    [hidden] { display: none !important; }
+    #langs { display: flex; gap: 10px; justify-content: flex-end; margin-bottom: 12px; }
+    #langs button { padding: 0; width: 50px; height: 34px; border-radius: 6px; border: 3px solid transparent; background: none; cursor: pointer; overflow: hidden; opacity: 0.5; }
+    #langs button.on { border-color: var(--gold); opacity: 1; box-shadow: 0 0 10px rgba(240,192,74,0.6); }
+    #langs svg { display: block; width: 100%; height: 100%; }
+    .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0 0; }
+    .shots img { display: block; width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); }
+    @media (max-width: 520px) { .shots { grid-template-columns: 1fr; } }
+    footer { margin-top: 36px; padding-top: 16px; border-top: 1px solid var(--line); text-align: center; }
+    footer p { font-size: 14px; }
+    a { color: var(--gold); }
+  </style>
+</head>
+<body>
+  <main>
+    <div id="langs">
+      <button data-lang="en" title="English" aria-label="English"><svg viewBox="0 0 60 30"><clipPath id="uk"><path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z"/></clipPath><path d="M0,0 v30 h60 v-30 z" fill="#012169"/><path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/><path d="M0,0 L60,30 M60,0 L0,30" clip-path="url(#uk)" stroke="#C8102E" stroke-width="4"/><path d="M30,0 v30 M0,15 h60" stroke="#fff" stroke-width="10"/><path d="M30,0 v30 M0,15 h60" stroke="#C8102E" stroke-width="6"/></svg></button>
+      <button data-lang="it" title="Italiano" aria-label="Italiano"><svg viewBox="0 0 3 2"><rect width="1" height="2" fill="#009246"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#ce2b37"/></svg></button>
+    </div>
+    <h1>Jack Arrow: Medieval Siege</h1>
+    <img class="cover" src="assets/cover.jpg" width="1600" height="900" alt="Jack Arrow: Medieval Siege">
+
+    <div class="lang-en">
+      <p class="lead">A VR archery game for <b>Meta Quest 3</b>: you stand on top of a tower with a bow, and an army of orcs wants your flag.</p>
+      <p class="tag">Single player · English and Italian · played standing, on the spot</p>
+
+      <h2>How to play</h2>
+      <ol>
+        <li>Bring your free hand to the string and close it (fist, pinch or trigger): an arrow appears.</li>
+        <li>Pull back: the further you draw, the harder and straighter the arrow flies.</li>
+        <li>Open your fingers, or release the trigger, to shoot.</li>
+        <li>Orcs climb the tower and leap for the flag: if they touch it, you lose.</li>
+      </ol>
+      <p>You can play with the <b>controllers</b> or with your <b>bare hands</b>. A head shot takes one arrow, the body two, the limbs three.</p>
+
+      <h2>The siege</h2>
+      <ul>
+        <li><b>10 levels</b>, from the ruined walls to the castle in flames, through dusk, night, rain and snow.</li>
+        <li><b>Two bosses</b>: the giant who tears down the towers, and the ancient dragon.</li>
+        <li><b>Ten kinds of enemies</b>: orcs, archers, brutes, armoured orcs, bomb carriers, goblins, green and blue wizards, eagles and young dragons, plus catapults.</li>
+        <li><b>Endless horde</b>: hold out as long as you can and beat your own record.</li>
+        <li><b>Dragon rider</b>: a bonus mode where you fly on the dragon's back and shoot from above.</li>
+        <li><b>Training</b>: fixed and moving targets, near and far, with no one attacking you.</li>
+      </ul>
+
+      <h2>The hall</h2>
+      <p>Between battles you are in the hall of the castle: choose the level, change bow with the gold you have earned, read your statistics, pick the music by playing the lute, and stroke the cat.</p>
+
+      <div class="shots">
+        <img src="assets/shot6.jpg" width="1280" height="720" loading="lazy" alt="An orc archer taking aim">
+        <img src="assets/shot2.jpg" width="1280" height="720" loading="lazy" alt="An explosion among the orcs at night">
+        <img src="assets/shot3.jpg" width="1280" height="720" loading="lazy" alt="Orcs crossing the courtyard">
+        <img src="assets/shot4.jpg" width="1280" height="720" loading="lazy" alt="The castle in the snow">
+      </div>
+
+      <h2>What you need</h2>
+      <ul>
+        <li>A <b>Meta Quest 3</b> or <b>Quest 3S</b> headset.</li>
+        <li>A little free space around you: you play standing and you do not walk, but you do swing your arms.</li>
+        <li>No account, no internet connection, no advertising and no in-app purchases.</li>
+      </ul>
+
+      <footer>
+        <p><a href="../jackarrow-privacy/?lang=en">Privacy policy</a> · <a href="mailto:oggieunaltrapp@gmail.com">oggieunaltrapp@gmail.com</a></p>
+      </footer>
+    </div>
+
+    <div class="lang-it" hidden>
+      <p class="lead">Un gioco di tiro con l'arco in VR per <b>Meta Quest 3</b>: sei in cima a una torre con un arco, e un esercito di orchi vuole la tua bandiera.</p>
+      <p class="tag">Giocatore singolo · italiano e inglese · si gioca in piedi, sul posto</p>
+
+      <h2>Come si gioca</h2>
+      <ol>
+        <li>Avvicina la mano libera alla corda e chiudila (pugno, pizzico o grilletto): appare la freccia.</li>
+        <li>Tira indietro: più tendi l'arco, più la freccia vola forte e dritta.</li>
+        <li>Apri le dita, o rilascia il grilletto, per scoccare.</li>
+        <li>Gli orchi scalano la torre e saltano sulla bandiera: se la toccano hai perso.</li>
+      </ol>
+      <p>Puoi giocare con i <b>controller</b> oppure a <b>mani nude</b>. Un colpo alla testa vale una freccia, al corpo ne servono due, agli arti tre.</p>
+
+      <h2>L'assedio</h2>
+      <ul>
+        <li><b>10 livelli</b>, dalle mura in rovina al castello in fiamme, passando per tramonto, notte, pioggia e neve.</li>
+        <li><b>Due boss</b>: il gigante che abbatte le torri e il drago antico.</li>
+        <li><b>Dieci tipi di nemici</b>: orchi, arcieri, bruti, corazzati, orchi bomba, goblin, maghi verdi e blu, aquile e draghetti, più le catapulte.</li>
+        <li><b>Orda infinita</b>: resisti il più possibile e batti il tuo record.</li>
+        <li><b>Cavaliere del drago</b>: una modalità bonus in cui voli in groppa al drago e tiri dall'alto.</li>
+        <li><b>Allenamento</b>: bersagli fermi e in movimento, vicini e lontani, senza nessuno che ti attacca.</li>
+      </ul>
+
+      <h2>La sala</h2>
+      <p>Tra una battaglia e l'altra sei nella sala del castello: scegli il livello, cambi arco con l'oro guadagnato, leggi le tue statistiche, scegli la musica suonando il liuto e accarezzi il gatto.</p>
+
+      <div class="shots">
+        <img src="assets/shot6.jpg" width="1280" height="720" loading="lazy" alt="Un orco arciere prende la mira">
+        <img src="assets/shot2.jpg" width="1280" height="720" loading="lazy" alt="Un'esplosione tra gli orchi di notte">
+        <img src="assets/shot3.jpg" width="1280" height="720" loading="lazy" alt="Gli orchi attraversano il cortile">
+        <img src="assets/shot4.jpg" width="1280" height="720" loading="lazy" alt="Il castello nella neve">
+      </div>
+
+      <h2>Cosa serve</h2>
+      <ul>
+        <li>Un visore <b>Meta Quest 3</b> o <b>Quest 3S</b>.</li>
+        <li>Un po' di spazio libero intorno: si gioca in piedi e non si cammina, ma le braccia si muovono.</li>
+        <li>Nessun account, nessuna connessione a internet, niente pubblicità e nessun acquisto dentro il gioco.</li>
+      </ul>
+
+      <footer>
+        <p><a href="../jackarrow-privacy/?lang=it">Informativa sulla privacy</a> · <a href="mailto:oggieunaltrapp@gmail.com">oggieunaltrapp@gmail.com</a></p>
+      </footer>
+    </div>
+  </main>
+<script>
+const chooseLanguage = lang => {
+  document.documentElement.lang = lang;
+  document.querySelectorAll('.lang-it').forEach(el => { el.hidden = lang !== 'it'; });
+  document.querySelectorAll('.lang-en').forEach(el => { el.hidden = lang !== 'en'; });
+  document.querySelectorAll('[data-lang]').forEach(el => { el.classList.toggle('on', el.dataset.lang === lang); });
+};
+document.querySelectorAll('[data-lang]').forEach(el => el.addEventListener('click', () => chooseLanguage(el.dataset.lang)));
+const q = new URLSearchParams(location.search).get('lang');
+chooseLanguage(q === 'it' || q === 'en' ? q : (navigator.language || '').toLowerCase().startsWith('it') ? 'it' : 'en');
+</script>
+</body>
+</html>
