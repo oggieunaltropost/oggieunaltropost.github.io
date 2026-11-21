@@ -17,7 +17,7 @@
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
     body { background: radial-gradient(circle at 50% 0%, #3a1c12, var(--bg) 60%) no-repeat; min-height: 100vh; }
     main { max-width: 760px; margin: 0 auto; padding: 16px 16px 56px; }
-    .cover { display: block; width: 100%; border-radius: 12px; border: 2px solid var(--gold); }
+    .cover { display: block; width: min(1200px, calc(100vw - 32px)); max-width: none; margin-left: 50%; transform: translateX(-50%); height: auto; border-radius: 12px; border: 2px solid var(--gold); }
     h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
     h2 { margin: 30px 0 6px; font-family: "MedievalSharp", Georgia, serif; font-weight: 400; font-size: 24px; color: var(--gold); letter-spacing: 0.5px; }
     p { color: var(--muted); line-height: 1.6; margin: 8px 0; font-size: 16px; }
@@ -46,7 +46,7 @@
       <button data-lang="it" title="Italiano" aria-label="Italiano"><svg viewBox="0 0 3 2"><rect width="1" height="2" fill="#009246"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#ce2b37"/></svg></button>
     </div>
     <h1>Jack Arrow: Medieval Siege</h1>
-    <img class="cover" src="assets/cover.jpg" width="1600" height="900" alt="Jack Arrow: Medieval Siege">
+    <img class="cover" src="assets/hero.jpg" width="2000" height="600" alt="Jack Arrow: Medieval Siege">
 
     <div class="lang-en">
       <p class="lead">A VR archery game for <b>Meta Quest 3</b>: you stand on top of a tower with a bow, and an army of orcs wants your flag.</p>
